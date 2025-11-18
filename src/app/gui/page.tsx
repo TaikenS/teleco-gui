@@ -1,9 +1,19 @@
+"use client"
+
 import Link from "next/link";
+import { useState } from "react";
 import React from "react";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
+import LegacyTelecoVideo from "@/app/gui/_components/LegacyTelecoVideo";
+
+type VideoSourceMode = "local" | "webSender" | "telecoLegacy";
 
 export default function GuiPage(){
+    const [mode, setMode] = useState<VideoSourceMode>("telecoLegacy");
+
+    const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>();
+
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
             { /* Top bar */ }
@@ -12,10 +22,18 @@ export default function GuiPage(){
                     <span className="font-semibold trackiing-tight">
                         Operator
                     </span>
-                    <nav className="ml-auto text-sm">
-                        <Link href="/" className="text-slate-600 hover:text-slate-900">
-                            Home
-                        </Link>
+                    <nav className="ml-auto flex max-w-6xl items-center px-4 py-3">
+                        <span className="text-slate-500">
+                            映像ソース
+                        </span>
+                        <select className="rounded-xl border bg-white px-2 py-1 text-xs"
+                                value={mode}
+                                onChange={(e) => setMode(e.target.value as VideoSourceMode)}
+                        >
+                            <option value="telecoLegacy">teleco/rover</option>
+                            <option value="webSender">WebRTC sender (/sender)</option>
+                            <option value="local">このPCのカメラ</option>
+                        </select>
                     </nav>
                 </div>
             </header>
@@ -42,23 +60,20 @@ export default function GuiPage(){
                             <button className="rounded-xl bg-slate-100 px-4py-2 text-sm hover:bg-slate-200">テスト</button>
                         </div>
                     </Card>
-
-                    <Card title="Scene Change" subtitle="preset">
-                        <div className="grid grid-cols-2 gap-3">
-                            {["標準", "会議", "講義", "発表"].map((name) => (
-                                <button key={name} className="rounded-2xl border p-3 text-left hover:shadow-sm">
-                                    <div className="font-medium">{name}</div>
-                                    <div className="text-xs text-slate-500">Preview</div>
-                                </button>
-                            ))}
-                        </div>
-                    </Card>
                 </section>
 
                 { /* Right: preview & logs */ }
                 <section className="lg:col-span-7 space-y-4">
-                    <Card title="Preview" subtitle="Stream Output">
-                        <RemoteVideo roomId="room1" />
+                    <Card title="Preview" subtitle={subtitleForMode(mode)}>
+                        {mode === "local" && (
+                            <VideoPreview videoDeviceId={selectedVideoId} />
+                        )}
+                        {mode === "webSender" && (
+                            <RemoteVideo roomId="room1" />
+                        )}
+                        {mode === "telecoLegacy" && (
+                            <LegacyTelecoVideo telecoId="teleco001"/>
+                        )}
                     </Card>
 
                     <Card title="Logs" subtitle="New Event">
@@ -79,27 +94,21 @@ export default function GuiPage(){
     );
 }
 
-function Card({
-                  title,
-                  subtitle,
-                  children
-} : {
-    title: string,
-    subtitle?: string;
-    children: React.ReactNode
-}) {
+function Card(props: {title: string;
+                      subtitle?: string;
+children: React.ReactNode}) {
     return (
         <section className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="mb-3">
                 <h2 className="text-lg font-semibold leading-none tracking-tight">
-                    {title}
+                    {props.title}
                 </h2>
-                {subtitle &&
+                {props.subtitle &&
                     <p className="text-slate-500 text-sm mt-0.5">
-                        {subtitle}
+                        {props.subtitle}
                     </p>}
             </div>
-            {children}
+            {props.children}
         </section>
     )
 }
@@ -111,6 +120,17 @@ function Field({ label, children }: { label: string, children: React.ReactNode})
             <div className="grow">{children}</div>
         </div>
     );
+}
+
+function subtitleForMode(mode: VideoSourceMode): string {
+    switch (mode) {
+        case "local":
+            return "このPCのカメラ映像 (getUserMedia)";
+        case "webSender":
+            return "別PCの /senderからの映像(WebRTC+WS)";
+        case "telecoLegacy":
+            return "teleco/rover からの映像"
+    }
 }
 
 function ConfigViewer() {
