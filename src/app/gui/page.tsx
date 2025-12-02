@@ -6,12 +6,12 @@ import React from "react";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
 import LegacyTelecoVideo from "@/app/gui/_components/LegacyTelecoVideo";
+import { fetchConfiguration, type AppConfiguration } from "@/lib/api";
 
 type VideoSourceMode = "local" | "webSender" | "telecoLegacy";
 
 export default function GuiPage(){
-    const [mode, setMode] = useState<VideoSourceMode>("telecoLegacy");
-
+    const [mode, setMode] = useState<VideoSourceMode>("webSender");
     const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>();
 
     return (
@@ -20,9 +20,16 @@ export default function GuiPage(){
             <header className="sticky top-0 border-b bg-white/90 backdrop-blur">
                 <div className="mx-auto max-w-6xl px-4 py-3 flex items-center">
                     <span className="font-semibold trackiing-tight">
-                        Operator
+                        Teleco Operator
                     </span>
                     <nav className="ml-auto flex max-w-6xl items-center px-4 py-3">
+                        <Link
+                            href="/"
+                            className="text-slate-600 hover:text-slate-900"
+                        >
+                            Home
+                        </Link>
+
                         <span className="text-slate-500">
                             映像ソース
                         </span>

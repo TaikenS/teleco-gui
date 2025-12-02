@@ -133,7 +133,7 @@ export default function VideoPreview({ videoDeviceId }: Props) {
             if (animationId) cancelAnimationFrame(animationId);
         };
         // stream が変わったら再計測
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+         
     }, [stream]);
 
     // カメラ選択が変わったら、自動で再起動（起動中だけ）

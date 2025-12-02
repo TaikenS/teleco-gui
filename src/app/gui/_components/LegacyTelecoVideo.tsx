@@ -22,14 +22,15 @@ export default function LegacyTelecoVideo({ telecoId }: { telecoId: string }) {
     useEffect(() => {
         if (!ready) return;
         if (!window.LegacyTeleco) {
-            setError("Legacy Teleco script not loaded");
+            console.error("Legacy Teleco script not loaded");
+
             return;
         }
 
         try {
             window.LegacyTeleco.init("wss://mittsu-talk.jp/mosmos-test2/ws/", {});
         } catch (e) {
-            setError("Failed to initialize Legacy Teleco: " + e);
+            console.error("Failed to initialize Legacy Teleco: " + e);
         }
     }, [ready]);
 
@@ -44,7 +45,6 @@ export default function LegacyTelecoVideo({ telecoId }: { telecoId: string }) {
             window.LegacyTeleco.startVideo(telecoId, video);
         }catch(e){
             console.error(e);
-            setError("Failed to start video: " + e);
         }
 
         return () => {
