@@ -5,13 +5,13 @@ import { useState } from "react";
 import React from "react";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
-import LegacyTelecoVideo from "@/app/gui/_components/LegacyTelecoVideo";
+import {LegacyTelecoVideoTs} from "@/app/gui/_components/LegacyTelecoVideoTs";
 import { fetchConfiguration, type AppConfiguration } from "@/lib/api";
 
 type VideoSourceMode = "local" | "webSender" | "telecoLegacy";
 
 export default function GuiPage(){
-    const [mode, setMode] = useState<VideoSourceMode>("webSender");
+    const [mode, setMode] = useState<VideoSourceMode>("local");
     const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>();
 
     return (
@@ -79,7 +79,7 @@ export default function GuiPage(){
                             <RemoteVideo roomId="room1" />
                         )}
                         {mode === "telecoLegacy" && (
-                            <LegacyTelecoVideo telecoId="teleco001"/>
+                            <LegacyTelecoVideoTs telecoId="rover003"/>
                         )}
                     </Card>
 
