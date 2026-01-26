@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-const SIGNALING_URL = "ws://localhost:8080"; // 別PCから使うときはIPに変える
+import {getSignalingUrl} from "@/siganling";
 
 const STUN_SERVERS: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -42,7 +41,7 @@ export default function SenderPage() {
     const connectSignaling = () => {
         if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-        const ws = new WebSocket(SIGNALING_URL);
+        const ws = new WebSocket(getSignalingUrl());
         wsRef.current = ws;
 
         ws.onopen = () => {

@@ -1,6 +1,8 @@
-const WebSocket = require("ws");
+// server.js (ESM)
 
-const wss = new WebSocket.Server({ port: 8080 });
+import WebSocket, { WebSocketServer } from "ws";
+
+const wss = new WebSocketServer({ port: 8080 });
 
 /**
  * rooms:
@@ -13,8 +15,8 @@ wss.on("connection", (ws) => {
         let data;
         try {
             data = JSON.parse(message.toString());
-        } catch (e) {
-            console.error("Invalid JSON:", message);
+        } catch {
+            console.error("Invalid JSON:", message.toString());
             return;
         }
 
@@ -25,8 +27,10 @@ wss.on("connection", (ws) => {
         if (type === "join") {
             ws.roomId = roomId;
             ws.role = role;
+
             if (!rooms.has(roomId)) rooms.set(roomId, []);
             rooms.get(roomId).push(ws);
+
             console.log(`[${role}] joined room ${roomId}`);
             return;
         }
@@ -38,8 +42,8 @@ wss.on("connection", (ws) => {
                 client.send(
                     JSON.stringify({
                         type,
-                        form: role,
-                        payload
+                        from: role, // クライアント側が "form" 前提なら "form" に戻してください
+                        payload,
                     })
                 );
             }
@@ -49,12 +53,16 @@ wss.on("connection", (ws) => {
     ws.on("close", () => {
         const roomId = ws.roomId;
         if (!roomId) return;
-        const members = rooms.get(ws.roomId) || [];
-        rooms.set(
-            roomId,
-            members.filter((m) => m !== ws)
-        );
+
+        const members = rooms.get(roomId) || [];
+        const updated = members.filter((m) => m !== ws);
+
+        if (updated.length === 0) rooms.delete(roomId);
+        else rooms.set(roomId, updated);
     });
 });
 
 console.log("Signaling server started on ws://localhost:8080");
+
+// 必要なら ESM でエクスポート
+export { wss, rooms };

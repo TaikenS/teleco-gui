@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-
-const SIGNALING_URL = "ws://localhost:8080"; // 本番時はIPに変更
+import {getSignalingUrl} from "@/siganling";
 
 const STUN_SERVERS: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
@@ -26,7 +25,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
 
     // シグナリング接続 + WebRTC 初期化
     useEffect(() => {
-        const ws = new WebSocket(SIGNALING_URL);
+        const ws = new WebSocket(getSignalingUrl());
         wsRef.current = ws;
 
         const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });

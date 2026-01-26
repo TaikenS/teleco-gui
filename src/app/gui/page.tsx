@@ -5,8 +5,8 @@ import { useState } from "react";
 import React from "react";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
-import {LegacyTelecoVideoTs} from "@/app/gui/_components/LegacyTelecoVideoTs";
-import { fetchConfiguration, type AppConfiguration } from "@/lib/api";
+import { LegacyTelecoVideoTs } from "@/app/gui/_components/LegacyTelecoVideoTs";
+import AudioSender from "@/app/gui/_components/AudioSender";
 
 type VideoSourceMode = "local" | "webSender" | "telecoLegacy";
 
@@ -50,22 +50,7 @@ export default function GuiPage(){
                 {/* Left: controls */}
                 <section className="lg:col-span-5 space-y-4">
                     <Card title="Device Setting" subtitle="Camera/Microphone/Share Screen">
-                        <Field label="Camera">
-                            <select className="w-full rounded-xl border px-3 py-2 text-sm bg-white">
-                                <option>Front Camera</option>
-                                <option>Room Camera</option>
-                            </select>
-                        </Field>
-                        <Field label="Microphone">
-                            <select className="w-full rounded-xl border px-3 py-2 text-sm bg-white">
-                                <option>Built-in Mic</option>
-                                <option>USB Mic</option>
-                            </select>
-                        </Field>
-                        <div className="pt-2 flex gap-2">
-                            <button className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:gb-slate-700">接続</button>
-                            <button className="rounded-xl bg-slate-100 px-4py-2 text-sm hover:bg-slate-200">テスト</button>
-                        </div>
+                        <AudioSender />
                     </Card>
                 </section>
 
@@ -102,8 +87,8 @@ export default function GuiPage(){
 }
 
 function Card(props: {title: string;
-                      subtitle?: string;
-children: React.ReactNode}) {
+    subtitle?: string;
+    children: React.ReactNode}) {
     return (
         <section className="rounded-2xl border bg-white p-4 shadow-sm">
             <div className="mb-3">

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="ja">
+<head>
+    <meta charset="utf-8" />
+    <title>WebRTC Audio Receiver (WebSocket Signaling)</title>
+    <style>
+        body { font-family: sans-serif; padding: 16px; }
+        button { margin-right: 8px; margin-top: 8px; }
+        input { width: 420px; }
+        .hint { color: #555; font-size: 12px; }
+        pre { background: #f6f6f6; padding: 8px; overflow: auto; }
+    </style>
+</head>
+<body>
+<h2>WebRTC音声（WebSocketシグナリング）— 受信側（label方式）</h2>
+
+<div>
+    <div>WS URL:</div>
+    <input id="wsUrl" />
+    <div class="hint">
+        例: <code>ws://localhost:8080/?room=test</code>
+    </div>
+</div>
+
+<div>
+    <button id="connect">Connect WS</button>
+    <button id="disconnect" disabled>Disconnect</button>
+    <button id="hangup" disabled>Hangup</button>
+</div>
+
+<p>状態: <span id="status">idle</span></p>
+
+<button id="enableAudio">Enable Audio</button>
+
+<h3>Remote Audio</h3>
+<audio id="remoteAudio" autoplay controls></audio>
+
+<h3>Log</h3>
+<pre id="log"></pre>
+
+<script>
+    const $ = (id) => document.getElementById(id);
+    const wsUrlInput = $("wsUrl");
+    const connectBtn = $("connect");
+    const disconnectBtn = $("disconnect");
+    const hangupBtn = $("hangup");
+    const statusEl = $("status");
+    const remoteAudio = $("remoteAudio");
+    const logEl = $("log");
+
+    // room は URL から拾う（http://localhost:8080/client.html?room=test）
+    const room = new URL(location.href).searchParams.get("room") || "default";
+    wsUrlInput.value = `ws://${location.host}/?room=${encodeURIComponent(room)}`;
+
+    let ws = null;
+    let pc = null;
+
+    // 送信側（teleco-gui）から来た id_call_token を保持（ICE送出時に付ける）
+    let currentCallToken = null;
+    let currentDestination = null;
+
+    function setStatus(s) { statusEl.textContent = s; }
+
+    function log(...args) {
+        const line = args.map(a => {
+            try { return typeof a === "string" ? a : JSON.stringify(a); }
+            catch { return String(a); }
+        }).join(" ");
+        logEl.textContent += line + "\n";
+        logEl.scrollTop = logEl.scrollHeight;
+        console.log(...args);
+    }
+
+    function send(msg) {
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        ws.send(JSON.stringify(msg));
+        log("SIGNAL OUT:", msg);
+    }
+
+    async function ensurePC() {
+        if (pc) return;
+
+        pc = new RTCPeerConnection({
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+        });
+
+        pc.onicecandidate = (e) => {
+            if (!e.candidate) return;
+
+            // 受信側から出たICEも送っておく（サーバはブロードキャストなので相手に届く）
+            // teleco-gui が candidate を受けられるなら有効。
+            send({
+                label: "audioIceCandidaterequest",
+                destination: currentDestination ?? "",
+                id_call_token: currentCallToken ?? "",
+                candidate: e.candidate,
+            });
+        };
+
+        pc.ontrack = (e) => {
+            const ms = e.streams?.[0] ?? new MediaStream([e.track]);
+            remoteAudio.srcObject = ms;
+
+            // ★ ここが重要：鳴らなければ理由が Console に出る
+            remoteAudio.play().catch(err => console.error("play blocked:", err));
+
+            console.log("track muted/enabled/state:", {
+                muted: e.track.muted,
+                enabled: e.track.enabled,
+                readyState: e.track.readyState,
+            });
+        };
+
+
+        pc.onconnectionstatechange = () => {
+            log("pc connectionState:", pc.connectionState);
+            setStatus(`pc: ${pc.connectionState}`);
+        };
+
+        pc.oniceconnectionstatechange = () => {
+            log("pc iceConnectionState:", pc.iceConnectionState);
+        };
+    }
+
+    async function handleSignal(msg) {
+        // Offer（teleco-gui -> client）
+        if (msg.label === "callAudioRequest") {
+            // 既存セッションがあれば閉じる（2回目のOffer対策）
+            if (pc) { pc.close(); pc = null; }
+
+            currentCallToken = msg.id_call_token ?? null;
+            currentDestination = msg.destination ?? null;
+
+            await ensurePC();
+
+            await pc.setRemoteDescription(msg.sdp);
+
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            send({
+                label: "callAudioAnswer",
+                destination: msg.destination,
+                id_call_token: msg.id_call_token,
+                sdp: answer
+            });
+
+            return;
+        }
+
+
+        // ICE Candidate（teleco-gui -> client）
+        if (msg.label === "audioIceCandidaterequest") {
+            await ensurePC();
+
+            // token/destination をまだ知らないケースに備えて保持
+            if (!currentCallToken && msg.id_call_token) currentCallToken = msg.id_call_token;
+            if (!currentDestination && msg.destination) currentDestination = msg.destination;
+
+            try {
+                await pc.addIceCandidate(msg.candidate);
+            } catch (e) {
+                log("ERROR addIceCandidate(request):", e?.message || e);
+            }
+
+            return;
+        }
+
+        // ICE Candidate Response（teleco-gui -> client）
+        if (msg.label === "audioIceCandidateresponse") {
+            await ensurePC();
+
+            if (!currentCallToken && msg.id_call_token) currentCallToken = msg.id_call_token;
+            if (!currentDestination && msg.destination) currentDestination = msg.destination;
+
+            try {
+                await pc.addIceCandidate(msg.candidate);
+            } catch (e) {
+                log("ERROR addIceCandidate(response):", e?.message || e);
+            }
+            return;
+        }
+
+        // それ以外は無視（ログだけ）
+        log("IGNORED SIGNAL:", msg);
+    }
+
+    function cleanup() {
+        if (remoteAudio.srcObject) remoteAudio.srcObject = null;
+
+        if (pc) {
+            try { pc.close(); } catch {}
+            pc = null;
+        }
+
+        currentCallToken = null;
+        currentDestination = null;
+
+        hangupBtn.disabled = true;
+        setStatus(ws && ws.readyState === WebSocket.OPEN ? "ws connected" : "idle");
+    }
+
+    connectBtn.onclick = () => {
+        setStatus("ws connecting...");
+        logEl.textContent = "";
+
+        ws = new WebSocket(wsUrlInput.value);
+
+        ws.binaryType = "arraybuffer";
+
+        ws.onopen = () => {
+            setStatus("ws connected");
+            log("WS OPEN");
+            connectBtn.disabled = true;
+            disconnectBtn.disabled = false;
+        };
+
+        ws.onmessage = async (ev) => {
+            try {
+                let text;
+
+                if (typeof ev.data === "string") {
+                    text = ev.data;
+                } else if (ev.data instanceof ArrayBuffer) {
+                    text = new TextDecoder().decode(ev.data);
+                } else if (ev.data instanceof Blob) {
+                    text = await ev.data.text();
+                } else {
+                    console.error("Unknown WS data type:", typeof ev.data, ev.data);
+                    return;
+                }
+
+                const msg = JSON.parse(text);
+                console.log("SIGNAL IN:", msg);
+                await handleSignal(msg);
+            } catch (e) {
+                console.error("ERROR JSON parse:", e);
+            }
+        };
+
+        ws.onclose = () => {
+            log("WS CLOSE");
+            setStatus("ws closed");
+            connectBtn.disabled = false;
+            disconnectBtn.disabled = true;
+            cleanup();
+        };
+
+        ws.onerror = () => {
+            log("WS ERROR");
+            setStatus("ws error");
+        };
+    };
+
+    disconnectBtn.onclick = () => {
+        if (ws) {
+            ws.close();
+            ws = null;
+        }
+    };
+
+    hangupBtn.onclick = () => {
+        cleanup();
+    };
+
+    $("enableAudio").onclick = async () => {
+        try {
+            // ユーザー操作として再生を許可させる
+            await remoteAudio.play();
+            log("Audio enabled by user gesture");
+        } catch (e) {
+            log("enableAudio failed:", e?.message || e);
+        }
+    };
+
+</script>
+</body>
+</html>

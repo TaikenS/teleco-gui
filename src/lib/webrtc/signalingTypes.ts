@@ -14,6 +14,11 @@ export type SignalingLabel =
     | "callVideoRequest"          // GUI -> teleco: 映像ちょうだい
     | "callVideoAnswer"           // teleco -> GUI: これが answer だよ
     | "videoIceCandidateresponse" // 双方向: ICE candidate
+    // ---- Audio ----
+    | "callAudioRequest"          // GUI -> teleco: 音声通話開始 (offer)
+    | "callAudioAnswer"           // teleco -> GUI: answer
+    | "audioIceCandidaterequest"  // GUI -> teleco: ICE candidate
+    | "audioIceCandidateresponse" // teleco -> GUI: ICE candidate
 
 // 共通メッセージフォーマット
 export interface BaseSignalingMessage {
@@ -40,11 +45,36 @@ export interface VideoIceCandidateMessage extends BaseSignalingMessage {
     candidate: RTCIceCandidateInit;
 }
 
+// ---- Audio messages ----
+export interface CallAudioRequestMessage extends BaseSignalingMessage {
+    label: "callAudioRequest";
+    sdp: SdpDescription;
+}
+
+export interface CallAudioAnswerMessage extends BaseSignalingMessage {
+    label: "callAudioAnswer";
+    sdp: SdpDescription;
+}
+
+export interface AudioIceCandidateRequestMessage extends BaseSignalingMessage {
+    label: "audioIceCandidaterequest";
+    candidate: RTCIceCandidateInit;
+}
+
+export interface AudioIceCandidateResponseMessage extends BaseSignalingMessage {
+    label: "audioIceCandidateresponse";
+    candidate: RTCIceCandidateInit;
+}
+
 // 全部まとめた Union
 export type SignalingMessage =
     | CallVideoRequestMessage
     | CallVideoAnswerMessage
-    | VideoIceCandidateMessage;
+    | VideoIceCandidateMessage
+    | CallAudioRequestMessage
+    | CallAudioAnswerMessage
+    | AudioIceCandidateRequestMessage
+    | AudioIceCandidateResponseMessage;
 
 export function generateCallToken(): string {
     return Math.random().toString(36).slice(2);
