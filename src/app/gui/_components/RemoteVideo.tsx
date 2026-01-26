@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {getSignalingUrl} from "@/siganling";
+import {getSignalingUrl} from "@/lib/siganling";
 
 const STUN_SERVERS: RTCIceServer[] = [
     { urls: "stun:stun.l.google.com:19302" },
