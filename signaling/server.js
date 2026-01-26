@@ -60,8 +60,8 @@ wss.on("connection", (ws, req) => {
     });
 });
 
-server.listen(8080, () => {
+server.listen(8081, () => {
     console.log("Signaling server running:");
-    console.log("  http://localhost:8080/client.html?room=test");
-    console.log("  ws://localhost:8080/?room=test");
+    console.log("  http://localhost:8081/client.html?room=test");
+    console.log("  ws://localhost:8081/?room=test");
 });
