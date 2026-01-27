@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
+import { BrowserMqttClientWrapper, getBrowserMqttConfigFromEnv } from "@/lib/mqtt/browserMqttClient";
+import { startAudioMotionPublisher, type MotionPublisherHandle } from "@/lib/audio/motionPublisher";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 type MicOption = { deviceId: string; label: string };
@@ -11,12 +13,16 @@ export default function AudioSender() {
     const wsRef = useRef<WebSocket | null>(null);
     const callIdRef = useRef<string | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const mqttRef = useRef<BrowserMqttClientWrapper | null>(null);
+    const motionRef = useRef<MotionPublisherHandle | null>(null);
 
-    const [wsUrl, setWsUrl] = useState<string>("ws://localhost:8000/command");
-    const [destination, setDestination] = useState<string>("rover003");
+
+    const [wsUrl, setWsUrl] = useState<string>("ws://localhost:8080/?room=test");
+    const [destination, setDestination] = useState<string>("teleco001");
     const [mics, setMics] = useState<MicOption[]>([]);
     const [selectedMicId, setSelectedMicId] = useState<string>("");
     const [wsStatus, setWsStatus] = useState<string>("未接続");
+    const [mqttStatus, setMqttStatus] = useState<string>("未接続");
     const [callStatus, setCallStatus] = useState<string>("停止");
     const [error, setError] = useState<string | null>(null);
 
@@ -126,6 +132,38 @@ export default function AudioSender() {
                 return;
             }
 
+
+// --- Motion (lip-sync / gesture) -> MQTT ---
+// Required env vars:
+//   NEXT_PUBLIC_MQTT_URL, NEXT_PUBLIC_MQTT_PREFIX, NEXT_PUBLIC_MQTT_ROOM
+// Optional:
+//   NEXT_PUBLIC_MQTT_USERNAME, NEXT_PUBLIC_MQTT_PASSWORD, NEXT_PUBLIC_MQTT_CLIENT_ID
+            const mqttCfg = getBrowserMqttConfigFromEnv();
+            if (mqttCfg) {
+                try {
+                    mqttRef.current?.end(true);
+                    mqttRef.current = new BrowserMqttClientWrapper(mqttCfg);
+                    setMqttStatus("接続中…");
+                    mqttRef.current.onConnect(() => setMqttStatus("接続済み"));
+                    mqttRef.current.onError((e) => {
+                        console.error(e);
+                        setMqttStatus("エラー");
+                    });
+
+                    // start publishing motion derived from mic stream
+                    motionRef.current?.stop();
+                    motionRef.current = startAudioMotionPublisher({
+                        stream,
+                        targetId: destination,
+                        mqtt: mqttRef.current,
+                    });
+                } catch (e) {
+                    console.error(e);
+                    setMqttStatus("エラー");
+                }
+            } else {
+                setMqttStatus("未設定(NEXT_PUBLIC_MQTT_*)");
+            }
             setCallStatus("offer送信中");
             const sendFn = (msg: SignalingMessage) => {
                 wsRef.current?.send(JSON.stringify(msg));
@@ -145,6 +183,12 @@ export default function AudioSender() {
     };
 
     const stopSending = () => {
+        /* Motion publishing stop */
+        motionRef.current?.stop();
+        motionRef.current = null;
+        mqttRef.current?.end(true);
+        mqttRef.current = null;
+        setMqttStatus("切断");
         const callId = callIdRef.current;
         if (callId) {
             manager.closeCall(callId);
@@ -235,6 +279,7 @@ export default function AudioSender() {
 
             <div className="text-xs text-slate-600 space-y-1">
                 <div>WebSocket: {wsStatus}</div>
+                <div>MQTT: {mqttStatus}</div>
                 <div>Audio Send: {callStatus}</div>
             </div>
 
