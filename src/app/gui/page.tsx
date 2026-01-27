@@ -1,18 +1,18 @@
 "use client"
 
-import Link from "next/link";
 import { useState } from "react";
 import React from "react";
-import VideoPreview from "@/app/gui/_components/VideoPreview";
-import RemoteVideo from "@/app/gui/_components/RemoteVideo";
-import { LegacyTelecoVideoTs } from "@/app/gui/_components/LegacyTelecoVideoTs";
+import Link from "next/link";
 import AudioSender from "@/app/gui/_components/AudioSender";
+import { LegacyTelecoVideoTs } from "@/app/gui/_components/LegacyTelecoVideoTs";
+import RemoteVideo from "@/app/gui/_components/RemoteVideo";
+import VideoPreview from "@/app/gui/_components/VideoPreview";
 
 type VideoSourceMode = "local" | "webSender" | "telecoLegacy";
 
 export default function GuiPage(){
     const [mode, setMode] = useState<VideoSourceMode>("local");
-    const [selectedVideoId, setSelectedVideoId] = useState<string | undefined>();
+    const [selectedVideoId] = useState<string | undefined>();
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -104,16 +104,6 @@ function Card(props: {title: string;
         </section>
     )
 }
-
-function Field({ label, children }: { label: string, children: React.ReactNode}) {
-    return (
-        <div className="flex items-center gap-3 py-2">
-            <div className="w-20 shrink-0 text-sm text-slate-500">{label}</div>
-            <div className="grow">{children}</div>
-        </div>
-    );
-}
-
 function subtitleForMode(mode: VideoSourceMode): string {
     switch (mode) {
         case "local":
@@ -123,15 +113,4 @@ function subtitleForMode(mode: VideoSourceMode): string {
         case "telecoLegacy":
             return "teleco/rover からの映像"
     }
-}
-
-function ConfigViewer() {
-    // Client Component (SSR不要)
-    // ここでは簡易実装 (fetchを直接使用)
-    // 本格実装は src/lib/api.tsをimportしてuseEffect/useStateでOK
-    return (
-        <pre className="rounded-xl bg-slate-100 p-3 text-xs">
-            {`{"version": "0.1", "features": ["devicePicker", "preview", "logging"]}`}
-        </pre>
-    );
 }

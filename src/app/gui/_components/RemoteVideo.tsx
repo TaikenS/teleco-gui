@@ -69,6 +69,10 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
 
         ws.onmessage = async (event) => {
             const msg = JSON.parse(event.data);
+            if (!msg) {
+                logLine("不正なシグナリングメッセージを無視しました")
+                return;
+            }
             if (msg.type === "offer") {
                 logLine("sender から offer 受信");
                 const desc = new RTCSessionDescription(msg.payload);
