@@ -4,13 +4,13 @@ import {
   type VideoIceCandidateMessage,
   type SignalingMessage,
   generateCallToken,
-  type DestinationId
-} from './signalingTypes';
+  type DestinationId,
+} from "./signalingTypes";
 
-type SendFunction = (msg: SignalingMessage) => void
+type SendFunction = (msg: SignalingMessage) => void;
 
 export interface VideoCallOptions {
-  rtcConfig?: RTCConfiguration
+  rtcConfig?: RTCConfiguration;
 }
 
 /**
@@ -19,14 +19,14 @@ export interface VideoCallOptions {
  * - handleIncomingMessage: teleco からの answer / ICE を処理する
  */
 export class VideoCallManager {
-  private peers = new Map<string, RTCPeerConnection>()
-  private streams = new Map<string, MediaStream>()
-  private rtcConfig: RTCConfiguration
+  private peers = new Map<string, RTCPeerConnection>();
+  private streams = new Map<string, MediaStream>();
+  private rtcConfig: RTCConfiguration;
 
   constructor(options: VideoCallOptions = {}) {
     this.rtcConfig = options.rtcConfig ?? {
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    }
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+    };
   }
 
   /**
@@ -41,61 +41,61 @@ export class VideoCallManager {
     track: MediaStreamTrack,
     destination: DestinationId,
     sendFn: SendFunction,
-    onRemoteStream: (stream: MediaStream) => void
+    onRemoteStream: (stream: MediaStream) => void,
   ): Promise<string> {
-    const id = generateCallToken()
-    const pc = new RTCPeerConnection(this.rtcConfig)
-    this.peers.set(id, pc)
+    const id = generateCallToken();
+    const pc = new RTCPeerConnection(this.rtcConfig);
+    this.peers.set(id, pc);
 
     // ダミーの映像トラックを乗せる（昔の devices.get_video_track()）
-    pc.addTrack(track)
+    pc.addTrack(track);
 
     // リモート映像を受け取る
-    pc.ontrack = event => {
-      let stream = this.streams.get(id)
+    pc.ontrack = (event) => {
+      let stream = this.streams.get(id);
       if (!stream) {
-        stream = event.streams[0] ?? new MediaStream()
-        this.streams.set(id, stream)
+        stream = event.streams[0] ?? new MediaStream();
+        this.streams.set(id, stream);
       }
 
       if (event.streams[0]) {
-        stream = event.streams[0]
-        this.streams.set(id, stream)
+        stream = event.streams[0];
+        this.streams.set(id, stream);
       } else {
-        stream.addTrack(event.track)
+        stream.addTrack(event.track);
       }
 
-      onRemoteStream(stream)
-    }
+      onRemoteStream(stream);
+    };
 
-    pc.onicecandidate = ev => {
+    pc.onicecandidate = (ev) => {
       if (!ev.candidate) {
-        return
+        return;
       }
       const msg: VideoIceCandidateMessage = {
-        label: 'videoIceCandidateresponse',
+        label: "videoIceCandidateresponse",
         destination,
         id_call_token: id,
-        candidate: ev.candidate.toJSON()
-      }
-      sendFn(msg)
-    }
+        candidate: ev.candidate.toJSON(),
+      };
+      sendFn(msg);
+    };
 
-    const offer = await pc.createOffer()
-    await pc.setLocalDescription(offer)
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
     const msg: CallVideoRequestMessage = {
-      label: 'callVideoRequest',
+      label: "callVideoRequest",
       destination,
       id_call_token: id,
       sdp: {
         type: offer.type,
-        sdp: offer.sdp ?? ''
-      }
-    }
-    sendFn(msg)
+        sdp: offer.sdp ?? "",
+      },
+    };
+    sendFn(msg);
 
-    return id
+    return id;
   }
 
   /**
@@ -104,19 +104,19 @@ export class VideoCallManager {
    * @param msg MQTT 経由で受け取った SignalingMessage
    */
   async handleIncomingMessage(msg: SignalingMessage): Promise<void> {
-    const pc = this.peers.get(msg.id_call_token)
+    const pc = this.peers.get(msg.id_call_token);
     if (!pc) {
-      return
+      return;
     }
 
-    if (msg.label === 'callVideoAnswer') {
-      const answer = new RTCSessionDescription(msg.sdp)
-      await pc.setRemoteDescription(answer)
+    if (msg.label === "callVideoAnswer") {
+      const answer = new RTCSessionDescription(msg.sdp);
+      await pc.setRemoteDescription(answer);
     }
 
-    if (msg.label === 'videoIceCandidateresponse') {
-      const candidate = new RTCIceCandidate(msg.candidate)
-      await pc.addIceCandidate(candidate)
+    if (msg.label === "videoIceCandidateresponse") {
+      const candidate = new RTCIceCandidate(msg.candidate);
+      await pc.addIceCandidate(candidate);
     }
   }
 
@@ -124,15 +124,15 @@ export class VideoCallManager {
    * 接続終了（GUI 側から通話を切る）
    */
   closeCall(id: string) {
-    const pc = this.peers.get(id)
+    const pc = this.peers.get(id);
     if (pc) {
-      pc.close()
-      this.peers.delete(id)
+      pc.close();
+      this.peers.delete(id);
     }
-    const stream = this.streams.get(id)
+    const stream = this.streams.get(id);
     if (stream) {
-      stream.getTracks().forEach(t => t.stop())
-      this.streams.delete(id)
+      stream.getTracks().forEach((t) => t.stop());
+      this.streams.delete(id);
     }
   }
 }

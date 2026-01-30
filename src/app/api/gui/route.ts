@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server'
+import { NextResponse } from "next/server";
 
 export async function GET() {
-  return NextResponse.json({ ok: true, message: 'GUI placeholder!' });
+  return NextResponse.json({ ok: true, message: "GUI placeholder!" });
 }

@@ -28,7 +28,7 @@ module.exports = {
           "sibling",
           "index",
           "object",
-          "type"
+          "type",
         ],
         pathGroups: [
           {

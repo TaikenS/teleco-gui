@@ -1,289 +1,550 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { startAudioMotionPublisher, type MotionPublisherHandle } from "@/lib/audio/motionPublisher";
-import { BrowserMqttClientWrapper, getBrowserMqttConfigFromEnv } from "@/lib/mqtt/browserMqttClient";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 type MicOption = { deviceId: string; label: string };
 
+function clamp01(v: number) {
+  if (v < 0) return 0;
+  if (v > 1) return 1;
+  return v;
+}
+
 export default function AudioSender() {
-    const manager = useMemo(() => new AudioCallManager(), []);
-    const wsRef = useRef<WebSocket | null>(null);
-    const callIdRef = useRef<string | null>(null);
-    const streamRef = useRef<MediaStream | null>(null);
-    const mqttRef = useRef<BrowserMqttClientWrapper | null>(null);
-    const motionRef = useRef<MotionPublisherHandle | null>(null);
+  const manager = useMemo(() => new AudioCallManager(), []);
 
+  // ---- WS (分離) ----
+  // 1) WebRTCシグナリング用（roomサーバ）
+  const signalWsRef = useRef<WebSocket | null>(null);
+  // 2) ロボ制御コマンド用（teleco-main /command）
+  const commandWsRef = useRef<WebSocket | null>(null);
 
-    const [wsUrl, setWsUrl] = useState<string>("ws://localhost:8080/?room=test");
-    const [destination, setDestination] = useState<string>("teleco001");
-    const [mics, setMics] = useState<MicOption[]>([]);
-    const [selectedMicId, setSelectedMicId] = useState<string>("");
-    const [wsStatus, setWsStatus] = useState<string>("未接続");
-    const [mqttStatus, setMqttStatus] = useState<string>("未接続");
-    const [callStatus, setCallStatus] = useState<string>("停止");
-    const [error, setError] = useState<string | null>(null);
+  // WebRTC通話状態
+  const callIdRef = useRef<string | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-    const appendError = (msg: string) => setError(msg);
+  // Lipsync（RMS）用
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastSendMsRef = useRef<number>(0);
 
-    // マイク一覧を更新（権限未許可だと label が空のことがあります）
-    const refreshDevices = async () => {
+  // --- UI state ---
+  const [signalWsUrl, setSignalWsUrl] = useState<string>(
+      "ws://localhost:8080/?room=test"
+  );
+  const [commandWsUrl, setCommandWsUrl] = useState<string>(
+      "ws://localhost:11920/command"
+  );
+
+  // WebRTCのdestination（teleco側のシグナリング仕様に合わせる）
+  const [destination, setDestination] = useState<string>("rover003");
+
+  const [mics, setMics] = useState<MicOption[]>([]);
+  const [selectedMicId, setSelectedMicId] = useState<string>("");
+
+  const [signalWsStatus, setSignalWsStatus] = useState<string>("未接続");
+  const [commandWsStatus, setCommandWsStatus] = useState<string>("未接続");
+  const [callStatus, setCallStatus] = useState<string>("停止");
+  const [error, setError] = useState<string | null>(null);
+
+  // 口パク設定（最小）
+  const [lipsyncEnabled, setLipsyncEnabled] = useState<boolean>(true);
+  const [mouthJointId, setMouthJointId] = useState<number>(13);
+  const [mouthMaxAngle, setMouthMaxAngle] = useState<number>(0.6);
+  const [sendFps, setSendFps] = useState<number>(30);
+  const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
+  const [gain, setGain] = useState<number>(20);
+
+  const clientIdRef = useRef<string>(
+      `teleco-gui-master-${Math.random().toString(36).slice(2, 10)}`
+  );
+
+  const appendError = (msg: string) => setError(msg);
+
+  // ---- Devices ----
+  const refreshDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices
+          .filter((d) => d.kind === "audioinput")
+          .map((d, idx) => ({
+            deviceId: d.deviceId,
+            label: d.label || `Microphone ${idx + 1}`,
+          }));
+      setMics(audioInputs);
+      if (!selectedMicId && audioInputs.length > 0) {
+        setSelectedMicId(audioInputs[0].deviceId);
+      }
+    } catch (e) {
+      console.error(e);
+      appendError("デバイス一覧の取得に失敗しました。");
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        // enumerateDevices の label を出すため
+        const tmp = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: false,
+        });
+        tmp.getTracks().forEach((t) => t.stop());
+      } catch {
+        // 権限が取れなくても後続は進める
+      }
+      await refreshDevices();
+    };
+    void init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- WS send helpers ----
+  function sendSignal(obj: unknown) {
+    const ws = signalWsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(obj));
+  }
+
+  function sendCommand(obj: unknown) {
+    const ws = commandWsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(obj));
+  }
+
+  // ---- Connect / Disconnect (signal WS) ----
+  const connectSignalWs = () => {
+    setError(null);
+
+    if (signalWsRef.current && signalWsRef.current.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    try {
+      const ws = new WebSocket(signalWsUrl);
+      signalWsRef.current = ws;
+
+      ws.onopen = () => setSignalWsStatus("接続済み");
+      ws.onclose = () => setSignalWsStatus("切断");
+      ws.onerror = () => {
+        setSignalWsStatus("エラー");
+        appendError("Signal WebSocket 接続でエラーが発生しました。");
+      };
+
+      ws.onmessage = async (event) => {
+        // WebRTCシグナリングだけ処理
         try {
-            const devices = await navigator.mediaDevices.enumerateDevices();
-            const audioInputs = devices
-                .filter((d) => d.kind === "audioinput")
-                .map((d, idx) => ({
-                    deviceId: d.deviceId,
-                    label: d.label || `Microphone ${idx + 1}`,
-                }));
-            setMics(audioInputs);
-            if (!selectedMicId && audioInputs.length > 0) {
-                setSelectedMicId(audioInputs[0].deviceId);
-            }
-        } catch (e) {
-            console.error(e);
-            appendError("デバイス一覧の取得に失敗しました。");
+          // Blob/ArrayBuffer対策（roomサーバ側の中継実装によっては必要）
+          let text: string;
+          if (typeof event.data === "string") {
+            text = event.data;
+          } else if (event.data instanceof ArrayBuffer) {
+            text = new TextDecoder().decode(event.data);
+          } else if (event.data instanceof Blob) {
+            text = await event.data.text();
+          } else {
+            text = String(event.data);
+          }
+
+          const msg = JSON.parse(text) as SignalingMessage;
+          await manager.handleIncomingMessage(msg);
+        } catch {
+          // 無視（別種のログ/通知が混じってもOK）
         }
+      };
+    } catch (e) {
+      console.error(e);
+      appendError("Signal WebSocket の作成に失敗しました。");
+    }
+  };
+
+  const disconnectSignalWs = () => {
+    signalWsRef.current?.close();
+    signalWsRef.current = null;
+    setSignalWsStatus("切断");
+  };
+
+  // ---- Connect / Disconnect (command WS) ----
+  const connectCommandWs = () => {
+    setError(null);
+
+    if (commandWsRef.current && commandWsRef.current.readyState === WebSocket.OPEN) {
+      return;
+    }
+
+    try {
+      const ws = new WebSocket(commandWsUrl);
+      commandWsRef.current = ws;
+
+      ws.onopen = () => setCommandWsStatus("接続済み");
+      ws.onclose = () => setCommandWsStatus("切断");
+      ws.onerror = () => {
+        setCommandWsStatus("エラー");
+        appendError("Command WebSocket 接続でエラーが発生しました。");
+      };
+
+      // teleco-main /command は色々返す可能性があるが、ここでは必須ではない
+      ws.onmessage = () => {
+        // 必要ならデバッグログに回す
+        // console.log("command ws in:", event.data);
+      };
+    } catch (e) {
+      console.error(e);
+      appendError("Command WebSocket の作成に失敗しました。");
+    }
+  };
+
+  const disconnectCommandWs = () => {
+    commandWsRef.current?.close();
+    commandWsRef.current = null;
+    setCommandWsStatus("切断");
+  };
+
+  // ---- Lipsync loop ----
+  function stopLipsyncLoop() {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    analyserRef.current = null;
+
+    if (audioCtxRef.current) {
+      try {
+        void audioCtxRef.current.close();
+      } catch {}
+      audioCtxRef.current = null;
+    }
+  }
+
+  function startLipsyncLoop(stream: MediaStream) {
+    stopLipsyncLoop();
+    if (!lipsyncEnabled) return;
+
+    const AudioContextCtor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextCtor) {
+      appendError("AudioContext が利用できません（ブラウザ非対応）。");
+      return;
+    }
+
+    const ctx = new AudioContextCtor();
+    audioCtxRef.current = ctx;
+
+    const src = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.6;
+    src.connect(analyser);
+    analyserRef.current = analyser;
+
+    const buf = new Float32Array(analyser.fftSize);
+
+    const loop = () => {
+      const a = analyserRef.current;
+      if (!a) return;
+
+      a.getFloatTimeDomainData(buf);
+
+      // RMS
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const v = buf[i];
+        sum += v * v;
+      }
+      const rms = Math.sqrt(sum / buf.length);
+
+      // 正規化
+      const level = clamp01((rms - noiseFloor) * gain);
+
+      // 送信レート制限
+      const now = performance.now();
+      const intervalMs = 1000 / Math.max(1, sendFps);
+      if (now - lastSendMsRef.current >= intervalMs) {
+        lastSendMsRef.current = now;
+
+        // 角度に変換
+        const angle = level * mouthMaxAngle;
+
+        // teleco-main /command に move_multi を投げる
+        // ※ teleco-main の実装が期待する形式が配列（joints/angles/speeds）なのでそれに合わせる
+        sendCommand({
+          label: "move_multi",
+          joints: [mouthJointId],
+          angles: [angle],
+          speeds: [50],
+          dontsendback: true,
+          clientId: clientIdRef.current,
+          ts: Date.now(),
+        });
+      }
+
+      rafRef.current = requestAnimationFrame(loop);
     };
 
-    // 初回：権限要求→デバイス列挙
-    useEffect(() => {
-        const init = async () => {
-            try {
-                // enumerateDevices の label を得るために先に権限を取る
-                const tmp = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-                tmp.getTracks().forEach((t) => t.stop());
-            } catch {
-                // 権限がなくても列挙自体は可能な場合がある
-            }
-            await refreshDevices();
-        };
-        void init();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    rafRef.current = requestAnimationFrame(loop);
+  }
 
-    // WebSocket 接続
-    const connectWs = () => {
-        setError(null);
-        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
+  // ---- WebRTC Start/Stop ----
+  const startSending = async () => {
+    setError(null);
 
-        try {
-            const ws = new WebSocket(wsUrl);
-            wsRef.current = ws;
+    const signalWs = signalWsRef.current;
+    if (!signalWs || signalWs.readyState !== WebSocket.OPEN) {
+      appendError("先に Signal WebSocket（8080/room）に接続してください。");
+      return;
+    }
 
-            ws.onopen = () => {
-                setWsStatus("接続済み");
-            };
-            ws.onclose = () => {
-                setWsStatus("切断");
-            };
-            ws.onerror = () => {
-                setWsStatus("エラー");
-                appendError("WebSocket 接続でエラーが発生しました。");
-            };
-            ws.onmessage = async (event) => {
-                try {
-                    const msg = JSON.parse(event.data) as SignalingMessage;
-                    await manager.handleIncomingMessage(msg);
-                } catch (e) {
-                    // 受信が別形式の場合は無視（teleco側のログ等）
-                    console.warn("WS message ignored", e);
-                }
-            };
-        } catch (e) {
-            console.error(e);
-            appendError("WebSocket の作成に失敗しました。");
-        }
+    const commandWs = commandWsRef.current;
+    if (!commandWs || commandWs.readyState !== WebSocket.OPEN) {
+      appendError("先に Command WebSocket（11920/command）に接続してください。");
+      return;
+    }
+
+    if (!selectedMicId) {
+      appendError("マイクを選択してください。");
+      return;
+    }
+
+    // 既存があれば止める
+    stopSending();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: selectedMicId } },
+        video: false,
+      });
+
+      streamRef.current = stream;
+      const track = stream.getAudioTracks()[0];
+
+      if (!track) {
+        appendError("音声トラックを取得できませんでした。");
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        return;
+      }
+
+      // 口パク送信（RMS→move_multi）開始
+      startLipsyncLoop(stream);
+
+      setCallStatus("offer送信中");
+
+      // WebRTCシグナリングは signalWs に送る（ここが重要）
+      const sendFn = (msg: SignalingMessage) => sendSignal(msg);
+
+      const callId = await manager.callAudioRequest(
+          track,
+          destination,
+          sendFn,
+          (state) => setCallStatus(`WebRTC: ${state}`)
+      );
+
+      callIdRef.current = callId;
+    } catch (e) {
+      console.error(e);
+      appendError("マイク取得または WebRTC 開始に失敗しました。");
+    }
+  };
+
+  const stopSending = () => {
+    const callId = callIdRef.current;
+    if (callId) {
+      manager.closeCall(callId);
+      callIdRef.current = null;
+    }
+
+    const stream = streamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
+    stopLipsyncLoop();
+    setCallStatus("停止");
+  };
+
+  // cleanup
+  useEffect(() => {
+    return () => {
+      stopSending();
+      disconnectSignalWs();
+      disconnectCommandWs();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    const disconnectWs = () => {
-        wsRef.current?.close();
-        wsRef.current = null;
-        setWsStatus("切断");
-    };
+  return (
+      <div className="space-y-4">
+        <div className="grid gap-3">
+          <label className="text-sm text-slate-700">
+            Signal WS（WebRTCシグナリング / room）
+            <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                value={signalWsUrl}
+                onChange={(e) => setSignalWsUrl(e.target.value)}
+                placeholder="ws://localhost:8080/?room=test"
+            />
+          </label>
 
-    // WebRTC 送信開始
-    const startSending = async () => {
-        setError(null);
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-            appendError("先に WebSocket に接続してください。");
-            return;
-        }
-        if (!selectedMicId) {
-            appendError("マイクを選択してください。");
-            return;
-        }
+          <label className="text-sm text-slate-700">
+            Command WS（teleco-main /command）
+            <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                value={commandWsUrl}
+                onChange={(e) => setCommandWsUrl(e.target.value)}
+                placeholder="ws://localhost:11920/command"
+            />
+          </label>
 
-        // 既存の送信があれば停止
-        stopSending();
+          <label className="text-sm text-slate-700">
+            Destination（WebRTC用）
+            <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                value={destination}
+                onChange={(e) => setDestination(e.target.value)}
+                placeholder="rover003"
+            />
+          </label>
 
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: { deviceId: { exact: selectedMicId } },
-                video: false,
-            });
-            streamRef.current = stream;
-            const track = stream.getAudioTracks()[0];
-            if (!track) {
-                appendError("音声トラックを取得できませんでした。");
-                stream.getTracks().forEach((t) => t.stop());
-                return;
-            }
+          <label className="text-sm text-slate-700">
+            Microphone
+            <select
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                value={selectedMicId}
+                onChange={(e) => setSelectedMicId(e.target.value)}
+            >
+              {mics.map((m) => (
+                  <option key={m.deviceId} value={m.deviceId}>
+                    {m.label}
+                  </option>
+              ))}
+            </select>
+          </label>
 
-
-// --- Motion (lip-sync / gesture) -> MQTT ---
-// Required env vars:
-//   NEXT_PUBLIC_MQTT_URL, NEXT_PUBLIC_MQTT_PREFIX, NEXT_PUBLIC_MQTT_ROOM
-// Optional:
-//   NEXT_PUBLIC_MQTT_USERNAME, NEXT_PUBLIC_MQTT_PASSWORD, NEXT_PUBLIC_MQTT_CLIENT_ID
-            const mqttCfg = getBrowserMqttConfigFromEnv();
-            if (mqttCfg) {
-                try {
-                    mqttRef.current?.end(true);
-                    mqttRef.current = new BrowserMqttClientWrapper(mqttCfg);
-                    setMqttStatus("接続中…");
-                    mqttRef.current.onConnect(() => setMqttStatus("接続済み"));
-                    mqttRef.current.onError((e) => {
-                        console.error(e);
-                        setMqttStatus("エラー");
-                    });
-
-                    // start publishing motion derived from mic stream
-                    motionRef.current?.stop();
-                    motionRef.current = startAudioMotionPublisher({
-                        stream,
-                        targetId: destination,
-                        mqtt: mqttRef.current,
-                    });
-                } catch (e) {
-                    console.error(e);
-                    setMqttStatus("エラー");
-                }
-            } else {
-                setMqttStatus("未設定(NEXT_PUBLIC_MQTT_*)");
-            }
-            setCallStatus("offer送信中");
-            const sendFn = (msg: SignalingMessage) => {
-                wsRef.current?.send(JSON.stringify(msg));
-            };
-
-            const callId = await manager.callAudioRequest(
-                track,
-                destination,
-                sendFn,
-                (state) => setCallStatus(`WebRTC: ${state}`),
-            );
-            callIdRef.current = callId;
-        } catch (e) {
-            console.error(e);
-            appendError("マイク取得または WebRTC 開始に失敗しました。");
-        }
-    };
-
-    const stopSending = () => {
-        /* Motion publishing stop */
-        motionRef.current?.stop();
-        motionRef.current = null;
-        mqttRef.current?.end(true);
-        mqttRef.current = null;
-        setMqttStatus("切断");
-        const callId = callIdRef.current;
-        if (callId) {
-            manager.closeCall(callId);
-            callIdRef.current = null;
-        }
-        const stream = streamRef.current;
-        if (stream) {
-            stream.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
-        }
-        setCallStatus("停止");
-    };
-
-    // cleanup
-    useEffect(() => {
-        return () => {
-            stopSending();
-            disconnectWs();
-        };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    return (
-        <div className="space-y-3">
-            <div className="grid gap-2">
-                <label className="text-sm text-slate-700">
-                    WebSocket URL（シグナリング）
-                    <input
-                        className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                        value={wsUrl}
-                        onChange={(e) => setWsUrl(e.target.value)}
-                        placeholder="ws://..."
-                    />
-                </label>
-
-                <label className="text-sm text-slate-700">
-                    Destination（teleco/rover 側のID）
-                    <input
-                        className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        placeholder="rover003"
-                    />
-                </label>
-
-                <label className="text-sm text-slate-700">
-                    Microphone
-                    <select
-                        className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                        value={selectedMicId}
-                        onChange={(e) => setSelectedMicId(e.target.value)}
-                    >
-                        {mics.map((m) => (
-                            <option key={m.deviceId} value={m.deviceId}>
-                                {m.label}
-                            </option>
-                        ))}
-                    </select>
-                </label>
-
-                <div className="flex flex-wrap gap-2 pt-1">
-                    <button
-                        onClick={refreshDevices}
-                        className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
-                    >
-                        デバイス更新
-                    </button>
-                    <button
-                        onClick={connectWs}
-                        className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
-                    >
-                        WebSocket接続
-                    </button>
-                    <button
-                        onClick={startSending}
-                        className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700"
-                    >
-                        WebRTC送信開始
-                    </button>
-                    <button
-                        onClick={stopSending}
-                        className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
-                    >
-                        停止
-                    </button>
-                </div>
+          {/* Lipsync settings */}
+          <div className="rounded-xl border bg-slate-50 p-3 space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                  id="lipsync"
+                  type="checkbox"
+                  checked={lipsyncEnabled}
+                  onChange={(e) => setLipsyncEnabled(e.target.checked)}
+              />
+              <label htmlFor="lipsync" className="text-sm text-slate-700">
+                口パク（RMS→move_multi）を送信する
+              </label>
             </div>
 
-            <div className="text-xs text-slate-600 space-y-1">
-                <div>WebSocket: {wsStatus}</div>
-                <div>MQTT: {mqttStatus}</div>
-                <div>Audio Send: {callStatus}</div>
-            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <label className="text-xs text-slate-700">
+                Mouth Joint ID
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    value={mouthJointId}
+                    onChange={(e) => setMouthJointId(Number(e.target.value))}
+                />
+              </label>
 
-            {error && <p className="text-xs text-red-600">{error}</p>}
+              <label className="text-xs text-slate-700">
+                Mouth Max Angle
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="0.01"
+                    value={mouthMaxAngle}
+                    onChange={(e) => setMouthMaxAngle(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Send FPS
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    value={sendFps}
+                    onChange={(e) => setSendFps(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Noise Floor（無音床）
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="0.001"
+                    value={noiseFloor}
+                    onChange={(e) => setNoiseFloor(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Gain
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="1"
+                    value={gain}
+                    onChange={(e) => setGain(Number(e.target.value))}
+                />
+              </label>
+
+              <div className="text-xs text-slate-500 flex items-end">
+                clientId: {clientIdRef.current}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+                onClick={refreshDevices}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+            >
+              デバイス更新
+            </button>
+
+            <button
+                onClick={connectSignalWs}
+                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
+            >
+              Signal WS接続
+            </button>
+
+            <button
+                onClick={connectCommandWs}
+                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
+            >
+              Command WS接続
+            </button>
+
+            <button
+                onClick={startSending}
+                className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700"
+            >
+              WebRTC送信開始
+            </button>
+
+            <button
+                onClick={stopSending}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+            >
+              停止
+            </button>
+          </div>
         </div>
-    );
+
+        <div className="text-xs text-slate-600 space-y-1">
+          <div>Signal WS: {signalWsStatus}</div>
+          <div>Command WS: {commandWsStatus}</div>
+          <div>Audio Send: {callStatus}</div>
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </div>
+  );
 }
