@@ -7,6 +7,9 @@ import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 type MicOption = { deviceId: string; label: string };
 type Vowel = "a" | "i" | "u" | "e" | "o" | "xn";
 
+type TelecoArrowDirection = "left" | "right";
+const TELECO_ARROW_EVENT = "teleco:arrow";
+
 function clamp01(v: number) {
   if (v < 0) return 0;
   if (v > 1) return 1;
@@ -442,6 +445,9 @@ export default function AudioSender() {
   const [callStatus, setCallStatus] = useState<string>("停止");
   const [error, setError] = useState<string | null>(null);
 
+  const commandConnected = commandWsStatus === "接続済み";
+
+
   const clientIdRef = useRef<string>(`teleco-gui-master-${Math.random().toString(36).slice(2, 10)}`);
 
   // ---- 任意コマンド送信（hand等検証用）----
@@ -509,6 +515,17 @@ export default function AudioSender() {
       vowel,
       clientId: clientIdRef.current,
       ts: Date.now(),
+    });
+  }
+
+  function sendArrowMove(direction: TelecoArrowDirection) {
+    const angle = direction === "left" ? 10 : -10;
+    sendCommand({
+      label: "move_multi",
+      joints: [10],
+      angles: [angle],
+      speeds: [1],
+      dontsendback: true,
     });
   }
 
@@ -687,7 +704,6 @@ export default function AudioSender() {
     usingForMicTestRef.current = false;
     stopSharedStreamIfUnused();
   }
-
 
   // ---- devices ----
   const refreshDevices = async () => {
@@ -894,6 +910,19 @@ export default function AudioSender() {
     setCallStatus("停止");
   };
 
+  useEffect(() => {
+    const onTelecoArrow = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ direction?: TelecoArrowDirection }>).detail;
+      if (!detail?.direction) return;
+      sendArrowMove(detail.direction);
+    };
+
+    window.addEventListener(TELECO_ARROW_EVENT, onTelecoArrow as EventListener);
+    return () => {
+      window.removeEventListener(TELECO_ARROW_EVENT, onTelecoArrow as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // cleanup
   useEffect(() => {
@@ -1062,6 +1091,23 @@ export default function AudioSender() {
             >
               口パクテスト（a）
             </button>
+
+            <button
+                onClick={() => sendArrowMove("left")}
+                disabled={!commandConnected}
+                className="rounded-xl bg-violet-600 text-white px-4 py-2 text-sm hover:bg-violet-700 disabled:opacity-50"
+            >
+              ← 左（+10）
+            </button>
+
+            <button
+                onClick={() => sendArrowMove("right")}
+                disabled={!commandConnected}
+                className="rounded-xl bg-violet-600 text-white px-4 py-2 text-sm hover:bg-violet-700 disabled:opacity-50"
+            >
+              → 右（-10）
+            </button>
+
           </div>
 
           <div className="text-xs text-slate-600">Command WS: {commandWsStatus}</div>
