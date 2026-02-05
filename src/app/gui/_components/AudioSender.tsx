@@ -5,6 +5,13 @@ import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 type MicOption = { deviceId: string; label: string };
+type Vowel = "a" | "i" | "u" | "e" | "o" | "xn";
+
+function clamp01(v: number) {
+  if (v < 0) return 0;
+  if (v > 1) return 1;
+  return v;
+}
 
 export default function AudioSender() {
   const manager = useMemo(() => new AudioCallManager(), []);
@@ -54,6 +61,30 @@ export default function AudioSender() {
   );
   const [commandLog, setCommandLog] = useState<string>("");
 
+  // ---- 口パク（ディスプレイ） ----
+  const lastVowelRef = useRef<Vowel>("xn");
+  const lastVowelSendMsRef = useRef<number>(0);
+
+  // ---- マイクテスト（ローカルモニタ + 口パク確認） ----
+  const [micTestRunning, setMicTestRunning] = useState(false);
+  const [micLevel, setMicLevel] = useState<number>(0); // 0..1
+  const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
+
+  const micTestStreamRef = useRef<MediaStream | null>(null);
+  const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
+  const micTestCtxRef = useRef<AudioContext | null>(null);
+  const micTestAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micTestRafRef = useRef<number | null>(null);
+
+  // 口パク切り替え頻度（送りすぎ防止）
+  const [mouthSendFps, setMouthSendFps] = useState<number>(15);
+  // 無音床/ゲイン（マイク環境で調整）
+  const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
+  const [gain, setGain] = useState<number>(20);
+
+  // ハウリング防止（ローカル再生の音量）
+  const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
+
   function appendError(msg: string) {
     setError(msg);
   }
@@ -89,9 +120,18 @@ export default function AudioSender() {
   }
 
   // ---- 口パク（ディスプレイ）: faceCommand/change_mouth_vowel ----
-  // あなたの実機でこれが正しく動いたので、口パクはこれだけに統一します。
-  function sendMouthVowel(vowel: "a" | "i" | "u" | "e" | "o" | "xn") {
-    setError(null);
+  function sendMouthVowel(vowel: Vowel) {
+    // 送りすぎ制御（vowelが変わったときだけ送る＋上限fps）
+    const now = performance.now();
+    const minInterval = 1000 / Math.max(1, mouthSendFps);
+
+    if (vowel === lastVowelRef.current && now - lastVowelSendMsRef.current < minInterval) {
+      return;
+    }
+
+    lastVowelRef.current = vowel;
+    lastVowelSendMsRef.current = now;
+
     sendCommand({
       label: "faceCommand",
       commandFace: "change_mouth_vowel",
@@ -99,6 +139,18 @@ export default function AudioSender() {
       clientId: clientIdRef.current,
       ts: Date.now(),
     });
+  }
+
+  // ---- 超簡易「音量→母音」マッピング（まず動作確認用）----
+  // ※正確な母音推定は次段階。ここでは口が動くことを確認する目的。
+  function levelToVowel(level01: number): Vowel {
+    // 0..1 の音量レベルを段階に分ける
+    if (level01 < 0.08) return "xn"; // 無音
+    if (level01 < 0.18) return "i";
+    if (level01 < 0.30) return "e";
+    if (level01 < 0.45) return "u";
+    if (level01 < 0.65) return "a";
+    return "o";
   }
 
   // ---- マイク一覧を更新 ----
@@ -303,8 +355,131 @@ export default function AudioSender() {
     setCallStatus("停止");
   };
 
+  // ---- マイクテスト Start/Stop（ローカルモニタ + 口パク確認）----
+  function stopMicTest() {
+    if (micTestRafRef.current) {
+      cancelAnimationFrame(micTestRafRef.current);
+      micTestRafRef.current = null;
+    }
+
+    micTestAnalyserRef.current = null;
+
+    if (micTestCtxRef.current) {
+      try {
+        void micTestCtxRef.current.close();
+      } catch {}
+      micTestCtxRef.current = null;
+    }
+
+    if (micTestStreamRef.current) {
+      micTestStreamRef.current.getTracks().forEach((t) => t.stop());
+      micTestStreamRef.current = null;
+    }
+
+    if (micTestAudioRef.current) {
+      micTestAudioRef.current.srcObject = null;
+    }
+
+    setMicTestRunning(false);
+    setMicLevel(0);
+
+    // 口を閉じる
+    if (autoMouthEnabled) sendMouthVowel("xn");
+  }
+
+  async function startMicTest() {
+    setError(null);
+
+    if (!selectedMicId) {
+      appendError("マイクを選択してください。");
+      return;
+    }
+
+    // 口パク確認するなら command WS 必須
+    if (autoMouthEnabled) {
+      const ws = commandWsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        appendError("口パク確認のために Command WS（teleco-main /command）へ接続してください。");
+        return;
+      }
+    }
+
+    stopMicTest();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: selectedMicId } },
+        video: false,
+      });
+      micTestStreamRef.current = stream;
+
+      // ローカル再生（自分で確認）
+      if (micTestAudioRef.current) {
+        micTestAudioRef.current.srcObject = stream;
+        micTestAudioRef.current.volume = clamp01(monitorVolume);
+        await micTestAudioRef.current.play();
+      }
+
+      // 音量解析
+      const AudioContextCtor =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+      if (!AudioContextCtor) {
+        appendError("AudioContext が利用できません（ブラウザ非対応）。");
+        setMicTestRunning(true);
+        return;
+      }
+
+      const ctx = new AudioContextCtor();
+      micTestCtxRef.current = ctx;
+
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.6;
+      src.connect(analyser);
+      micTestAnalyserRef.current = analyser;
+
+      const buf = new Float32Array(analyser.fftSize);
+
+      const loop = () => {
+        const a = micTestAnalyserRef.current;
+        if (!a) return;
+
+        a.getFloatTimeDomainData(buf);
+
+        // RMS
+        let sum = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const v = buf[i];
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / buf.length);
+
+        const level = clamp01((rms - noiseFloor) * gain);
+        setMicLevel(level);
+
+        // 口パク（超簡易：音量→母音切替）
+        if (autoMouthEnabled) {
+          const vowel = levelToVowel(level);
+          sendMouthVowel(vowel);
+        }
+
+        micTestRafRef.current = requestAnimationFrame(loop);
+      };
+
+      micTestRafRef.current = requestAnimationFrame(loop);
+      setMicTestRunning(true);
+    } catch (e) {
+      console.error(e);
+      appendError("マイクテスト開始に失敗しました。");
+    }
+  }
+
   useEffect(() => {
     return () => {
+      stopMicTest();
       stopSending();
       disconnectSignalWs();
       disconnectCommandWs();
@@ -393,7 +568,7 @@ export default function AudioSender() {
                 onClick={stopSending}
                 className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
             >
-              停止
+              WebRTC停止
             </button>
           </div>
         </div>
@@ -406,56 +581,122 @@ export default function AudioSender() {
 
         {error && <p className="text-xs text-red-600">{error}</p>}
 
-        {/* ---- Mouth (Display) Presets: faceCommand ---- */}
+        {/* ---- Mic Test Panel ---- */}
+        <div className="rounded-xl border bg-white p-3 space-y-3">
+          <div className="text-sm font-semibold">マイクテスト（ローカル再生 + 口パク確認）</div>
+
+          <div className="text-xs text-slate-600">
+            自分のマイク入力をこのブラウザで再生して確認します（イヤホン推奨）。<br />
+            口パクは <code>faceCommand/change_mouth_vowel</code> を送って確認します。
+          </div>
+
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+                onClick={startMicTest}
+                disabled={micTestRunning}
+                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
+              Mic Test Start
+            </button>
+            <button
+                onClick={stopMicTest}
+                disabled={!micTestRunning}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
+            >
+              Mic Test Stop
+            </button>
+
+            <label className="flex items-center gap-2 text-xs text-slate-700">
+              <input
+                  type="checkbox"
+                  checked={autoMouthEnabled}
+                  onChange={(e) => setAutoMouthEnabled(e.target.checked)}
+              />
+              口パク確認を有効（WSで vowel 送信）
+            </label>
+          </div>
+
+          <div className="grid gap-2 md:grid-cols-3">
+            <label className="text-xs text-slate-700">
+              Monitor Volume（ハウリング注意）
+              <input
+                  className="mt-1 w-full"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={monitorVolume}
+                  onChange={(e) => setMonitorVolume(Number(e.target.value))}
+              />
+              <div className="text-[11px] text-slate-500">{monitorVolume.toFixed(2)}</div>
+            </label>
+
+            <label className="text-xs text-slate-700">
+              Noise Floor
+              <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  step="0.001"
+                  value={noiseFloor}
+                  onChange={(e) => setNoiseFloor(Number(e.target.value))}
+              />
+            </label>
+
+            <label className="text-xs text-slate-700">
+              Gain
+              <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  step="1"
+                  value={gain}
+                  onChange={(e) => setGain(Number(e.target.value))}
+              />
+            </label>
+
+            <label className="text-xs text-slate-700">
+              Mouth Send FPS
+              <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  step="1"
+                  value={mouthSendFps}
+                  onChange={(e) => setMouthSendFps(Number(e.target.value))}
+              />
+            </label>
+
+            <div className="md:col-span-2">
+              <div className="text-xs text-slate-700">Mic Level</div>
+              <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
+                <div
+                    className="h-3 bg-emerald-500"
+                    style={{ width: `${Math.round(micLevel * 100)}%` }}
+                />
+              </div>
+              <div className="text-[11px] text-slate-500">
+                level={micLevel.toFixed(3)} / lastVowel={lastVowelRef.current}
+              </div>
+            </div>
+          </div>
+
+          {/* ローカル再生用 audio */}
+          <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
+        </div>
+
+        {/* ---- Mouth Manual Presets (optional) ---- */}
         <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">
-            口パク（ディスプレイ）母音プリセット（faceCommand）
-          </div>
-
+          <div className="text-sm font-semibold">口パク手動プリセット（faceCommand）</div>
           <div className="flex flex-wrap gap-2">
-            <button
-                onClick={() => sendMouthVowel("a")}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
-            >
-              a
-            </button>
-            <button
-                onClick={() => sendMouthVowel("i")}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
-            >
-              i
-            </button>
-            <button
-                onClick={() => sendMouthVowel("u")}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
-            >
-              u
-            </button>
-            <button
-                onClick={() => sendMouthVowel("e")}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
-            >
-              e
-            </button>
-            <button
-                onClick={() => sendMouthVowel("o")}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
-            >
-              o
-            </button>
-            <button
-                onClick={() => sendMouthVowel("xn")}
-                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
-            >
-              close(xn)
-            </button>
-          </div>
-
-          <div className="text-xs text-slate-500">
-            送信コマンド例:{" "}
-            <code>
-              {"{"}"label":"faceCommand","commandFace":"change_mouth_vowel","vowel":"i"{"}"}
-            </code>
+            {(["a", "i", "u", "e", "o", "xn"] as Vowel[]).map((v) => (
+                <button
+                    key={v}
+                    onClick={() => sendMouthVowel(v)}
+                    className={`rounded-xl px-4 py-2 text-sm hover:opacity-90 ${
+                        v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
+                    }`}
+                >
+                  {v === "xn" ? "close(xn)" : v}
+                </button>
+            ))}
           </div>
         </div>
 
@@ -464,7 +705,7 @@ export default function AudioSender() {
           <div className="text-sm font-semibold">任意コマンド送信（/command）</div>
 
           <div className="text-xs text-slate-600">
-            move_multi でハンド等を試す場合はここから送ってください（口は faceCommand に統一）。
+            move_multi でハンド等を試す場合はここから送ってください（口は faceCommand で確認）。
           </div>
 
           <textarea
