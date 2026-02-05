@@ -14,12 +14,12 @@ function clamp01(v: number) {
 }
 
 /**
- * ========= umekita の母音推定（AudioVowelProcessFormant.js）移植 =========
+ * ========= 母音推定 =========
  * - LPC -> formant(F1,F2) -> vowel() -> getVowelLabel()
- * - umekita では無音時 v=-1, 発話が止まったら "N" を出していた
+ * - 無音時 v=-1, 発話が止まったら "N" を出していた
  *   → ここでは "N" を "xn"（口閉じ）として扱う
  */
-class UmekitaVowelEstimator {
+class VowelEstimator {
   public LPC_ORDER = 64;
   public samplingRate = 44100;
   public bufferSize = 1024;
@@ -276,7 +276,7 @@ function formant(spec: Float32Array, df: number) {
   return [f1, f2];
 }
 
-// ---- vowel decision (umekitaそのまま) ----
+// ---- vowel decision ----
 function vowel(f1: number, f2: number) {
   const frame_f1_f2 = [
     [[1200, 2000], [1800, 2800]], // a?
@@ -399,6 +399,41 @@ export default function AudioSender() {
   const [mics, setMics] = useState<MicOption[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string>("");
 
+  // ✅ 共有マイク（WebRTC送信 & 口パク解析 & mic monitor で共用）
+  const sharedStreamRef = useRef<MediaStream | null>(null);
+
+  // “どの用途が共有Streamを掴んでるか” の簡易フラグ
+  const usingForWebrtcRef = useRef(false);
+  const usingForMicTestRef = useRef(false);
+
+  async function ensureSharedStream(): Promise<MediaStream> {
+    const cur = sharedStreamRef.current;
+    const curTrack = cur?.getAudioTracks()?.[0];
+
+    // 既にあって track も生きてるなら再利用
+    if (cur && curTrack && curTrack.readyState === "live") return cur;
+
+    // ない/死んでる → 作り直し
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: { deviceId: { exact: selectedMicId } },
+      video: false,
+    });
+
+    sharedStreamRef.current = stream;
+    return stream;
+  }
+
+  function stopSharedStreamIfUnused() {
+    // どちらも使ってないなら止める
+    if (usingForWebrtcRef.current) return;
+    if (usingForMicTestRef.current) return;
+
+    const s = sharedStreamRef.current;
+    if (s) {
+      s.getTracks().forEach((t) => t.stop());
+      sharedStreamRef.current = null;
+    }
+  }
 
 
 
@@ -477,9 +512,144 @@ export default function AudioSender() {
     });
   }
 
-  // ---- Mic Test (local monitor + vowel estimation) ----
+  type MouthMode = "micTest" | "webrtc";
+
+  const mouthModeRef = useRef<MouthMode | null>(null);
+
+  const mouthCtxRef = useRef<AudioContext | null>(null);
+  const mouthSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const mouthProcessorRef = useRef<ScriptProcessorNode | null>(null);
+  const mouthZeroGainRef = useRef<GainNode | null>(null);
+  const mouthEstimatorRef = useRef<VowelEstimator | null>(null);
+
+  // “Mic Test のときだけ” 使う（monitor再生）
+  const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // “Mic Test のときだけ” 使う（UI表示）
   const [micTestRunning, setMicTestRunning] = useState(false);
-  const [micLevel, setMicLevel] = useState<number>(0);
+  const [micLevel, setMicLevel] = useState(0);
+
+  function stopMouthAnalyzer() {
+    if (mouthProcessorRef.current) {
+      try {
+        mouthProcessorRef.current.disconnect();
+      } catch {}
+      mouthProcessorRef.current.onaudioprocess = null;
+      mouthProcessorRef.current = null;
+    }
+    if (mouthSourceRef.current) {
+      try {
+        mouthSourceRef.current.disconnect();
+      } catch {}
+      mouthSourceRef.current = null;
+    }
+    if (mouthZeroGainRef.current) {
+      try {
+        mouthZeroGainRef.current.disconnect();
+      } catch {}
+      mouthZeroGainRef.current = null;
+    }
+    if (mouthCtxRef.current) {
+      try {
+        void mouthCtxRef.current.close();
+      } catch {}
+      mouthCtxRef.current = null;
+    }
+
+    mouthEstimatorRef.current = null;
+    mouthModeRef.current = null;
+
+    // micTest UI だけ戻す
+    setMicTestRunning(false);
+    setMicLevel(0);
+
+    // 口閉じ
+    if (autoMouthEnabled) sendMouthVowel("xn");
+  }
+
+  async function startMouthAnalyzer(mode: MouthMode, stream: MediaStream) {
+    // すでに動いてるならモードが違う可能性あるので止めてから起動
+    if (mouthModeRef.current) stopMouthAnalyzer();
+
+    if (autoMouthEnabled) {
+      const cmdWs = commandWsRef.current;
+      if (!cmdWs || cmdWs.readyState !== WebSocket.OPEN) {
+        appendError("口パク送信のために Command WS（teleco-main /command）へ接続してください。");
+        return;
+      }
+    }
+
+    const AudioContextCtor =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+
+    if (!AudioContextCtor) {
+      appendError("AudioContext が利用できません（ブラウザ非対応）。");
+      return;
+    }
+
+    try {
+      // micTest のときだけ monitor 再生（ここは AudioContext ではなく HTMLAudio でOK）
+      if (mode === "micTest" && micTestAudioRef.current) {
+        micTestAudioRef.current.srcObject = stream;
+        micTestAudioRef.current.volume = clamp01(monitorVolume);
+        await micTestAudioRef.current.play().catch(() => {});
+      }
+
+      const ctx = new AudioContextCtor();
+      mouthCtxRef.current = ctx;
+      mouthModeRef.current = mode;
+
+      const src = ctx.createMediaStreamSource(stream);
+      mouthSourceRef.current = src;
+
+      const processor = ctx.createScriptProcessor(1024, 1, 1);
+      mouthProcessorRef.current = processor;
+
+      // ScriptProcessor を動かすため destination に繋ぐ（gain=0）
+      const zero = ctx.createGain();
+      zero.gain.value = 0;
+      mouthZeroGainRef.current = zero;
+
+      src.connect(processor);
+      processor.connect(zero);
+      zero.connect(ctx.destination);
+
+      const est = new VowelEstimator();
+      est.bufferSize = 1024;
+      est.setSampleRate(ctx.sampleRate);
+      est.setCallbacks(
+          (v) => {
+            if (!autoMouthEnabled) return;
+            if (v === "N" || v === "n") return sendMouthVowel("xn");
+            if (v === "a" || v === "i" || v === "u" || v === "e" || v === "o") sendMouthVowel(v);
+          },
+          (_s) => {}
+      );
+      mouthEstimatorRef.current = est;
+
+      processor.onaudioprocess = (ev) => {
+        const input = ev.inputBuffer.getChannelData(0);
+
+        // micTest のときだけレベルメータ更新
+        if (mouthModeRef.current === "micTest") {
+          let sum = 0;
+          for (let i = 0; i < input.length; i++) sum += input[i] * input[i];
+          const rms = Math.sqrt(sum / input.length);
+          const level = clamp01((rms - noiseFloor) * gain);
+          setMicLevel(level);
+        }
+
+        mouthEstimatorRef.current?.analyzeData(input);
+      };
+
+      if (mode === "micTest") setMicTestRunning(true);
+    } catch (e) {
+      console.error(e);
+      appendError("口パク解析の開始に失敗しました。");
+      stopMouthAnalyzer();
+    }
+  }
 
   const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
   const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
@@ -488,286 +658,34 @@ export default function AudioSender() {
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
   const [gain, setGain] = useState<number>(20);
 
-  const micTestStreamRef = useRef<MediaStream | null>(null);
-  const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
-  const micTestCtxRef = useRef<AudioContext | null>(null);
-  const micTestSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const micTestProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const micTestZeroGainRef = useRef<GainNode | null>(null);
-
-  const umekitaEstimatorRef = useRef<UmekitaVowelEstimator | null>(null);
-
-  function stopMicTest() {
-    if (micTestProcessorRef.current) {
-      try {
-        micTestProcessorRef.current.disconnect();
-      } catch {}
-      micTestProcessorRef.current.onaudioprocess = null;
-      micTestProcessorRef.current = null;
-    }
-    if (micTestSourceRef.current) {
-      try {
-        micTestSourceRef.current.disconnect();
-      } catch {}
-      micTestSourceRef.current = null;
-    }
-    if (micTestZeroGainRef.current) {
-      try {
-        micTestZeroGainRef.current.disconnect();
-      } catch {}
-      micTestZeroGainRef.current = null;
-    }
-
-    if (micTestCtxRef.current) {
-      try {
-        void micTestCtxRef.current.close();
-      } catch {}
-      micTestCtxRef.current = null;
-    }
-
-    if (micTestStreamRef.current) {
-      micTestStreamRef.current.getTracks().forEach((t) => t.stop());
-      micTestStreamRef.current = null;
-    }
-
-    if (micTestAudioRef.current) {
-      micTestAudioRef.current.srcObject = null;
-    }
-
-    umekitaEstimatorRef.current = null;
-
-    setMicTestRunning(false);
-    setMicLevel(0);
-
-    if (autoMouthEnabled) sendMouthVowel("xn");
-  }
-
   async function startMicTest() {
     setError(null);
-
-    if (!selectedMicId) {
-      appendError("マイクを選択してください。");
-      return;
-    }
-
-    if (autoMouthEnabled) {
-      const ws = commandWsRef.current;
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        appendError("口パク確認のために Command WS（teleco-main /command）へ接続してください。");
-        return;
-      }
-    }
-
-    stopMicTest();
+    if (!selectedMicId) return appendError("マイクを選択してください。");
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: selectedMicId } },
-        video: false,
-      });
-      micTestStreamRef.current = stream;
+      usingForMicTestRef.current = true;
 
-      // local monitor
-      if (micTestAudioRef.current) {
-        micTestAudioRef.current.srcObject = stream;
-        micTestAudioRef.current.volume = clamp01(monitorVolume);
-        await micTestAudioRef.current.play();
-      }
+      const stream = await ensureSharedStream();
 
-      const AudioContextCtor =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-
-      if (!AudioContextCtor) {
-        appendError("AudioContext が利用できません（ブラウザ非対応）。");
-        setMicTestRunning(true);
-        return;
-      }
-
-      const ctx = new AudioContextCtor();
-      micTestCtxRef.current = ctx;
-
-      const src = ctx.createMediaStreamSource(stream);
-      micTestSourceRef.current = src;
-
-      // processor (1024)
-      const processor = ctx.createScriptProcessor(1024, 1, 1);
-      micTestProcessorRef.current = processor;
-
-      // ScriptProcessor を動かすため destination へ接続が必要な環境があるので、gain=0で繋ぐ
-      const zero = ctx.createGain();
-      zero.gain.value = 0;
-      micTestZeroGainRef.current = zero;
-
-      src.connect(processor);
-      processor.connect(zero);
-      zero.connect(ctx.destination);
-
-      // umekita estimator 初期化
-      const est = new UmekitaVowelEstimator();
-      est.bufferSize = 1024;
-      est.setSampleRate(ctx.sampleRate);
-      est.setCallbacks(
-          (v) => {
-            if (!autoMouthEnabled) return;
-
-            if (v === "N" || v === "n") {
-              sendMouthVowel("xn");
-              return;
-            }
-            if (v === "a" || v === "i" || v === "u" || v === "e" || v === "o") {
-              sendMouthVowel(v);
-            }
-          },
-          (_s) => {}
-      );
-      umekitaEstimatorRef.current = est;
-
-      processor.onaudioprocess = (ev) => {
-        const input = ev.inputBuffer.getChannelData(0);
-
-        let sum = 0;
-        for (let i = 0; i < input.length; i++) {
-          const x = input[i];
-          sum += x * x;
-        }
-        const rms = Math.sqrt(sum / input.length);
-        const level = clamp01((rms - noiseFloor) * gain);
-        setMicLevel(level);
-
-        const estimator = umekitaEstimatorRef.current;
-        if (estimator) estimator.analyzeData(input);
-      };
-
-      setMicTestRunning(true);
+      // ✅ micTestモード：monitor + meter + vowel
+      await startMouthAnalyzer("micTest", stream);
     } catch (e) {
       console.error(e);
+      usingForMicTestRef.current = false;
+      stopSharedStreamIfUnused();
       appendError("マイクテスト開始に失敗しました。");
     }
   }
 
-  // ===== Mouth runtime (for WebRTC sending stream) =====
-  const mouthRunCtxRef = useRef<AudioContext | null>(null);
-  const mouthRunSourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const mouthRunProcessorRef = useRef<ScriptProcessorNode | null>(null);
-  const mouthRunZeroGainRef = useRef<GainNode | null>(null);
-  const mouthRunEstimatorRef = useRef<UmekitaVowelEstimator | null>(null);
-  const mouthRunRunningRef = useRef<boolean>(false);
+  function stopMicTest() {
+    // monitor 停止（srcObjectだけ外す）
+    const a = micTestAudioRef.current;
+    if (a) a.srcObject = null;
 
-  function stopMouthRuntime() {
-    if (mouthRunProcessorRef.current) {
-      try {
-        mouthRunProcessorRef.current.disconnect();
-      } catch {}
-      mouthRunProcessorRef.current.onaudioprocess = null;
-      mouthRunProcessorRef.current = null;
-    }
+    stopMouthAnalyzer();
 
-    if (mouthRunSourceRef.current) {
-      try {
-        mouthRunSourceRef.current.disconnect();
-      } catch {}
-      mouthRunSourceRef.current = null;
-    }
-
-    if (mouthRunZeroGainRef.current) {
-      try {
-        mouthRunZeroGainRef.current.disconnect();
-      } catch {}
-      mouthRunZeroGainRef.current = null;
-    }
-
-    if (mouthRunCtxRef.current) {
-      try {
-        void mouthRunCtxRef.current.close();
-      } catch {}
-      mouthRunCtxRef.current = null;
-    }
-
-    mouthRunEstimatorRef.current = null;
-    mouthRunRunningRef.current = false;
-
-    // 送信停止時は口を閉じる
-    if (autoMouthEnabled) sendMouthVowel("xn");
-  }
-
-  async function startMouthRuntimeFromStream(stream: MediaStream) {
-    // 二重起動防止
-    if (mouthRunRunningRef.current) return;
-
-    // Mic Test と同時はやらない（vowel二重送信になる）
-    if (micTestRunning) {
-      appendError("Mic Test が動作中です。WebRTC送信で口パクする場合は Mic Test を停止してください。");
-      return;
-    }
-
-    if (!autoMouthEnabled) return;
-
-    const cmdWs = commandWsRef.current;
-    if (!cmdWs || cmdWs.readyState !== WebSocket.OPEN) {
-      appendError("口パク送信のために Command WS（teleco-main /command）へ接続してください。");
-      return;
-    }
-
-    try {
-      const AudioContextCtor =
-          window.AudioContext ||
-          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-
-      if (!AudioContextCtor) {
-        appendError("AudioContext が利用できません（ブラウザ非対応）。");
-        return;
-      }
-
-      const ctx = new AudioContextCtor();
-      mouthRunCtxRef.current = ctx;
-
-      const src = ctx.createMediaStreamSource(stream);
-      mouthRunSourceRef.current = src;
-
-      const processor = ctx.createScriptProcessor(1024, 1, 1);
-      mouthRunProcessorRef.current = processor;
-
-      // processor を動かすため destination に繋ぐ（gain=0）
-      const zero = ctx.createGain();
-      zero.gain.value = 0;
-      mouthRunZeroGainRef.current = zero;
-
-      src.connect(processor);
-      processor.connect(zero);
-      zero.connect(ctx.destination);
-
-      const est = new UmekitaVowelEstimator();
-      est.bufferSize = 1024;
-      est.setSampleRate(ctx.sampleRate);
-      est.setCallbacks(
-          (v) => {
-            if (!autoMouthEnabled) return;
-
-            // stop時N / 無音n は xn
-            if (v === "N" || v === "n") {
-              sendMouthVowel("xn");
-              return;
-            }
-            if (v === "a" || v === "i" || v === "u" || v === "e" || v === "o") {
-              sendMouthVowel(v);
-            }
-          },
-          (_s) => {}
-      );
-      mouthRunEstimatorRef.current = est;
-
-      processor.onaudioprocess = (ev) => {
-        const input = ev.inputBuffer.getChannelData(0);
-        mouthRunEstimatorRef.current?.analyzeData(input);
-      };
-
-      mouthRunRunningRef.current = true;
-    } catch (e) {
-      console.error(e);
-      appendError("WebRTC送信中の口パク解析の開始に失敗しました。");
-      stopMouthRuntime();
-    }
+    usingForMicTestRef.current = false;
+    stopSharedStreamIfUnused();
   }
 
 
@@ -926,21 +844,19 @@ export default function AudioSender() {
     stopSending();
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: selectedMicId } },
-        video: false,
-      });
+      usingForWebrtcRef.current = true;
 
+      const stream = await ensureSharedStream();
       streamRef.current = stream;
 
-      // ★ WebRTC送信と同時に口パク推定も開始
-      await startMouthRuntimeFromStream(stream);
+      // ✅ webrtcモード：口パク推定のみ（monitor/levelなし）
+      await startMouthAnalyzer("webrtc", stream);
 
       const track = stream.getAudioTracks()[0];
       if (!track) {
         appendError("音声トラックを取得できませんでした。");
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
+        usingForWebrtcRef.current = false;
+        stopSharedStreamIfUnused();
         return;
       }
 
@@ -954,6 +870,8 @@ export default function AudioSender() {
       callIdRef.current = callId;
     } catch (e) {
       console.error(e);
+      usingForWebrtcRef.current = false;
+      stopSharedStreamIfUnused();
       appendError("マイク取得または WebRTC 開始に失敗しました。");
     }
   };
@@ -965,23 +883,29 @@ export default function AudioSender() {
       callIdRef.current = null;
     }
 
-    const stream = streamRef.current;
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
+    // streamRef は sharedStream を指しているだけなので null にするだけ
+    streamRef.current = null;
 
-    stopMouthRuntime();
+    stopMouthAnalyzer();
+
+    usingForWebrtcRef.current = false;
+    stopSharedStreamIfUnused();
 
     setCallStatus("停止");
   };
 
+
   // cleanup
   useEffect(() => {
     return () => {
+      // 念のため共有Streamも止める
+      usingForWebrtcRef.current = false;
+      usingForMicTestRef.current = false;
+      stopSharedStreamIfUnused();
+
+
       stopMicTest();
       stopSending();
-      stopMouthRuntime();
 
       disconnectSignalWs();
       disconnectCommandWs();
