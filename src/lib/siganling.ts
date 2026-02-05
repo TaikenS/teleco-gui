@@ -6,8 +6,10 @@ export function getSignalingUrl(): string {
 
   if (typeof window !== "undefined") {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${window.location.hostname}:8080`;
+    // Next.js と同じポートで動く「内蔵シグナリング」に寄せる
+    // 例: ws://localhost:3000/ws
+    return `${proto}://${window.location.host}/ws`;
   }
 
-  return "ws://localhost:8080";
+  return "ws://localhost:3000/ws";
 }

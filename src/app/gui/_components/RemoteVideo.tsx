@@ -22,7 +22,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   const lastTimeRef = useRef<number | null>(null);
 
   const logLine = (line: string) =>
-    setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+      setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
   // シグナリング接続 + WebRTC 初期化
   useEffect(() => {
@@ -38,21 +38,21 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
       if (video) {
         video.srcObject = remoteStream;
         video
-          .play()
-          .then(() => logLine("リモート映像再生開始"))
-          .catch((e) => console.error(e));
+            .play()
+            .then(() => logLine("リモート映像再生開始"))
+            .catch((e) => console.error(e));
       }
     };
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         wsRef.current?.send(
-          JSON.stringify({
-            type: "ice-candidate",
-            roomId,
-            role: "viewer" as Role,
-            payload: event.candidate,
-          }),
+            JSON.stringify({
+              type: "ice-candidate",
+              roomId,
+              role: "viewer" as Role,
+              payload: event.candidate,
+            }),
         );
       }
     };
@@ -79,12 +79,12 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         ws.send(
-          JSON.stringify({
-            type: "answer",
-            roomId,
-            role: "viewer",
-            payload: answer,
-          }),
+            JSON.stringify({
+              type: "answer",
+              roomId,
+              role: "viewer",
+              payload: answer,
+            }),
         );
         logLine("answer 送信");
       } else if (msg.type === "ice-candidate") {
@@ -109,7 +109,6 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
       pc.close();
       ws.close();
     };
-    // roomId が変わったら作り直し
   }, [roomId]);
 
   // FPS / 解像度計測
@@ -123,9 +122,9 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
         const h = video.videoHeight;
         if (w && h) {
           setResolution((prev) =>
-            !prev || prev.width !== w || prev.height !== h
-              ? { width: w, height: h }
-              : prev,
+              !prev || prev.width !== w || prev.height !== h
+                  ? { width: w, height: h }
+                  : prev,
           );
         }
 
@@ -137,7 +136,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
           const delta = time - lastTimeRef.current;
           if (delta >= 1000) {
             const currentFps = Math.round(
-              (frameCountRef.current * 1000) / delta,
+                (frameCountRef.current * 1000) / delta,
             );
             setFps(currentFps);
             frameCountRef.current = 0;
@@ -156,31 +155,46 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   }, []);
 
   return (
-    <div className="space-y-3">
-      <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-200">
-        <video
-          ref={remoteVideoRef}
-          className="h-full w-full object-cover"
-          playsInline
-          autoPlay
-        />
-      </div>
-      <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-        <span>FPS: {fps ?? "--"}</span>
-        <span>
-          解像度:{" "}
-          {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
-        </span>
-      </div>
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      <details className="mt-2 rounded-xl bg-slate-100 p-2 text-xs text-slate-700">
-        <summary className="cursor-pointer select-none">ログ</summary>
-        <div className="mt-1 max-h-40 space-y-1 overflow-auto">
-          {log.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
+      <div className="space-y-3">
+        <div
+            className="w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
+            title="クリックでフルスクリーン切替"
+            onClick={() => {
+              const el = remoteVideoRef.current;
+              if (!el) return;
+              if (document.fullscreenElement) {
+                void document.exitFullscreen();
+              } else {
+                void el.requestFullscreen();
+              }
+            }}
+        >
+          <video
+              ref={remoteVideoRef}
+              className="h-full w-full object-contain"
+              playsInline
+              autoPlay
+          />
         </div>
-      </details>
-    </div>
+
+        <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+          <span>FPS: {fps ?? "--"}</span>
+          <span>
+          解像度:{" "}
+            {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
+        </span>
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <details className="mt-2 rounded-xl bg-slate-100 p-2 text-xs text-slate-700">
+          <summary className="cursor-pointer select-none">ログ</summary>
+          <div className="mt-1 max-h-40 space-y-1 overflow-auto">
+            {log.map((l, i) => (
+                <div key={i}>{l}</div>
+            ))}
+          </div>
+        </details>
+      </div>
   );
 }
