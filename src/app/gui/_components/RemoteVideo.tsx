@@ -7,6 +7,8 @@ const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 type Role = "sender" | "viewer";
 
+const WS_KEEPALIVE_MS = 10_000;
+
 export default function RemoteVideo({ roomId }: { roomId: string }) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -15,6 +17,8 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const manualCloseRef = useRef(false);
+  const keepaliveTimerRef = useRef<number | null>(null);
+  const disconnectedRecoveryTimerRef = useRef<number | null>(null);
 
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +33,25 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   const logLine = (line: string) =>
       setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
+  const stopKeepalive = () => {
+    if (keepaliveTimerRef.current != null) {
+      window.clearInterval(keepaliveTimerRef.current);
+      keepaliveTimerRef.current = null;
+    }
+  };
+
+  const startKeepalive = (ws: WebSocket) => {
+    stopKeepalive();
+    keepaliveTimerRef.current = window.setInterval(() => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      try {
+        ws.send(JSON.stringify({ type: "keepalive", roomId, ts: Date.now() }));
+      } catch {
+        // noop
+      }
+    }, WS_KEEPALIVE_MS);
+  };
+
   const clearReconnectTimer = () => {
     if (reconnectTimerRef.current != null) {
       window.clearTimeout(reconnectTimerRef.current);
@@ -36,16 +59,37 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     }
   };
 
-  const closePeer = () => {
-    if (pcRef.current) {
-      try {
-        pcRef.current.ontrack = null;
-        pcRef.current.onicecandidate = null;
-        pcRef.current.onconnectionstatechange = null;
-        pcRef.current.close();
-      } catch {}
-      pcRef.current = null;
+  const clearDisconnectedRecoveryTimer = () => {
+    if (disconnectedRecoveryTimerRef.current != null) {
+      window.clearTimeout(disconnectedRecoveryTimerRef.current);
+      disconnectedRecoveryTimerRef.current = null;
     }
+  };
+
+  const closePeer = () => {
+    clearDisconnectedRecoveryTimer();
+
+    const pc = pcRef.current;
+    if (!pc) return;
+
+    try {
+      pc.ontrack = null;
+      pc.onicecandidate = null;
+      pc.onconnectionstatechange = null;
+      pc.close();
+    } catch {
+      // noop
+    }
+
+    pcRef.current = null;
+  };
+
+  const sendJoin = () => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+    ws.send(JSON.stringify({ type: "join", roomId, role: "viewer" as Role }));
+    logLine("join 送信(viewer)");
   };
 
   const createPeer = () => {
@@ -62,7 +106,9 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
         video
             .play()
             .then(() => logLine("リモート映像再生開始"))
-            .catch((e) => console.error(e));
+            .catch((e) => {
+              console.error(e);
+            });
       }
     };
 
@@ -70,6 +116,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
       if (!event.candidate) return;
       const ws = wsRef.current;
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
       ws.send(
           JSON.stringify({
             type: "ice-candidate",
@@ -81,7 +128,38 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     };
 
     pc.onconnectionstatechange = () => {
-      logLine(`WebRTC状態: ${pc.connectionState}`);
+      const state = pc.connectionState;
+      logLine(`WebRTC状態: ${state}`);
+
+      if (state === "failed" || state === "closed") {
+        closePeer();
+
+        // シグナリングが生きていれば再待機状態へ戻す
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          createPeer();
+          sendJoin();
+        }
+        return;
+      }
+
+      if (state === "disconnected") {
+        clearDisconnectedRecoveryTimer();
+        disconnectedRecoveryTimerRef.current = window.setTimeout(() => {
+          const cur = pcRef.current;
+          if (!cur) return;
+          if (cur.connectionState !== "disconnected") return;
+
+          logLine("WebRTC disconnected が継続したため待機再初期化");
+          closePeer();
+
+          if (wsRef.current?.readyState === WebSocket.OPEN) {
+            createPeer();
+            sendJoin();
+          }
+        }, 5_000);
+      } else {
+        clearDisconnectedRecoveryTimer();
+      }
     };
 
     return pc;
@@ -91,33 +169,44 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     if (manualCloseRef.current) return;
     clearReconnectTimer();
 
-    const waitMs = Math.min(15000, 1000 * 2 ** reconnectAttemptRef.current);
+    const waitMs = Math.min(15_000, 1000 * 2 ** reconnectAttemptRef.current);
     reconnectAttemptRef.current += 1;
     logLine(`シグナリング再接続を予約 (${Math.round(waitMs / 1000)}s)`);
 
     reconnectTimerRef.current = window.setTimeout(() => {
       reconnectTimerRef.current = null;
-      connectSignaling();
+      connectSignaling(true);
     }, waitMs);
   };
 
-  const connectSignaling = () => {
+  const connectSignaling = (isReconnect = false) => {
     if (manualCloseRef.current) return;
+
     const current = wsRef.current;
-    if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+    if (
+        current &&
+        (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)
+    ) {
       return;
+    }
+
+    clearReconnectTimer();
+
+    // ws再接続だけでメディアが維持されるケースを優先。
+    // peerが無い場合のみ再作成。
+    if (!pcRef.current || pcRef.current.connectionState === "closed" || pcRef.current.connectionState === "failed") {
+      createPeer();
     }
 
     const ws = new WebSocket(getSignalingUrl());
     wsRef.current = ws;
 
-    createPeer();
-
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
       setError(null);
-      logLine("シグナリング接続");
-      ws.send(JSON.stringify({ type: "join", roomId, role: "viewer" as Role }));
+      logLine(isReconnect ? "シグナリング再接続" : "シグナリング接続");
+      startKeepalive(ws);
+      sendJoin();
     };
 
     ws.onmessage = async (event) => {
@@ -129,24 +218,34 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
         return;
       }
 
+      if (msg?.type === "__pong" || msg?.type === "keepalive") {
+        return;
+      }
+
       const pc = pcRef.current;
       if (!pc) return;
 
       if (msg.type === "offer") {
         logLine("sender から offer 受信");
-        const desc = new RTCSessionDescription(msg.payload);
-        await pc.setRemoteDescription(desc);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        ws.send(
-            JSON.stringify({
-              type: "answer",
-              roomId,
-              role: "viewer",
-              payload: answer,
-            }),
-        );
-        logLine("answer 送信");
+        try {
+          const desc = new RTCSessionDescription(msg.payload);
+          await pc.setRemoteDescription(desc);
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+
+          ws.send(
+              JSON.stringify({
+                type: "answer",
+                roomId,
+                role: "viewer",
+                payload: answer,
+              }),
+          );
+          logLine("answer 送信");
+        } catch (e) {
+          console.error(e);
+          logLine(`offer処理失敗: ${String(e)}`);
+        }
       } else if (msg.type === "ice-candidate") {
         try {
           await pc.addIceCandidate(msg.payload);
@@ -161,12 +260,15 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
       setError("シグナリングサーバへの接続に失敗しました");
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      stopKeepalive();
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
-      logLine("シグナリング切断");
-      closePeer();
+
+      logLine(`シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`);
+
+      // ここでpeerを閉じない: 一時的なWS断でもメディアを維持する
       scheduleReconnect();
     };
   };
@@ -175,11 +277,38 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   useEffect(() => {
     manualCloseRef.current = false;
     reconnectAttemptRef.current = 0;
-    connectSignaling();
+    connectSignaling(false);
+
+    const recoverIfNeeded = () => {
+      if (manualCloseRef.current) return;
+      const ws = wsRef.current;
+      if (!ws || ws.readyState === WebSocket.CLOSED) {
+        connectSignaling(true);
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        recoverIfNeeded();
+      }
+    };
+
+    const onOnline = () => {
+      recoverIfNeeded();
+    };
+
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("fullscreenchange", onVisibilityChange);
 
     return () => {
       manualCloseRef.current = true;
       clearReconnectTimer();
+      stopKeepalive();
+
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("fullscreenchange", onVisibilityChange);
 
       if (wsRef.current) {
         try {
@@ -188,7 +317,9 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
           wsRef.current.onerror = null;
           wsRef.current.onclose = null;
           wsRef.current.close();
-        } catch {}
+        } catch {
+          // noop
+        }
         wsRef.current = null;
       }
 
@@ -222,9 +353,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
           frameCountRef.current += 1;
           const delta = time - lastTimeRef.current;
           if (delta >= 1000) {
-            const currentFps = Math.round(
-                (frameCountRef.current * 1000) / delta,
-            );
+            const currentFps = Math.round((frameCountRef.current * 1000) / delta);
             setFps(currentFps);
             frameCountRef.current = 0;
             lastTimeRef.current = time;
@@ -256,20 +385,12 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
               }
             }}
         >
-          <video
-              ref={remoteVideoRef}
-              className="h-full w-full object-contain"
-              playsInline
-              autoPlay
-          />
+          <video ref={remoteVideoRef} className="h-full w-full object-contain" playsInline autoPlay />
         </div>
 
         <div className="flex flex-wrap gap-4 text-xs text-slate-500">
           <span>FPS: {fps ?? "--"}</span>
-          <span>
-          解像度:{" "}
-            {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
-        </span>
+          <span>解像度: {resolution ? `${resolution.width} x ${resolution.height}` : "--"}</span>
         </div>
 
         {error && <p className="text-xs text-red-600">{error}</p>}

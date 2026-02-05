@@ -7,7 +7,6 @@ import Link from "next/link";
  * Signalingは WebSocket (/ws)。
  * - 入力が http(s) でも ws(s) に変換
  * - 入力が空なら「現在ページのhost」を使う
- * - 末尾が /ws でなくても /ws を補う（ただしクエリ付きの /ws?... は尊重）
  */
 function normalizeWsUrl(input: string) {
     const trimmed = input.trim();
@@ -18,8 +17,8 @@ function normalizeWsUrl(input: string) {
     }
 
     // http(s) -> ws(s)
-    if (trimmed.startsWith("http://")) return "ws://" + trimmed.slice("http://".length);
-    if (trimmed.startsWith("https://")) return "wss://" + trimmed.slice("https://".length);
+    if (trimmed.startsWith("http://")) return `ws://${trimmed.slice("http://".length)}`;
+    if (trimmed.startsWith("https://")) return `wss://${trimmed.slice("https://".length)}`;
 
     // scheme が無い: localhost:3000/ws?room=audio1 など
     if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
@@ -32,23 +31,17 @@ function normalizeWsUrl(input: string) {
 
 /**
  * /ws?room=xxx を強制する（GUIと合わせる）
- * - すでに ?room= があるならそれを優先
- * - roomが空なら付けない（サーバ側で join メッセージを送る方式でも動く）
  */
 function withRoomQuery(wsUrl: string, roomId: string) {
     try {
         const u = new URL(wsUrl);
-        // /ws を補う（/ws 以外が来た場合の保険）
         if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
 
-        if (roomId) {
-            // 既に room があればそれを尊重、無ければ付与
-            if (!u.searchParams.get("room")) u.searchParams.set("room", roomId);
+        if (roomId && !u.searchParams.get("room")) {
+            u.searchParams.set("room", roomId);
         }
         return u.toString();
     } catch {
-        // URLとして解釈できない場合は雑に補正
-        // 例: ws://host:3000/ws?room=audio1 はそのまま通る想定
         if (wsUrl.includes("?")) return wsUrl;
         if (!roomId) return wsUrl;
         return `${wsUrl}${wsUrl.endsWith("/ws") ? "" : "/ws"}?room=${encodeURIComponent(roomId)}`;
@@ -56,11 +49,13 @@ function withRoomQuery(wsUrl: string, roomId: string) {
 }
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+const WS_KEEPALIVE_MS = 10_000;
 
 const STORAGE_KEYS = {
     receiverId: "teleco.audio.receiverId",
     roomId: "teleco.audio.roomId",
     signalingWsUrl: "teleco.audio.signalingWsUrl",
+    autoConnect: "teleco.audio.autoConnect",
 };
 
 /**
@@ -78,7 +73,6 @@ type SignalingLabel =
     | "callAudioAnswer"
     | "audioIceCandidaterequest"
     | "audioIceCandidateresponse"
-    // ついでに video が来ても無害にログだけ出す
     | "callVideoRequest"
     | "callVideoAnswer"
     | "videoIceCandidateresponse";
@@ -112,13 +106,8 @@ function nowTime() {
 }
 
 export default function AudioReceiverPage() {
-    // GUI の Destination と一致させる（例: rover003）
     const [receiverId, setReceiverId] = useState<string>("rover003");
-
-    // 画面表示用の Room（実際は ws url の ?room= で揃える）
     const [roomId, setRoomId] = useState<string>("audio1");
-
-    // GUIと同じURL（/ws?room=audio1）にする
     const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => {
         if (typeof window === "undefined") return "ws://localhost:3000/ws?room=audio1";
         const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -130,10 +119,12 @@ export default function AudioReceiverPage() {
     const [log, setLog] = useState<string[]>([]);
 
     const wsRef = useRef<WebSocket | null>(null);
+    const keepaliveTimerRef = useRef<number | null>(null);
 
     const reconnectTimerRef = useRef<number | null>(null);
     const reconnectAttemptRef = useRef(0);
     const manualDisconnectRef = useRef(false);
+    const shouldAutoConnectRef = useRef(false);
 
     // token -> PeerConnection
     const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -145,7 +136,6 @@ export default function AudioReceiverPage() {
 
     const logLine = (line: string) => setLog((prev) => [...prev, `[${nowTime()}] ${line}`]);
 
-
     useEffect(() => {
         const savedReceiver = window.localStorage.getItem(STORAGE_KEYS.receiverId);
         if (savedReceiver) setReceiverId(savedReceiver);
@@ -155,6 +145,13 @@ export default function AudioReceiverPage() {
 
         const savedSignalUrl = window.localStorage.getItem(STORAGE_KEYS.signalingWsUrl);
         if (savedSignalUrl) setSignalingWsUrl(savedSignalUrl);
+
+        shouldAutoConnectRef.current = window.localStorage.getItem(STORAGE_KEYS.autoConnect) === "1";
+        if (shouldAutoConnectRef.current) {
+            manualDisconnectRef.current = false;
+            connect(false);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -176,11 +173,34 @@ export default function AudioReceiverPage() {
         }
     }
 
+    function stopKeepalive() {
+        if (keepaliveTimerRef.current != null) {
+            window.clearInterval(keepaliveTimerRef.current);
+            keepaliveTimerRef.current = null;
+        }
+    }
+
+    function startKeepalive(ws: WebSocket) {
+        stopKeepalive();
+
+        keepaliveTimerRef.current = window.setInterval(() => {
+            if (ws.readyState !== WebSocket.OPEN) return;
+
+            try {
+                ws.send(JSON.stringify({ type: "keepalive", roomId, ts: Date.now() }));
+            } catch {
+                // noop
+            }
+        }, WS_KEEPALIVE_MS);
+    }
+
     function scheduleReconnect() {
         if (manualDisconnectRef.current) return;
+        if (!shouldAutoConnectRef.current) return;
+
         clearReconnectTimer();
 
-        const waitMs = Math.min(15000, 1000 * 2 ** reconnectAttemptRef.current);
+        const waitMs = Math.min(15_000, 1000 * 2 ** reconnectAttemptRef.current);
         reconnectAttemptRef.current += 1;
 
         logLine(`再接続を予約 (${Math.round(waitMs / 1000)}s)`);
@@ -195,16 +215,21 @@ export default function AudioReceiverPage() {
         for (const [token, pc] of pcsRef.current.entries()) {
             try {
                 pc.close();
-            } catch {}
+            } catch {
+                // noop
+            }
             pcsRef.current.delete(token);
             streamsRef.current.delete(token);
         }
     }
 
     function cleanupWs() {
+        stopKeepalive();
         try {
             wsRef.current?.close();
-        } catch {}
+        } catch {
+            // noop
+        }
         wsRef.current = null;
     }
 
@@ -212,6 +237,11 @@ export default function AudioReceiverPage() {
         const ws = wsRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         ws.send(JSON.stringify(obj));
+    }
+
+    function sendJoin() {
+        sendWs({ type: "join", roomId, role: "viewer", id: receiverId });
+        logLine(`join送信 roomId=${roomId} role=viewer id=${receiverId}`);
     }
 
     function ensurePc(token: string, destination: string) {
@@ -230,13 +260,12 @@ export default function AudioReceiverPage() {
             }
             stream.addTrack(ev.track);
 
-            // 今は「最初に来たtokenの音」を再生、必要ならUIで切替可能
             const audio = audioRef.current;
             if (audio) {
                 audio.srcObject = stream;
                 void audio.play().then(
                     () => logLine(`audio.play() ok (token=${token})`),
-                    (e) => logLine(`audio.play() blocked: ${String(e)}`)
+                    (e) => logLine(`audio.play() blocked: ${String(e)}`),
                 );
             }
             logLine(`ontrack: kind=${ev.track.kind} token=${token}`);
@@ -255,7 +284,18 @@ export default function AudioReceiverPage() {
         };
 
         pc.onconnectionstatechange = () => {
-            logLine(`WebRTC state (token=${token}): ${pc!.connectionState}`);
+            const state = pc!.connectionState;
+            logLine(`WebRTC state (token=${token}): ${state}`);
+
+            if (state === "failed" || state === "closed") {
+                try {
+                    pc?.close();
+                } catch {
+                    // noop
+                }
+                pcsRef.current.delete(token);
+                streamsRef.current.delete(token);
+            }
         };
 
         return pc;
@@ -278,18 +318,19 @@ export default function AudioReceiverPage() {
         ws.onopen = () => {
             setConnected(true);
             reconnectAttemptRef.current = 0;
+            startKeepalive(ws);
             logLine(isReconnect ? "シグナリング再接続(open)" : "シグナリング接続(open)");
-
-            // server.mjs は join メッセージでも room を設定できるので送っておく（?room= が無い場合の保険）
-            sendWs({ type: "join", roomId, role: "viewer", id: receiverId });
-            logLine(`join送信 roomId=${roomId} role=viewer id=${receiverId}`);
+            sendJoin();
         };
 
         ws.onclose = (ev) => {
             if (wsRef.current === ws) wsRef.current = null;
             setConnected(false);
+            stopKeepalive();
             logLine(`シグナリング切断(close) code=${ev.code} reason=${ev.reason || "(none)"}`);
-            cleanupAllPeers();
+
+            // 以前はここでcleanupAllPeersしていたが、
+            // 一時的なWS断で音声を切らないため保持する。
             scheduleReconnect();
         };
 
@@ -307,13 +348,15 @@ export default function AudioReceiverPage() {
                 return;
             }
 
+            if (msg?.type === "__pong" || msg?.type === "keepalive") {
+                return;
+            }
+
             // ---- label方式（Teleco互換） ----
             if (msg && typeof msg.label === "string") {
                 const m = msg as SignalingMessage;
 
-                // destination フィルタ（自分宛だけ処理）
                 if (m.destination && m.destination !== receiverId) {
-                    // 同一ルームに複数 receiver がいる可能性があるのでノイズは抑える
                     logLine(`IGNORED (dest mismatch): label=${m.label} dest=${m.destination}`);
                     return;
                 }
@@ -355,7 +398,6 @@ export default function AudioReceiverPage() {
                 if (m.label === "audioIceCandidaterequest") {
                     const pc = pcsRef.current.get(token);
                     if (!pc) {
-                        // 先にICEが来た場合に備えてPCを作る（後でofferが来ても同じtokenなら使い回す）
                         logLine(`ICE request before offer -> create PC (token=${token})`);
                     }
                     const pc2 = pc ?? ensurePc(token, destination);
@@ -369,12 +411,10 @@ export default function AudioReceiverPage() {
                     return;
                 }
 
-                // 受信側は通常 answer を受け取らないが、ログだけは出す
                 logLine(`WS label=${m.label} (no-op)`);
                 return;
             }
 
-            // ---- 旧 type方式が混在しても一応ログ ----
             if (msg && typeof msg.type === "string") {
                 logLine(`WS msg type=${msg.type} (legacy/no-op)`);
                 return;
@@ -384,9 +424,11 @@ export default function AudioReceiverPage() {
         };
     };
 
-
     const disconnect = () => {
         manualDisconnectRef.current = true;
+        shouldAutoConnectRef.current = false;
+        window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
+
         clearReconnectTimer();
         logLine("手動切断");
         cleanupWs();
@@ -394,6 +436,35 @@ export default function AudioReceiverPage() {
         setConnected(false);
     };
 
+    useEffect(() => {
+        const recoverIfNeeded = () => {
+            if (manualDisconnectRef.current) return;
+
+            const ws = wsRef.current;
+            if (!ws || ws.readyState === WebSocket.CLOSED) {
+                if (shouldAutoConnectRef.current) {
+                    connect(true);
+                }
+            }
+        };
+
+        const onOnline = () => recoverIfNeeded();
+        const onPageShow = () => recoverIfNeeded();
+        const onVisible = () => {
+            if (document.visibilityState === "visible") recoverIfNeeded();
+        };
+
+        window.addEventListener("online", onOnline);
+        window.addEventListener("pageshow", onPageShow);
+        document.addEventListener("visibilitychange", onVisible);
+
+        return () => {
+            window.removeEventListener("online", onOnline);
+            window.removeEventListener("pageshow", onPageShow);
+            document.removeEventListener("visibilitychange", onVisible);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         return () => {
@@ -454,7 +525,12 @@ export default function AudioReceiverPage() {
 
                     <div className="flex flex-wrap gap-2 text-sm">
                         <button
-                            onClick={() => { manualDisconnectRef.current = false; connect(); }}
+                            onClick={() => {
+                                manualDisconnectRef.current = false;
+                                shouldAutoConnectRef.current = true;
+                                window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
+                                connect(false);
+                            }}
                             disabled={connected}
                             className={
                                 connected

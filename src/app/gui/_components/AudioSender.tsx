@@ -17,6 +17,9 @@ const STORAGE_KEYS = {
   commandWsUrl: "teleco.gui.audio.commandWsUrl",
   telecoDebugUrl: "teleco.gui.audio.telecoDebugUrl",
   selectedMicId: "teleco.gui.audio.selectedMicId",
+  signalAutoConnect: "teleco.gui.audio.signalAutoConnect",
+  commandAutoConnect: "teleco.gui.audio.commandAutoConnect",
+  sendingActive: "teleco.gui.audio.sendingActive",
 };
 
 function clamp01(v: number) {
@@ -397,6 +400,12 @@ export default function AudioSender() {
   const commandReconnectAttemptRef = useRef(0);
   const manualCommandDisconnectRef = useRef(false);
 
+  const signalKeepaliveTimerRef = useRef<number | null>(null);
+
+  const shouldAutoSignalRef = useRef(false);
+  const shouldAutoCommandRef = useRef(false);
+  const shouldAutoSendingRef = useRef(false);
+
   // WebRTC call
   const callIdRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -509,6 +518,26 @@ export default function AudioSender() {
     logCommand(`OUT: ${JSON.stringify(obj)}`);
     return true;
   }
+
+  const clearSignalKeepalive = () => {
+    if (signalKeepaliveTimerRef.current != null) {
+      window.clearInterval(signalKeepaliveTimerRef.current);
+      signalKeepaliveTimerRef.current = null;
+    }
+  };
+
+  const startSignalKeepalive = (ws: WebSocket) => {
+    clearSignalKeepalive();
+
+    signalKeepaliveTimerRef.current = window.setInterval(() => {
+      if (ws.readyState !== WebSocket.OPEN) return;
+      try {
+        ws.send(JSON.stringify({ type: "keepalive", roomId: roomHint, ts: Date.now() }));
+      } catch {
+        // noop
+      }
+    }, 10000);
+  };
 
   function sendRawCommandJson() {
     setError(null);
@@ -769,6 +798,20 @@ export default function AudioSender() {
 
     const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
     if (savedMicId) setSelectedMicId(savedMicId);
+
+    shouldAutoSignalRef.current = window.localStorage.getItem(STORAGE_KEYS.signalAutoConnect) === "1";
+    shouldAutoCommandRef.current = window.localStorage.getItem(STORAGE_KEYS.commandAutoConnect) === "1";
+    shouldAutoSendingRef.current = window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
+
+    if (shouldAutoSignalRef.current) {
+      manualSignalDisconnectRef.current = false;
+      window.setTimeout(() => connectSignalWs(false), 0);
+    }
+
+    if (shouldAutoCommandRef.current) {
+      manualCommandDisconnectRef.current = false;
+      window.setTimeout(() => connectCommandWs(false), 0);
+    }
   }, []);
 
   useEffect(() => {
@@ -805,6 +848,7 @@ export default function AudioSender() {
 
   const scheduleSignalReconnect = () => {
     if (manualSignalDisconnectRef.current) return;
+    if (!shouldAutoSignalRef.current) return;
     clearSignalReconnectTimer();
 
     const waitMs = Math.min(15000, 1000 * 2 ** signalReconnectAttemptRef.current);
@@ -825,6 +869,7 @@ export default function AudioSender() {
 
   const scheduleCommandReconnect = () => {
     if (manualCommandDisconnectRef.current) return;
+    if (!shouldAutoCommandRef.current) return;
     clearCommandReconnectTimer();
 
     const waitMs = Math.min(15000, 1000 * 2 ** commandReconnectAttemptRef.current);
@@ -871,12 +916,24 @@ export default function AudioSender() {
       ws.onopen = () => {
         signalReconnectAttemptRef.current = 0;
         setSignalWsStatus("接続済み");
+        startSignalKeepalive(ws);
+
+        // room同期（queryと二重でも問題なし）
+        ws.send(JSON.stringify({ type: "join", roomId: roomHint, role: "sender" }));
+
         if (isReconnect) {
           logCommand("Signal WS 再接続");
+        }
+
+        if (shouldAutoSendingRef.current && !callIdRef.current) {
+          window.setTimeout(() => {
+            void startSending();
+          }, 300);
         }
       };
 
       ws.onclose = () => {
+        clearSignalKeepalive();
         if (signalWsRef.current === ws) signalWsRef.current = null;
         setSignalWsStatus("切断");
         scheduleSignalReconnect();
@@ -912,7 +969,10 @@ export default function AudioSender() {
 
   const disconnectSignalWs = () => {
     manualSignalDisconnectRef.current = true;
+    shouldAutoSignalRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "0");
     clearSignalReconnectTimer();
+    clearSignalKeepalive();
 
     const ws = signalWsRef.current;
     if (ws) {
@@ -987,6 +1047,8 @@ export default function AudioSender() {
 
   const disconnectCommandWs = () => {
     manualCommandDisconnectRef.current = true;
+    shouldAutoCommandRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "0");
     clearCommandReconnectTimer();
 
     const ws = commandWsRef.current;
@@ -1045,6 +1107,8 @@ export default function AudioSender() {
       );
 
       callIdRef.current = callId;
+      shouldAutoSendingRef.current = true;
+      window.localStorage.setItem(STORAGE_KEYS.sendingActive, "1");
     } catch (e) {
       console.error(e);
       usingForWebrtcRef.current = false;
@@ -1069,6 +1133,8 @@ export default function AudioSender() {
     stopSharedStreamIfUnused();
 
     setCallStatus("停止");
+    shouldAutoSendingRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.sendingActive, "0");
   };
 
   useEffect(() => {
@@ -1112,6 +1178,45 @@ export default function AudioSender() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const recoverIfNeeded = () => {
+      if (!manualSignalDisconnectRef.current && shouldAutoSignalRef.current) {
+        const ws = signalWsRef.current;
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+          connectSignalWs(true);
+        }
+      }
+
+      if (!manualCommandDisconnectRef.current && shouldAutoCommandRef.current) {
+        const ws = commandWsRef.current;
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+          connectCommandWs(true);
+        }
+      }
+
+      if (shouldAutoSendingRef.current && !callIdRef.current && signalWsRef.current?.readyState === WebSocket.OPEN) {
+        void startSending();
+      }
+    };
+
+    const onOnline = () => recoverIfNeeded();
+    const onPageShow = () => recoverIfNeeded();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") recoverIfNeeded();
+    };
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // cleanup
   useEffect(() => {
     return () => {
@@ -1127,6 +1232,7 @@ export default function AudioSender() {
       manualCommandDisconnectRef.current = true;
       clearSignalReconnectTimer();
       clearCommandReconnectTimer();
+      clearSignalKeepalive();
 
       disconnectSignalWs();
       disconnectCommandWs();
@@ -1212,7 +1318,12 @@ export default function AudioSender() {
             </button>
 
             <button
-                onClick={() => { manualSignalDisconnectRef.current = false; connectSignalWs(); }}
+                onClick={() => {
+                  manualSignalDisconnectRef.current = false;
+                  shouldAutoSignalRef.current = true;
+                  window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "1");
+                  connectSignalWs();
+                }}
                 disabled={signalWsStatus === "接続済み"}
                 className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
             >
@@ -1262,7 +1373,12 @@ export default function AudioSender() {
 
           <div className="flex flex-wrap gap-2">
             <button
-                onClick={() => { manualCommandDisconnectRef.current = false; connectCommandWs(); }}
+                onClick={() => {
+                  manualCommandDisconnectRef.current = false;
+                  shouldAutoCommandRef.current = true;
+                  window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "1");
+                  connectCommandWs();
+                }}
                 disabled={commandWsStatus === "接続済み"}
                 className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
             >

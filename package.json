@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "node server.mjs",
     "build": "next build",
-    "start": "NODE_ENV=production node server.mjs",
+    "start": "cross-env NODE_ENV=production node server.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write"
@@ -30,6 +30,7 @@
     "@typescript-eslint/parser": "^8.54.0",
     "babel-plugin-react-compiler": "1.0.0",
     "baseline-browser-mapping": "^2.9.17",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "^16.1.4",
     "eslint-config-prettier": "^10.1.8",

@@ -17,7 +17,9 @@ const handle = app.getRequestHandler();
  * 両方を「room単位で中継」するだけの超単純リレー。
  */
 const rooms = new Map(); // room -> Set<WebSocket>
-const HEARTBEAT_MS = 25_000;
+
+const HEARTBEAT_INTERVAL_MS = 20_000;
+const WS_IDLE_TIMEOUT_MS = 120_000;
 
 function getRoomFromReq(req) {
     try {
@@ -38,23 +40,35 @@ function joinRoom(ws, room) {
 function leaveRoom(ws) {
     const room = ws.__room;
     if (!room) return;
+
     const set = rooms.get(room);
     if (!set) return;
+
     set.delete(ws);
     if (set.size === 0) rooms.delete(room);
     ws.__room = null;
 }
 
+function markAlive(ws) {
+    ws.__lastSeenAt = Date.now();
+}
+
 await app.prepare();
 
 const server = http.createServer((req, res) => handle(req, res));
-const wss = new WebSocketServer({ noServer: true });
+server.keepAliveTimeout = 75_000;
+server.headersTimeout = 76_000;
+
+const wss = new WebSocketServer({
+    noServer: true,
+    perMessageDeflate: false,
+});
 
 wss.on("connection", (ws, req) => {
-    // heartbeat
-    ws.isAlive = true;
+    markAlive(ws);
+
     ws.on("pong", () => {
-        ws.isAlive = true;
+        markAlive(ws);
     });
 
     // 1) query param の room があればそれに参加（audio test 等）
@@ -62,6 +76,8 @@ wss.on("connection", (ws, req) => {
     if (roomFromQuery) joinRoom(ws, roomFromQuery);
 
     ws.on("message", (data) => {
+        markAlive(ws);
+
         const text = typeof data === "string" ? data : data.toString();
 
         // 2) join メッセージなら roomId を room として採用（video / audio page 用）
@@ -69,7 +85,23 @@ wss.on("connection", (ws, req) => {
         try {
             parsed = JSON.parse(text);
         } catch {
-            // JSONじゃなくても relay はできるが、ここでは JSON 前提
+            // JSONじゃない場合はそのままrelay（room参加済み前提）
+        }
+
+        // keepalive メッセージは中継しない
+        if (
+            parsed?.type === "__ping" ||
+            parsed?.type === "ping" ||
+            parsed?.type === "keepalive"
+        ) {
+            if (ws.readyState === ws.OPEN) {
+                try {
+                    ws.send(JSON.stringify({ type: "__pong", ts: Date.now() }));
+                } catch {
+                    // noop
+                }
+            }
+            return;
         }
 
         if (parsed?.type === "join" && typeof parsed.roomId === "string") {
@@ -86,9 +118,14 @@ wss.on("connection", (ws, req) => {
 
         const peers = rooms.get(room);
         if (!peers) return;
+
         for (const peer of peers) {
             if (peer !== ws && peer.readyState === peer.OPEN) {
-                peer.send(text);
+                try {
+                    peer.send(text);
+                } catch {
+                    // send失敗はcloseで回収
+                }
             }
         }
     });
@@ -96,25 +133,43 @@ wss.on("connection", (ws, req) => {
     ws.on("close", () => {
         leaveRoom(ws);
     });
+
+    ws.on("error", () => {
+        leaveRoom(ws);
+    });
 });
 
-// ping/pong heartbeat
 const heartbeatTimer = setInterval(() => {
+    const now = Date.now();
+
     for (const ws of wss.clients) {
-        if (ws.isAlive === false) {
+        if (ws.readyState !== ws.OPEN) continue;
+
+        const lastSeen = ws.__lastSeenAt || 0;
+        const idleFor = now - lastSeen;
+
+        if (idleFor > WS_IDLE_TIMEOUT_MS) {
             leaveRoom(ws);
-            ws.terminate();
+            try {
+                ws.terminate();
+            } catch {
+                // noop
+            }
             continue;
         }
-        ws.isAlive = false;
+
         try {
             ws.ping();
         } catch {
             leaveRoom(ws);
-            ws.terminate();
+            try {
+                ws.terminate();
+            } catch {
+                // noop
+            }
         }
     }
-}, HEARTBEAT_MS);
+}, HEARTBEAT_INTERVAL_MS);
 
 wss.on("close", () => {
     clearInterval(heartbeatTimer);
