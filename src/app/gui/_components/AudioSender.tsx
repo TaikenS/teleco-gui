@@ -67,14 +67,12 @@ class UmekitaVowelEstimator {
     if (vol < this.th_volume) {
       v = -1;
       this.th_volume_under = this.th_volume_under * 0.99 + vol * 0.01;
-      this.th_volume =
-          this.th_volume_under * 0.85 + this.th_volume_above * 0.15;
+      this.th_volume = this.th_volume_under * 0.85 + this.th_volume_above * 0.15;
     } else {
       const f = this.extract_formant(buffer, df);
       v = vowel(f[0], f[1]);
       this.th_volume_above = this.th_volume_above * 0.99 + vol * 0.01;
-      this.th_volume =
-          this.th_volume_under * 0.85 + this.th_volume_above * 0.15;
+      this.th_volume = this.th_volume_under * 0.85 + this.th_volume_above * 0.15;
     }
 
     this.vowelhist.shift();
@@ -121,10 +119,7 @@ class UmekitaVowelEstimator {
 
   private hamming(data: Float32Array) {
     const ret = data.map((d, index) => {
-      return (
-          d *
-          (0.54 - 0.46 * Math.cos((2 * Math.PI * index) / (data.length - 1)))
-      );
+      return d * (0.54 - 0.46 * Math.cos((2 * Math.PI * index) / (data.length - 1)));
     });
     ret[0] = 0;
     ret[data.length - 1] = 0;
@@ -138,10 +133,6 @@ class UmekitaVowelEstimator {
     return formant_result;
   }
 }
-
-/**
- * ==== 以下、umekita の DSP関数群（そのまま） ====
- */
 
 // ---- volume ----
 function volume(buffer: Float32Array) {
@@ -169,15 +160,12 @@ function normalize(data: Float32Array) {
 function expi(theta: number): [number, number] {
   return [Math.cos(theta), Math.sin(theta)];
 }
-
 function iadd(a: [number, number], b: [number, number]): [number, number] {
   return [a[0] + b[0], a[1] + b[1]];
 }
-
 function isub(a: [number, number], b: [number, number]): [number, number] {
   return [a[0] - b[0], a[1] - b[1]];
 }
-
 function imul(a: [number, number], b: [number, number]): [number, number] {
   return [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
 }
@@ -297,7 +285,7 @@ function formant(spec: Float32Array, df: number) {
   return [f1, f2];
 }
 
-// ---- vowel decision ----
+// ---- vowel decision (umekitaそのまま) ----
 function vowel(f1: number, f2: number) {
   const frame_f1_f2 = [
     [[1200, 2000], [1800, 2800]], // a?
@@ -326,9 +314,7 @@ function vowel(f1: number, f2: number) {
   let ans = -1;
   for (let i = 0; i < 5; i++) {
     if (claster[i] === 1) {
-      const d = Math.sqrt(
-          (f1 - xm[i]) * (f1 - xm[i]) + (f2 - ym[i]) * (f2 - ym[i])
-      );
+      const d = Math.sqrt((f1 - xm[i]) * (f1 - xm[i]) + (f2 - ym[i]) * (f2 - ym[i]));
       if (d < distance) {
         distance = d;
         ans = i;
@@ -354,29 +340,23 @@ function getVowelLabel(v: number) {
 export default function AudioSender() {
   const manager = useMemo(() => new AudioCallManager(), []);
 
-  // ---- WS ----
+  // WS: receiver向け（label方式 / room）
   const signalWsRef = useRef<WebSocket | null>(null);
+
+  // WS: teleco向け（/command）
   const commandWsRef = useRef<WebSocket | null>(null);
 
-  // WebRTC（Receiverへ送る = callAudioRequest）
+  // WebRTC call
   const callIdRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // UI
-  const [signalWsUrl, setSignalWsUrl] = useState<string>(() => {
-    // ここは「以前動いていた signaling-server (8080/?room=xxx)」をデフォルトに戻す
-    // GUIを別PCへ持っていく時は、signaling-server のIPに変えるだけでOK
-    return "ws://localhost:8080/?room=audio1";
-  });
+  // UI state
+  const [signalWsUrl, setSignalWsUrl] = useState<string>("ws://localhost:8081/?room=audio1");
+  const [roomHint, setRoomHint] = useState<string>("audio1"); // 見やすさ用（実際はURLで決まる）
+  const [receiverDestination, setReceiverDestination] = useState<string>("rover003");
 
-  const [receiverEnabled, setReceiverEnabled] = useState(true);
-  const [receiverRoom, setReceiverRoom] = useState("audio1");
-
-  const [commandWsUrl, setCommandWsUrl] = useState<string>(
-      "ws://localhost:11920/command"
-  );
-
-  const [destination, setDestination] = useState<string>("rover003");
+  const [commandWsUrl, setCommandWsUrl] = useState<string>("ws://localhost:11920/command");
+  const [telecoDebugUrl, setTelecoDebugUrl] = useState<string>("http://localhost:11920/");
 
   const [mics, setMics] = useState<MicOption[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string>("");
@@ -386,14 +366,7 @@ export default function AudioSender() {
   const [callStatus, setCallStatus] = useState<string>("停止");
   const [error, setError] = useState<string | null>(null);
 
-  // debug logs（折りたたみ）
-  const [debugOpen, setDebugOpen] = useState(false);
-  const [signalLog, setSignalLog] = useState<string>("");
-  const [telecoLog, setTelecoLog] = useState<string>("");
-
-  const clientIdRef = useRef<string>(
-      `teleco-gui-master-${Math.random().toString(36).slice(2, 10)}`
-  );
+  const clientIdRef = useRef<string>(`teleco-gui-master-${Math.random().toString(36).slice(2, 10)}`);
 
   // ---- 任意コマンド送信（hand等検証用）----
   const [commandJson, setCommandJson] = useState<string>(
@@ -405,6 +378,7 @@ export default function AudioSender() {
   "dontsendback": true
 }`
   );
+  const [commandLog, setCommandLog] = useState<string>("");
 
   // ---- mouth ----
   const lastVowelRef = useRef<Vowel>("xn");
@@ -414,21 +388,14 @@ export default function AudioSender() {
   function appendError(msg: string) {
     setError(msg);
   }
-
-  function logSignal(line: string) {
-    setSignalLog((prev) => `${prev}${line}\n`);
-  }
-
-  function logTeleco(line: string) {
-    setTelecoLog((prev) => `${prev}${line}\n`);
+  function logCommand(line: string) {
+    setCommandLog((prev) => `${prev}${line}\n`);
   }
 
   function sendSignal(obj: unknown) {
     const ws = signalWsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const s = JSON.stringify(obj);
-    ws.send(s);
-    if (debugOpen) logSignal(`OUT: ${s}`);
+    ws.send(JSON.stringify(obj));
   }
 
   function sendCommand(obj: unknown) {
@@ -437,9 +404,8 @@ export default function AudioSender() {
       appendError("Command WS（teleco-main /command）に接続してください。");
       return;
     }
-    const s = JSON.stringify(obj);
-    ws.send(s);
-    if (debugOpen) logTeleco(`OUT: ${s}`);
+    ws.send(JSON.stringify(obj));
+    logCommand(`OUT: ${JSON.stringify(obj)}`);
   }
 
   function sendRawCommandJson() {
@@ -456,8 +422,7 @@ export default function AudioSender() {
     const now = performance.now();
     const minInterval = 1000 / Math.max(1, mouthSendFps);
 
-    if (vowel === lastVowelRef.current && now - lastSendMsRef.current < minInterval)
-      return;
+    if (vowel === lastVowelRef.current && now - lastSendMsRef.current < minInterval) return;
 
     lastVowelRef.current = vowel;
     lastSendMsRef.current = now;
@@ -471,250 +436,14 @@ export default function AudioSender() {
     });
   }
 
-  /* =======================
-   * デバイス取得
-   * ======================= */
-  const refreshDevices = async () => {
-    try {
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const audioInputs = devices
-          .filter((d) => d.kind === "audioinput")
-          .map((d, idx) => ({
-            deviceId: d.deviceId,
-            label: d.label || `Microphone ${idx + 1}`,
-          }));
-      setMics(audioInputs);
-      if (!selectedMicId && audioInputs.length > 0) {
-        setSelectedMicId(audioInputs[0].deviceId);
-      }
-    } catch (e) {
-      console.error(e);
-      appendError("デバイス一覧の取得に失敗しました。");
-    }
-  };
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const tmp = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: false,
-        });
-        tmp.getTracks().forEach((t) => t.stop());
-      } catch {}
-      await refreshDevices();
-    };
-    void init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  /* =======================
-   * Signal WS（label方式 / room）
-   * ======================= */
-  const connectSignalWs = () => {
-    setError(null);
-
-    // room をUIから変えた場合にURLのroomに反映させる
-    // 例: ws://host:8080/?room=audio1
-    const url = (() => {
-      try {
-        const u = new URL(signalWsUrl);
-        u.searchParams.set("room", receiverRoom);
-        return u.toString();
-      } catch {
-        // 文字列がURLとして解釈できない場合はそのまま
-        return signalWsUrl;
-      }
-    })();
-
-    if (signalWsRef.current && signalWsRef.current.readyState === WebSocket.OPEN) return;
-
-    try {
-      const ws = new WebSocket(url);
-      signalWsRef.current = ws;
-
-      ws.onopen = () => {
-        setSignalWsStatus("接続済み");
-        if (debugOpen) logSignal(`WS OPEN: ${url}`);
-      };
-
-      ws.onclose = () => {
-        setSignalWsStatus("切断");
-        signalWsRef.current = null;
-        if (debugOpen) logSignal("WS CLOSE");
-      };
-
-      ws.onerror = () => {
-        setSignalWsStatus("エラー");
-        appendError("Signal WebSocket 接続でエラーが発生しました。");
-        if (debugOpen) logSignal("WS ERROR");
-      };
-
-      ws.onmessage = async (event) => {
-        try {
-          let text: string;
-          if (typeof event.data === "string") text = event.data;
-          else if (event.data instanceof ArrayBuffer)
-            text = new TextDecoder().decode(event.data);
-          else if (event.data instanceof Blob) text = await event.data.text();
-          else text = String(event.data);
-
-          if (debugOpen) logSignal(`IN: ${text}`);
-
-          const msg = JSON.parse(text) as SignalingMessage;
-          await manager.handleIncomingMessage(msg);
-        } catch {
-          // ignore
-        }
-      };
-    } catch (e) {
-      console.error(e);
-      appendError("Signal WebSocket の作成に失敗しました。");
-    }
-  };
-
-  const disconnectSignalWs = () => {
-    signalWsRef.current?.close();
-    signalWsRef.current = null;
-    setSignalWsStatus("切断");
-  };
-
-  /* =======================
-   * Command WS（teleco /command）
-   * ======================= */
-  const connectCommandWs = () => {
-    setError(null);
-
-    if (commandWsRef.current && commandWsRef.current.readyState === WebSocket.OPEN) return;
-
-    try {
-      const ws = new WebSocket(commandWsUrl);
-      commandWsRef.current = ws;
-
-      ws.onopen = () => {
-        setCommandWsStatus("接続済み");
-        if (debugOpen) logTeleco(`WS OPEN: ${commandWsUrl}`);
-      };
-      ws.onclose = () => {
-        setCommandWsStatus("切断");
-        commandWsRef.current = null;
-        if (debugOpen) logTeleco("WS CLOSE");
-      };
-      ws.onerror = () => {
-        setCommandWsStatus("エラー");
-        appendError("Command WebSocket 接続でエラーが発生しました。");
-        if (debugOpen) logTeleco("WS ERROR");
-      };
-
-      ws.onmessage = async (event) => {
-        try {
-          let text: string;
-          if (typeof event.data === "string") text = event.data;
-          else if (event.data instanceof Blob) text = await event.data.text();
-          else if (event.data instanceof ArrayBuffer)
-            text = new TextDecoder().decode(event.data);
-          else text = String(event.data);
-
-          if (debugOpen) logTeleco(`IN: ${text}`);
-        } catch {
-          if (debugOpen) logTeleco("IN: (failed to decode)");
-        }
-      };
-    } catch (e) {
-      console.error(e);
-      appendError("Command WebSocket の作成に失敗しました。");
-    }
-  };
-
-  const disconnectCommandWs = () => {
-    commandWsRef.current?.close();
-    commandWsRef.current = null;
-    setCommandWsStatus("切断");
-  };
-
-  /* =======================
-   * Receiverへ音声送信（label方式で統一）
-   * - AudioReceiver(client.html)が受けるのは callAudioRequest/callAudioAnswer の世界
-   * - なのでここも AudioCallManager.callAudioRequest を使う（＝確実に刺さる）
-   * ======================= */
-  const startSending = async () => {
-    setError(null);
-
-    if (!receiverEnabled) {
-      appendError("Receiver送信が無効になっています（チェックをONにしてください）。");
-      return;
-    }
-
-    const signalWs = signalWsRef.current;
-    if (!signalWs || signalWs.readyState !== WebSocket.OPEN) {
-      appendError("先に Signal WebSocket（room）に接続してください。");
-      return;
-    }
-
-    if (!selectedMicId) {
-      appendError("マイクを選択してください。");
-      return;
-    }
-
-    stopSending();
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: selectedMicId } },
-        video: false,
-      });
-
-      streamRef.current = stream;
-      const track = stream.getAudioTracks()[0];
-      if (!track) {
-        appendError("音声トラックを取得できませんでした。");
-        stream.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-        return;
-      }
-
-      setCallStatus("offer送信中");
-
-      const sendFn = (msg: SignalingMessage) => sendSignal(msg);
-      const callId = await manager.callAudioRequest(
-          track,
-          destination,
-          sendFn,
-          (state) => setCallStatus(`WebRTC: ${state}`)
-      );
-
-      callIdRef.current = callId;
-    } catch (e) {
-      console.error(e);
-      appendError("マイク取得または WebRTC 開始に失敗しました。");
-    }
-  };
-
-  const stopSending = () => {
-    const callId = callIdRef.current;
-    if (callId) {
-      manager.closeCall(callId);
-      callIdRef.current = null;
-    }
-
-    const stream = streamRef.current;
-    if (stream) {
-      stream.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-
-    setCallStatus("停止");
-  };
-
-  /* =======================
-   * Mic Test（ローカル再生 + umekita母音推定 -> faceCommand）
-   * ======================= */
+  // ---- Mic Test (local monitor + vowel estimation) ----
   const [micTestRunning, setMicTestRunning] = useState(false);
   const [micLevel, setMicLevel] = useState<number>(0);
 
   const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
   const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
 
+  // レベルメータ用（RMS）
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
   const [gain, setGain] = useState<number>(20);
 
@@ -805,8 +534,7 @@ export default function AudioSender() {
 
       const AudioContextCtor =
           window.AudioContext ||
-          (window as unknown as { webkitAudioContext?: typeof AudioContext })
-              .webkitAudioContext;
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
       if (!AudioContextCtor) {
         appendError("AudioContext が利用できません（ブラウザ非対応）。");
@@ -853,6 +581,7 @@ export default function AudioSender() {
       processor.onaudioprocess = (ev) => {
         const input = ev.inputBuffer.getChannelData(0);
 
+        // level meter（RMS）
         let sum = 0;
         for (let i = 0; i < input.length; i++) {
           const x = input[i];
@@ -863,9 +592,7 @@ export default function AudioSender() {
         setMicLevel(level);
 
         const estimator = umekitaEstimatorRef.current;
-        if (estimator) {
-          estimator.analyzeData(input);
-        }
+        if (estimator) estimator.analyzeData(input);
       };
 
       setMicTestRunning(true);
@@ -875,9 +602,193 @@ export default function AudioSender() {
     }
   }
 
-  /* =======================
-   * cleanup
-   * ======================= */
+  // ---- devices ----
+  const refreshDevices = async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const audioInputs = devices
+          .filter((d) => d.kind === "audioinput")
+          .map((d, idx) => ({
+            deviceId: d.deviceId,
+            label: d.label || `Microphone ${idx + 1}`,
+          }));
+      setMics(audioInputs);
+      if (!selectedMicId && audioInputs.length > 0) {
+        setSelectedMicId(audioInputs[0].deviceId);
+      }
+    } catch (e) {
+      console.error(e);
+      appendError("デバイス一覧の取得に失敗しました。");
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        const tmp = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        tmp.getTracks().forEach((t) => t.stop());
+      } catch {}
+      await refreshDevices();
+    };
+    void init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ---- Signal WS connect (label方式 / room) ----
+  const connectSignalWs = () => {
+    setError(null);
+
+    // 既にOPENなら何もしない
+    if (signalWsRef.current && signalWsRef.current.readyState === WebSocket.OPEN) return;
+
+    try {
+      const ws = new WebSocket(signalWsUrl);
+      signalWsRef.current = ws;
+
+      ws.onopen = () => setSignalWsStatus("接続済み");
+      ws.onclose = () => {
+        setSignalWsStatus("切断");
+        // 切れたら「送信状態」も戻しておく
+        stopSending();
+      };
+      ws.onerror = () => {
+        setSignalWsStatus("エラー");
+        appendError("Signal WebSocket 接続でエラーが発生しました。URL/ポート/PC(IP)を確認してください。");
+      };
+
+      ws.onmessage = async (event) => {
+        try {
+          let text: string;
+          if (typeof event.data === "string") text = event.data;
+          else if (event.data instanceof ArrayBuffer) text = new TextDecoder().decode(event.data);
+          else if (event.data instanceof Blob) text = await event.data.text();
+          else text = String(event.data);
+
+          const msg = JSON.parse(text) as SignalingMessage;
+          await manager.handleIncomingMessage(msg);
+        } catch {
+          // ignore
+        }
+      };
+    } catch (e) {
+      console.error(e);
+      appendError("Signal WebSocket の作成に失敗しました。");
+    }
+  };
+
+  const disconnectSignalWs = () => {
+    signalWsRef.current?.close();
+    signalWsRef.current = null;
+    setSignalWsStatus("切断");
+  };
+
+  // ---- Command WS connect (/command) ----
+  const connectCommandWs = () => {
+    setError(null);
+
+    if (commandWsRef.current && commandWsRef.current.readyState === WebSocket.OPEN) return;
+
+    try {
+      const ws = new WebSocket(commandWsUrl);
+      commandWsRef.current = ws;
+
+      ws.onopen = () => setCommandWsStatus("接続済み");
+      ws.onclose = () => setCommandWsStatus("切断");
+      ws.onerror = () => {
+        setCommandWsStatus("エラー");
+        appendError("Command WebSocket 接続でエラーが発生しました。teleco-main が起動しているか確認してください。");
+      };
+
+      ws.onmessage = async (event) => {
+        try {
+          let text: string;
+          if (typeof event.data === "string") text = event.data;
+          else if (event.data instanceof Blob) text = await event.data.text();
+          else if (event.data instanceof ArrayBuffer) text = new TextDecoder().decode(event.data);
+          else text = String(event.data);
+
+          logCommand(`IN: ${text}`);
+        } catch {
+          logCommand("IN: (failed to decode message)");
+        }
+      };
+    } catch (e) {
+      console.error(e);
+      appendError("Command WebSocket の作成に失敗しました。");
+    }
+  };
+
+  const disconnectCommandWs = () => {
+    commandWsRef.current?.close();
+    commandWsRef.current = null;
+    setCommandWsStatus("切断");
+  };
+
+  // ---- WebRTC (audio send to Receiver) ----
+  const startSending = async () => {
+    setError(null);
+
+    const signalWs = signalWsRef.current;
+    if (!signalWs || signalWs.readyState !== WebSocket.OPEN) {
+      appendError("先に Signal WebSocket（label方式 / room）に接続してください。");
+      return;
+    }
+
+    if (!selectedMicId) {
+      appendError("マイクを選択してください。");
+      return;
+    }
+
+    stopSending();
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: selectedMicId } },
+        video: false,
+      });
+
+      streamRef.current = stream;
+      const track = stream.getAudioTracks()[0];
+      if (!track) {
+        appendError("音声トラックを取得できませんでした。");
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        return;
+      }
+
+      setCallStatus("offer送信中");
+
+      const sendFn = (msg: SignalingMessage) => sendSignal(msg);
+
+      // destination は receiver 側で表示したい “IDラベル” 程度の扱い（room中継なので必須ではない）
+      const callId = await manager.callAudioRequest(track, receiverDestination, sendFn, (state) =>
+          setCallStatus(`WebRTC: ${state}`)
+      );
+
+      callIdRef.current = callId;
+    } catch (e) {
+      console.error(e);
+      appendError("マイク取得または WebRTC 開始に失敗しました。");
+    }
+  };
+
+  const stopSending = () => {
+    const callId = callIdRef.current;
+    if (callId) {
+      manager.closeCall(callId);
+      callIdRef.current = null;
+    }
+
+    const stream = streamRef.current;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
+    setCallStatus("停止");
+  };
+
+  // cleanup
   useEffect(() => {
     return () => {
       stopMicTest();
@@ -888,66 +799,59 @@ export default function AudioSender() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* =======================
-   * UI
-   * ======================= */
+  const signalConnected = signalWsStatus === "接続済み";
+  const commandConnected = commandWsStatus === "接続済み";
+  const sendingNow = callStatus !== "停止";
+
   return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Audio Sender（GUI）</h2>
-
+          <div className="text-lg font-semibold">Audio Sender（GUI）</div>
           <button
-              onClick={() => setDebugOpen((v) => !v)}
-              className="rounded-xl bg-slate-200 px-4 py-2 text-sm hover:bg-slate-300"
+              onClick={() => window.open(telecoDebugUrl, "_blank", "noopener,noreferrer")}
+              className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
           >
-            デバッグ {debugOpen ? "閉じる" : "開く"}
+            デバッグ開く（teleco）
           </button>
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-xs text-red-600">{error}</p>}
 
-        {/* ---- Receiver（別PCへ送信）---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="font-semibold">音声送信（GUI → 別PC Receiver）</div>
-
-          <label className="flex items-center gap-2 text-sm">
-            <input
-                type="checkbox"
-                checked={receiverEnabled}
-                onChange={(e) => setReceiverEnabled(e.target.checked)}
-            />
-            Receiverへ送信を有効化
-          </label>
+        {/* ---- Receiver Audio Send ---- */}
+        <div className="rounded-xl border bg-white p-3 space-y-3">
+          <div className="text-sm font-semibold">音声送信（GUI → 別PC AudioReceiver）</div>
 
           <label className="text-sm text-slate-700">
-            Signal WS（label方式 / room）
+            Signal WS（label方式 / room）※ Receiver と同じURLにする
             <input
                 className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
                 value={signalWsUrl}
                 onChange={(e) => setSignalWsUrl(e.target.value)}
-                placeholder="ws://<signaling-host>:8080/?room=audio1"
+                placeholder="ws://192.168.xx.xx:8081/?room=audio1"
             />
           </label>
 
-          <label className="text-sm text-slate-700">
-            Room
-            <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                value={receiverRoom}
-                onChange={(e) => setReceiverRoom(e.target.value)}
-                placeholder="audio1"
-            />
-          </label>
+          <div className="grid gap-2 md:grid-cols-2">
+            <label className="text-sm text-slate-700">
+              Room（見やすさ用メモ）
+              <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  value={roomHint}
+                  onChange={(e) => setRoomHint(e.target.value)}
+                  placeholder="audio1"
+              />
+            </label>
 
-          <label className="text-sm text-slate-700">
-            Destination（AudioReceiver側のID）
-            <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="rover003"
-            />
-          </label>
+            <label className="text-sm text-slate-700">
+              Destination（Receiver側のIDラベル）
+              <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  value={receiverDestination}
+                  onChange={(e) => setReceiverDestination(e.target.value)}
+                  placeholder="rover003"
+              />
+            </label>
+          </div>
 
           <label className="text-sm text-slate-700">
             Microphone
@@ -964,7 +868,7 @@ export default function AudioSender() {
             </select>
           </label>
 
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2">
             <button
                 onClick={refreshDevices}
                 className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
@@ -974,21 +878,25 @@ export default function AudioSender() {
 
             <button
                 onClick={connectSignalWs}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
+                disabled={signalConnected}
+                className={`rounded-xl px-4 py-2 text-sm text-white disabled:opacity-50 ${
+                    signalConnected ? "bg-slate-400" : "bg-slate-900 hover:bg-slate-700"
+                }`}
             >
               Signal WS接続
             </button>
 
             <button
                 onClick={disconnectSignalWs}
-                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+                disabled={!signalConnected}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
             >
               Signal WS切断
             </button>
 
             <button
-                disabled={!receiverEnabled}
                 onClick={startSending}
+                disabled={!signalConnected || sendingNow}
                 className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700 disabled:opacity-50"
             >
               Receiver送信開始
@@ -996,7 +904,8 @@ export default function AudioSender() {
 
             <button
                 onClick={stopSending}
-                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+                disabled={!sendingNow}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
             >
               送信停止
             </button>
@@ -1009,8 +918,8 @@ export default function AudioSender() {
         </div>
 
         {/* ---- teleco command ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="font-semibold">teleco コマンド送信（/command）</div>
+        <div className="rounded-xl border bg-white p-3 space-y-3">
+          <div className="text-sm font-semibold">teleco コマンド送信（/command）+ 口パク</div>
 
           <label className="text-sm text-slate-700">
             Command WS（teleco-main /command）
@@ -1018,232 +927,201 @@ export default function AudioSender() {
                 className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
                 value={commandWsUrl}
                 onChange={(e) => setCommandWsUrl(e.target.value)}
-                placeholder="ws://<teleco-host>:11920/command"
+                placeholder="ws://192.168.xx.xx:11920/command"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            teleco Debug URL（開くボタン用）
+            <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                value={telecoDebugUrl}
+                onChange={(e) => setTelecoDebugUrl(e.target.value)}
+                placeholder="http://192.168.xx.xx:11920/"
             />
           </label>
 
           <div className="flex flex-wrap gap-2">
             <button
                 onClick={connectCommandWs}
-                className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700"
+                disabled={commandConnected}
+                className={`rounded-xl px-4 py-2 text-sm text-white disabled:opacity-50 ${
+                    commandConnected ? "bg-slate-400" : "bg-slate-900 hover:bg-slate-700"
+                }`}
             >
-              Command WS 接続
+              Command WS接続
             </button>
 
             <button
                 onClick={disconnectCommandWs}
-                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+                disabled={!commandConnected}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
             >
-              Command WS 切断
+              Command WS切断
             </button>
 
             <button
-                onClick={() =>
-                    sendCommand({
-                      label: "faceCommand",
-                      commandFace: "change_mouth_vowel",
-                      vowel: "a",
-                    })
-                }
-                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700"
+                onClick={() => sendMouthVowel("a")}
+                disabled={!commandConnected}
+                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
             >
               口パクテスト（a）
             </button>
           </div>
 
-          <div className="text-xs text-slate-600">
-            状態: {commandWsStatus}
-          </div>
-        </div>
+          <div className="text-xs text-slate-600">Command WS: {commandWsStatus}</div>
 
-        {/* ---- Mic Test Panel ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-3">
-          <div className="text-sm font-semibold">
-            マイクテスト（ローカル再生 + umekita母音推定 → faceCommand）
-          </div>
+          {/* ---- Mic Test Panel ---- */}
+          <div className="rounded-xl border bg-white p-3 space-y-3">
+            <div className="text-sm font-semibold">マイクテスト（ローカル再生 + umekita母音推定 → faceCommand）</div>
 
-          <div className="text-xs text-slate-600">
-            umekita の LPC/フォルマント推定を完全移植し、{" "}
-            <code>change_mouth_vowel</code> を自動送信します（無音は{" "}
-            <code>xn</code>）
-          </div>
+            <div className="text-xs text-slate-600">
+              umekita の LPC/フォルマント推定を移植し、<code>change_mouth_vowel</code> を自動送信します。（無音は{" "}
+              <code>xn</code>）
+            </div>
 
-          <div className="flex flex-wrap gap-2 items-center">
-            <button
-                onClick={startMicTest}
-                disabled={micTestRunning}
-                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
-            >
-              Mic Test Start
-            </button>
-            <button
-                onClick={stopMicTest}
-                disabled={!micTestRunning}
-                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
-            >
-              Mic Test Stop
-            </button>
+            <div className="flex flex-wrap gap-2 items-center">
+              <button
+                  onClick={startMicTest}
+                  disabled={micTestRunning}
+                  className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                Mic Test Start
+              </button>
+              <button
+                  onClick={stopMicTest}
+                  disabled={!micTestRunning}
+                  className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
+              >
+                Mic Test Stop
+              </button>
 
-            <label className="flex items-center gap-2 text-xs text-slate-700">
-              <input
-                  type="checkbox"
-                  checked={autoMouthEnabled}
-                  onChange={(e) => setAutoMouthEnabled(e.target.checked)}
-              />
-              口パク送信（faceCommand）
-            </label>
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-3">
-            <label className="text-xs text-slate-700">
-              Monitor Volume（ハウリング注意）
-              <input
-                  className="mt-1 w-full"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={monitorVolume}
-                  onChange={(e) => setMonitorVolume(Number(e.target.value))}
-              />
-              <div className="text-[11px] text-slate-500">
-                {monitorVolume.toFixed(2)}
-              </div>
-            </label>
-
-            <label className="text-xs text-slate-700">
-              Noise Floor（レベルメータ用）
-              <input
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                  type="number"
-                  step="0.001"
-                  value={noiseFloor}
-                  onChange={(e) => setNoiseFloor(Number(e.target.value))}
-              />
-            </label>
-
-            <label className="text-xs text-slate-700">
-              Gain（レベルメータ用）
-              <input
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                  type="number"
-                  step="1"
-                  value={gain}
-                  onChange={(e) => setGain(Number(e.target.value))}
-              />
-            </label>
-
-            <label className="text-xs text-slate-700">
-              Mouth Send FPS（送信頻度制限）
-              <input
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                  type="number"
-                  step="1"
-                  value={mouthSendFps}
-                  onChange={(e) => setMouthSendFps(Number(e.target.value))}
-              />
-            </label>
-
-            <div className="md:col-span-2">
-              <div className="text-xs text-slate-700">Mic Level</div>
-              <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
-                <div
-                    className="h-3 bg-emerald-500"
-                    style={{ width: `${Math.round(micLevel * 100)}%` }}
+              <label className="flex items-center gap-2 text-xs text-slate-700">
+                <input
+                    type="checkbox"
+                    checked={autoMouthEnabled}
+                    onChange={(e) => setAutoMouthEnabled(e.target.checked)}
                 />
+                口パク送信（faceCommand）
+              </label>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-3">
+              <label className="text-xs text-slate-700">
+                Monitor Volume（ハウリング注意）
+                <input
+                    className="mt-1 w-full"
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.01}
+                    value={monitorVolume}
+                    onChange={(e) => setMonitorVolume(Number(e.target.value))}
+                />
+                <div className="text-[11px] text-slate-500">{monitorVolume.toFixed(2)}</div>
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Noise Floor（レベルメータ用）
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="0.001"
+                    value={noiseFloor}
+                    onChange={(e) => setNoiseFloor(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Gain（レベルメータ用）
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="1"
+                    value={gain}
+                    onChange={(e) => setGain(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Mouth Send FPS（送信頻度制限）
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="1"
+                    value={mouthSendFps}
+                    onChange={(e) => setMouthSendFps(Number(e.target.value))}
+                />
+              </label>
+
+              <div className="md:col-span-2">
+                <div className="text-xs text-slate-700">Mic Level</div>
+                <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
+                  <div className="h-3 bg-emerald-500" style={{ width: `${Math.round(micLevel * 100)}%` }} />
+                </div>
+                <div className="text-[11px] text-slate-500">level={micLevel.toFixed(3)}</div>
               </div>
-              <div className="text-[11px] text-slate-500">
-                level={micLevel.toFixed(3)}
-              </div>
+            </div>
+
+            <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
+          </div>
+
+          {/* ---- Mouth Manual Presets ---- */}
+          <div className="rounded-xl border bg-white p-3 space-y-2">
+            <div className="text-sm font-semibold">口パク手動プリセット（faceCommand）</div>
+            <div className="flex flex-wrap gap-2">
+              {(["a", "i", "u", "e", "o", "xn"] as Vowel[]).map((v) => (
+                  <button
+                      key={v}
+                      onClick={() => sendMouthVowel(v)}
+                      disabled={!commandConnected}
+                      className={`rounded-xl px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50 ${
+                          v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
+                      }`}
+                  >
+                    {v === "xn" ? "close(xn)" : v}
+                  </button>
+              ))}
             </div>
           </div>
 
-          <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
-        </div>
+          {/* ---- Command WS Test Panel ---- */}
+          <div className="rounded-xl border bg-white p-3 space-y-2">
+            <div className="text-sm font-semibold">任意コマンド送信（/command）</div>
 
-        {/* ---- Mouth Manual Presets ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">
-            口パク手動プリセット（faceCommand）
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {(["a", "i", "u", "e", "o", "xn"] as Vowel[]).map((v) => (
-                <button
-                    key={v}
-                    onClick={() => sendMouthVowel(v)}
-                    className={`rounded-xl px-4 py-2 text-sm hover:opacity-90 ${
-                        v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
-                    }`}
-                >
-                  {v === "xn" ? "close(xn)" : v}
-                </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ---- Command WS Test Panel ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">任意コマンド送信（/command）</div>
-
-          <div className="text-xs text-slate-600">
-            move_multi でハンド等を試す場合はここから送ってください（口は faceCommand）。
-          </div>
-
-          <textarea
-              className="w-full rounded-xl border px-3 py-2 text-xs font-mono bg-slate-50"
-              rows={10}
-              value={commandJson}
-              onChange={(e) => setCommandJson(e.target.value)}
-          />
-
-          <div className="flex flex-wrap gap-2">
-            <button
-                onClick={sendRawCommandJson}
-                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700"
-            >
-              Send Command
-            </button>
-
-            <button
-                onClick={() => {
-                  setTelecoLog("");
-                  setSignalLog("");
-                }}
-                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
-            >
-              Clear Debug Log
-            </button>
-          </div>
-        </div>
-
-        {/* ---- Debug Panel ---- */}
-        {debugOpen && (
-            <div className="rounded-xl border bg-white p-3 space-y-3">
-              <div className="text-sm font-semibold">デバッグログ</div>
-
-              <div className="text-xs text-slate-600 space-y-1">
-                <div>Signal WS: {signalWsStatus}</div>
-                <div>Command WS: {commandWsStatus}</div>
-                <div>Audio Send: {callStatus}</div>
-                <div>Last Vowel: {lastVowelRef.current}</div>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-2">
-                <div>
-                  <div className="text-xs font-semibold">Signal WS Log</div>
-                  <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-56">
-{signalLog || "(no signal logs)"}
-              </pre>
-                </div>
-                <div>
-                  <div className="text-xs font-semibold">teleco /command Log</div>
-                  <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-56">
-{telecoLog || "(no teleco logs)"}
-              </pre>
-                </div>
-              </div>
+            <div className="text-xs text-slate-600">
+              move_multi でハンド等を試す場合はここから送ってください（口は faceCommand で口パク）。
             </div>
-        )}
+
+            <textarea
+                className="w-full rounded-xl border px-3 py-2 text-xs font-mono bg-slate-50"
+                rows={10}
+                value={commandJson}
+                onChange={(e) => setCommandJson(e.target.value)}
+            />
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                  onClick={sendRawCommandJson}
+                  disabled={!commandConnected}
+                  className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
+              >
+                Send Command
+              </button>
+
+              <button
+                  onClick={() => setCommandLog("")}
+                  className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+              >
+                Clear Log
+              </button>
+            </div>
+
+            <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
+{commandLog || "(no logs)"}
+          </pre>
+          </div>
+        </div>
       </div>
   );
 }
