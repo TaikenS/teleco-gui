@@ -480,14 +480,17 @@ export default function AudioSender() {
     ws.send(JSON.stringify(obj));
   }
 
-  function sendCommand(obj: unknown) {
+  function sendCommand(obj: unknown, options?: { silentIfDisconnected?: boolean }) {
     const ws = commandWsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) {
-      appendError("Command WS（teleco-main /command）に接続してください。");
-      return;
+      if (!options?.silentIfDisconnected) {
+        appendError("Command WS（teleco-main /command）に接続してください。");
+      }
+      return false;
     }
     ws.send(JSON.stringify(obj));
     logCommand(`OUT: ${JSON.stringify(obj)}`);
+    return true;
   }
 
   function sendRawCommandJson() {
@@ -509,13 +512,16 @@ export default function AudioSender() {
     lastVowelRef.current = vowel;
     lastSendMsRef.current = now;
 
-    sendCommand({
-      label: "faceCommand",
-      commandFace: "change_mouth_vowel",
-      vowel,
-      clientId: clientIdRef.current,
-      ts: Date.now(),
-    });
+    sendCommand(
+        {
+          label: "faceCommand",
+          commandFace: "change_mouth_vowel",
+          vowel,
+          clientId: clientIdRef.current,
+          ts: Date.now(),
+        },
+        { silentIfDisconnected: true }
+    );
   }
 
   function sendArrowMove(direction: TelecoArrowDirection) {
@@ -587,14 +593,6 @@ export default function AudioSender() {
   async function startMouthAnalyzer(mode: MouthMode, stream: MediaStream) {
     // すでに動いてるならモードが違う可能性あるので止めてから起動
     if (mouthModeRef.current) stopMouthAnalyzer();
-
-    if (autoMouthEnabled) {
-      const cmdWs = commandWsRef.current;
-      if (!cmdWs || cmdWs.readyState !== WebSocket.OPEN) {
-        appendError("口パク送信のために Command WS（teleco-main /command）へ接続してください。");
-        return;
-      }
-    }
 
     const AudioContextCtor =
         window.AudioContext ||
@@ -1052,6 +1050,7 @@ export default function AudioSender() {
             <div>Signal WS: {signalWsStatus}</div>
             <div>Audio Send: {callStatus}</div>
             <div>Last Vowel: {lastVowelRef.current}</div>
+            <div>Command WS: {commandWsStatus === "接続済み" ? "接続済み（口パク送信有効）" : "未接続（音声送信のみ継続）"}</div>
           </div>
         </div>
 
@@ -1115,7 +1114,7 @@ export default function AudioSender() {
 
         {/* ---- Mic Test Panel ---- */}
         <div className="rounded-xl border bg-white p-3 space-y-3">
-          <div className="text-sm font-semibold">マイクテスト（ローカル再生 + umekita母音推定 → faceCommand）</div>
+          <div className="text-sm font-semibold">マイクテスト（ローカル再生 + 母音推定 → faceCommand）</div>
 
           <div className="flex flex-wrap gap-2 items-center">
             <button

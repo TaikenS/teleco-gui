@@ -24,7 +24,6 @@ export function startLipSync(
   const ctx = new AudioContext();
   const src = ctx.createMediaStreamSource(stream);
 
-  // ScriptProcessorNode is deprecated but matches umekitagui and is simplest to integrate now.
   const proc = ctx.createScriptProcessor(bufferSize, 1, 1);
 
   const silent = ctx.createGain();
