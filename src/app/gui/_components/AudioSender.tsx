@@ -50,13 +50,61 @@ export default function AudioSender() {
   const [callStatus, setCallStatus] = useState<string>("停止");
   const [error, setError] = useState<string | null>(null);
 
-  // 口パク設定（最小）
+  // ---- 口パク設定----
+  //  joints: [2, 4, 13] を使っているのでそれに寄せる
+  // 2,4: 口角（左右逆符号）
+  // 13: jaw（開閉）
+  const MOUTH_JOINTS = [2, 4, 13] as const;
+
   const [lipsyncEnabled, setLipsyncEnabled] = useState<boolean>(true);
-  const [mouthJointId, setMouthJointId] = useState<number>(13);
-  const [mouthMaxAngle, setMouthMaxAngle] = useState<number>(0.6);
   const [sendFps, setSendFps] = useState<number>(30);
+
+  // 無音時の床とゲイン（環境に合わせて調整）
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
   const [gain, setGain] = useState<number>(20);
+
+  // 角度スケールは「度」前提（40, -40, 20 など）
+  const [jawMaxDeg, setJawMaxDeg] = useState<number>(25); // joint 13: 0..25（o=25のイメージ）
+  const [sideMaxDeg, setSideMaxDeg] = useState<number>(40); // joint 2/4: 0..40
+
+  // 送信speed
+  const [speedSide, setSpeedSide] = useState<number>(50);
+  const [speedJaw, setSpeedJaw] = useState<number>(20);
+
+  // ---- Command WS テスト送信用 ----
+  const [commandJson, setCommandJson] = useState<string>(
+      `{
+  "label": "move_multi",
+  "joints": [10],
+  "angles": [10],
+  "speeds": [20],
+  "dontsendback": true
+}`
+  );
+  const [commandLog, setCommandLog] = useState<string>("");
+
+  function logCommand(line: string) {
+    setCommandLog((prev) => `${prev}${line}\n`);
+  }
+
+  function sendRawCommandJson() {
+    setError(null);
+
+    const ws = commandWsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      appendError("Command WS（11920/command）に接続してください。");
+      return;
+    }
+
+    try {
+      const obj = JSON.parse(commandJson);
+      ws.send(JSON.stringify(obj));
+      logCommand(`OUT: ${JSON.stringify(obj)}`);
+    } catch (e) {
+      appendError("JSONのパースに失敗しました。JSONとして正しい形式か確認してください。");
+    }
+  }
+
 
   const clientIdRef = useRef<string>(
       `teleco-gui-master-${Math.random().toString(36).slice(2, 10)}`
@@ -64,7 +112,7 @@ export default function AudioSender() {
 
   const appendError = (msg: string) => setError(msg);
 
-  // ---- Devices ----
+  // マイク一覧を更新（権限未許可だと label が空のことがあります）
   const refreshDevices = async () => {
     try {
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -84,17 +132,18 @@ export default function AudioSender() {
     }
   };
 
+  // 初回：権限要求→デバイス列挙
   useEffect(() => {
     const init = async () => {
       try {
-        // enumerateDevices の label を出すため
+        // enumerateDevices の label を得るために先に権限を取る
         const tmp = await navigator.mediaDevices.getUserMedia({
           audio: true,
           video: false,
         });
         tmp.getTracks().forEach((t) => t.stop());
       } catch {
-        // 権限が取れなくても後続は進める
+        // 権限がなくても列挙自体は可能な場合がある
       }
       await refreshDevices();
     };
@@ -102,7 +151,6 @@ export default function AudioSender() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ---- WS send helpers ----
   function sendSignal(obj: unknown) {
     const ws = signalWsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
@@ -135,26 +183,23 @@ export default function AudioSender() {
       };
 
       ws.onmessage = async (event) => {
-        // WebRTCシグナリングだけ処理
         try {
-          // Blob/ArrayBuffer対策（roomサーバ側の中継実装によっては必要）
           let text: string;
           if (typeof event.data === "string") {
             text = event.data;
-          } else if (event.data instanceof ArrayBuffer) {
-            text = new TextDecoder().decode(event.data);
           } else if (event.data instanceof Blob) {
             text = await event.data.text();
+          } else if (event.data instanceof ArrayBuffer) {
+            text = new TextDecoder().decode(event.data);
           } else {
             text = String(event.data);
           }
-
-          const msg = JSON.parse(text) as SignalingMessage;
-          await manager.handleIncomingMessage(msg);
+          logCommand(`IN: ${text}`);
         } catch {
-          // 無視（別種のログ/通知が混じってもOK）
+          logCommand("IN: (failed to decode message)");
         }
       };
+
     } catch (e) {
       console.error(e);
       appendError("Signal WebSocket の作成に失敗しました。");
@@ -258,7 +303,7 @@ export default function AudioSender() {
       }
       const rms = Math.sqrt(sum / buf.length);
 
-      // 正規化
+      // 正規化（無音床を引いてゲインを掛ける）
       const level = clamp01((rms - noiseFloor) * gain);
 
       // 送信レート制限
@@ -267,16 +312,16 @@ export default function AudioSender() {
       if (now - lastSendMsRef.current >= intervalMs) {
         lastSendMsRef.current = now;
 
-        // 角度に変換
-        const angle = level * mouthMaxAngle;
+        // umekitagui互換の簡易マッピング（Phase1）
+        // level 0..1 → jaw 0..jawMaxDeg, side 0..sideMaxDeg（2と4は逆符号）
+        const jaw = level * jawMaxDeg;
+        const side = level * sideMaxDeg;
 
-        // teleco-main /command に move_multi を投げる
-        // ※ teleco-main の実装が期待する形式が配列（joints/angles/speeds）なのでそれに合わせる
         sendCommand({
           label: "move_multi",
-          joints: [mouthJointId],
-          angles: [angle],
-          speeds: [50],
+          joints: [...MOUTH_JOINTS],
+          angles: [side, -side, jaw],
+          speeds: [speedSide, speedSide, speedJaw],
           dontsendback: true,
           clientId: clientIdRef.current,
           ts: Date.now(),
@@ -334,7 +379,7 @@ export default function AudioSender() {
 
       setCallStatus("offer送信中");
 
-      // WebRTCシグナリングは signalWs に送る（ここが重要）
+      // WebRTCシグナリングは signalWs に送る
       const sendFn = (msg: SignalingMessage) => sendSignal(msg);
 
       const callId = await manager.callAudioRequest(
@@ -436,29 +481,30 @@ export default function AudioSender() {
                   onChange={(e) => setLipsyncEnabled(e.target.checked)}
               />
               <label htmlFor="lipsync" className="text-sm text-slate-700">
-                口パク（RMS→move_multi）を送信する
+                口パク（RMS→move_multi）を送信する（umekita互換: joints 2,4,13）
               </label>
             </div>
 
             <div className="grid gap-2 md:grid-cols-2">
               <label className="text-xs text-slate-700">
-                Mouth Joint ID
+                Jaw Max（deg, joint 13）
                 <input
                     className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
                     type="number"
-                    value={mouthJointId}
-                    onChange={(e) => setMouthJointId(Number(e.target.value))}
+                    step="1"
+                    value={jawMaxDeg}
+                    onChange={(e) => setJawMaxDeg(Number(e.target.value))}
                 />
               </label>
 
               <label className="text-xs text-slate-700">
-                Mouth Max Angle
+                Side Max（deg, joints 2/4）
                 <input
                     className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
                     type="number"
-                    step="0.01"
-                    value={mouthMaxAngle}
-                    onChange={(e) => setMouthMaxAngle(Number(e.target.value))}
+                    step="1"
+                    value={sideMaxDeg}
+                    onChange={(e) => setSideMaxDeg(Number(e.target.value))}
                 />
               </label>
 
@@ -491,6 +537,28 @@ export default function AudioSender() {
                     step="1"
                     value={gain}
                     onChange={(e) => setGain(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Speed Side（2/4）
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="1"
+                    value={speedSide}
+                    onChange={(e) => setSpeedSide(Number(e.target.value))}
+                />
+              </label>
+
+              <label className="text-xs text-slate-700">
+                Speed Jaw（13）
+                <input
+                    className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                    type="number"
+                    step="1"
+                    value={speedJaw}
+                    onChange={(e) => setSpeedJaw(Number(e.target.value))}
                 />
               </label>
 
@@ -537,6 +605,43 @@ export default function AudioSender() {
             </button>
           </div>
         </div>
+
+        {/* ---- Command WS Test Panel ---- */}
+        <div className="rounded-xl border bg-white p-3 space-y-2">
+          <div className="text-sm font-semibold">Command WS テスト送信</div>
+
+          <div className="text-xs text-slate-600">
+            ここに任意のJSONを入れて <code>/command</code> に送信できます（接続確認用）。
+          </div>
+
+          <textarea
+              className="w-full rounded-xl border px-3 py-2 text-xs font-mono bg-slate-50"
+              rows={10}
+              value={commandJson}
+              onChange={(e) => setCommandJson(e.target.value)}
+          />
+
+          <div className="flex flex-wrap gap-2">
+            <button
+                onClick={sendRawCommandJson}
+                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700"
+            >
+              Send Command
+            </button>
+
+            <button
+                onClick={() => setCommandLog("")}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200"
+            >
+              Clear Log
+            </button>
+          </div>
+
+          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
+{commandLog || "(no logs)"}
+        </pre>
+        </div>
+
 
         <div className="text-xs text-slate-600 space-y-1">
           <div>Signal WS: {signalWsStatus}</div>
