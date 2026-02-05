@@ -7,6 +7,11 @@ import { getSignalingUrl } from "@/lib/siganling";
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 type Role = "sender" | "viewer";
 
+const STORAGE_KEYS = {
+    roomId: "teleco.audioSender.roomId",
+    sendEnabled: "teleco.audioSender.sendEnabled",
+};
+
 export default function AudioSenderPage() {
     const [roomId, setRoomId] = useState("audio1");
     const [connected, setConnected] = useState(false);
@@ -20,8 +25,55 @@ export default function AudioSenderPage() {
     const streamRef = useRef<MediaStream | null>(null);
     const localAudioRef = useRef<HTMLAudioElement | null>(null);
 
+    const reconnectTimerRef = useRef<number | null>(null);
+    const reconnectAttemptRef = useRef(0);
+    const manualCloseRef = useRef(false);
+
     const logLine = (line: string) =>
         setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+
+    const clearReconnectTimer = () => {
+        if (reconnectTimerRef.current != null) {
+            window.clearTimeout(reconnectTimerRef.current);
+            reconnectTimerRef.current = null;
+        }
+    };
+
+    const closePc = () => {
+        if (!pcRef.current) return;
+        try {
+            pcRef.current.onicecandidate = null;
+            pcRef.current.onconnectionstatechange = null;
+            pcRef.current.close();
+        } catch {}
+        pcRef.current = null;
+    };
+
+    const closeWs = () => {
+        if (!wsRef.current) return;
+        try {
+            wsRef.current.onopen = null;
+            wsRef.current.onclose = null;
+            wsRef.current.onerror = null;
+            wsRef.current.onmessage = null;
+            wsRef.current.close();
+        } catch {}
+        wsRef.current = null;
+    };
+
+    const scheduleReconnect = () => {
+        if (manualCloseRef.current) return;
+
+        clearReconnectTimer();
+        const waitMs = Math.min(15000, 1000 * 2 ** reconnectAttemptRef.current);
+        reconnectAttemptRef.current += 1;
+        logLine(`シグナリング再接続を予約 (${Math.round(waitMs / 1000)}s)`);
+
+        reconnectTimerRef.current = window.setTimeout(() => {
+            reconnectTimerRef.current = null;
+            connectSignaling(true);
+        }, waitMs);
+    };
 
     const startMic = async () => {
         try {
@@ -30,6 +82,11 @@ export default function AudioSenderPage() {
                 audio: true,
                 video: false,
             });
+
+            if (streamRef.current) {
+                streamRef.current.getTracks().forEach((t) => t.stop());
+            }
+
             streamRef.current = s;
             setMicReady(true);
 
@@ -45,23 +102,28 @@ export default function AudioSenderPage() {
         }
     };
 
-    const connectSignaling = () => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const connectSignaling = (isReconnect = false) => {
+        if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
         setError(null);
+        clearReconnectTimer();
 
         const ws = new WebSocket(getSignalingUrl());
         wsRef.current = ws;
 
         ws.onopen = () => {
             setConnected(true);
-            logLine("シグナリング接続");
+            reconnectAttemptRef.current = 0;
+            logLine(isReconnect ? "シグナリング再接続" : "シグナリング接続");
             ws.send(JSON.stringify({ type: "join", roomId, role: "sender" as Role }));
         };
 
         ws.onclose = () => {
+            if (wsRef.current === ws) wsRef.current = null;
             setConnected(false);
-            wsRef.current = null;
             logLine("シグナリング切断");
+            scheduleReconnect();
         };
 
         ws.onerror = (e) => {
@@ -70,7 +132,13 @@ export default function AudioSenderPage() {
         };
 
         ws.onmessage = async (event) => {
-            const msg = JSON.parse(event.data);
+            let msg: any;
+            try {
+                msg = JSON.parse(event.data);
+            } catch {
+                return;
+            }
+
             if (!pcRef.current) return;
 
             if (msg.type === "answer") {
@@ -93,6 +161,7 @@ export default function AudioSenderPage() {
             logLine("送信がOFFです（チェックをONにしてください）");
             return;
         }
+
         if (!streamRef.current) {
             logLine("先にマイクを起動してください");
             return;
@@ -101,6 +170,8 @@ export default function AudioSenderPage() {
             logLine("先にシグナリングへ接続してください");
             return;
         }
+
+        closePc();
 
         const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
         pcRef.current = pc;
@@ -139,11 +210,32 @@ export default function AudioSenderPage() {
     };
 
     useEffect(() => {
+        const savedRoom = window.localStorage.getItem(STORAGE_KEYS.roomId);
+        if (savedRoom) setRoomId(savedRoom);
+
+        const savedSend = window.localStorage.getItem(STORAGE_KEYS.sendEnabled);
+        if (savedSend != null) setSendEnabled(savedSend === "1");
+    }, []);
+
+    useEffect(() => {
+        window.localStorage.setItem(STORAGE_KEYS.roomId, roomId);
+    }, [roomId]);
+
+    useEffect(() => {
+        window.localStorage.setItem(STORAGE_KEYS.sendEnabled, sendEnabled ? "1" : "0");
+    }, [sendEnabled]);
+
+    useEffect(() => {
         return () => {
-            wsRef.current?.close();
-            pcRef.current?.close();
+            manualCloseRef.current = true;
+            clearReconnectTimer();
+
+            closeWs();
+            closePc();
             streamRef.current?.getTracks().forEach((t) => t.stop());
+            streamRef.current = null;
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return (
@@ -187,7 +279,10 @@ export default function AudioSenderPage() {
                         </button>
 
                         <button
-                            onClick={connectSignaling}
+                            onClick={() => {
+                                manualCloseRef.current = false;
+                                connectSignaling();
+                            }}
                             disabled={connected}
                             className={
                                 connected

@@ -17,6 +17,7 @@ const handle = app.getRequestHandler();
  * 両方を「room単位で中継」するだけの超単純リレー。
  */
 const rooms = new Map(); // room -> Set<WebSocket>
+const HEARTBEAT_MS = 25_000;
 
 function getRoomFromReq(req) {
     try {
@@ -47,10 +48,15 @@ function leaveRoom(ws) {
 await app.prepare();
 
 const server = http.createServer((req, res) => handle(req, res));
-
 const wss = new WebSocketServer({ noServer: true });
 
 wss.on("connection", (ws, req) => {
+    // heartbeat
+    ws.isAlive = true;
+    ws.on("pong", () => {
+        ws.isAlive = true;
+    });
+
     // 1) query param の room があればそれに参加（audio test 等）
     const roomFromQuery = getRoomFromReq(req);
     if (roomFromQuery) joinRoom(ws, roomFromQuery);
@@ -92,6 +98,28 @@ wss.on("connection", (ws, req) => {
     });
 });
 
+// ping/pong heartbeat
+const heartbeatTimer = setInterval(() => {
+    for (const ws of wss.clients) {
+        if (ws.isAlive === false) {
+            leaveRoom(ws);
+            ws.terminate();
+            continue;
+        }
+        ws.isAlive = false;
+        try {
+            ws.ping();
+        } catch {
+            leaveRoom(ws);
+            ws.terminate();
+        }
+    }
+}, HEARTBEAT_MS);
+
+wss.on("close", () => {
+    clearInterval(heartbeatTimer);
+});
+
 server.on("upgrade", (req, socket, head) => {
     try {
         const u = new URL(req.url, "http://localhost");
@@ -107,6 +135,10 @@ server.on("upgrade", (req, socket, head) => {
     wss.handleUpgrade(req, socket, head, (ws) => {
         wss.emit("connection", ws, req);
     });
+});
+
+server.on("close", () => {
+    clearInterval(heartbeatTimer);
 });
 
 server.listen(port, () => {

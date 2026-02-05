@@ -57,6 +57,12 @@ function withRoomQuery(wsUrl: string, roomId: string) {
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
+const STORAGE_KEYS = {
+    receiverId: "teleco.audio.receiverId",
+    roomId: "teleco.audio.roomId",
+    signalingWsUrl: "teleco.audio.signalingWsUrl",
+};
+
 /**
  * teleco-gui-master の label方式（Teleco互換）
  */
@@ -125,6 +131,10 @@ export default function AudioReceiverPage() {
 
     const wsRef = useRef<WebSocket | null>(null);
 
+    const reconnectTimerRef = useRef<number | null>(null);
+    const reconnectAttemptRef = useRef(0);
+    const manualDisconnectRef = useRef(false);
+
     // token -> PeerConnection
     const pcsRef = useRef<Map<string, RTCPeerConnection>>(new Map());
 
@@ -134,6 +144,52 @@ export default function AudioReceiverPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const logLine = (line: string) => setLog((prev) => [...prev, `[${nowTime()}] ${line}`]);
+
+
+    useEffect(() => {
+        const savedReceiver = window.localStorage.getItem(STORAGE_KEYS.receiverId);
+        if (savedReceiver) setReceiverId(savedReceiver);
+
+        const savedRoomId = window.localStorage.getItem(STORAGE_KEYS.roomId);
+        if (savedRoomId) setRoomId(savedRoomId);
+
+        const savedSignalUrl = window.localStorage.getItem(STORAGE_KEYS.signalingWsUrl);
+        if (savedSignalUrl) setSignalingWsUrl(savedSignalUrl);
+    }, []);
+
+    useEffect(() => {
+        window.localStorage.setItem(STORAGE_KEYS.receiverId, receiverId);
+    }, [receiverId]);
+
+    useEffect(() => {
+        window.localStorage.setItem(STORAGE_KEYS.roomId, roomId);
+    }, [roomId]);
+
+    useEffect(() => {
+        window.localStorage.setItem(STORAGE_KEYS.signalingWsUrl, signalingWsUrl);
+    }, [signalingWsUrl]);
+
+    function clearReconnectTimer() {
+        if (reconnectTimerRef.current != null) {
+            window.clearTimeout(reconnectTimerRef.current);
+            reconnectTimerRef.current = null;
+        }
+    }
+
+    function scheduleReconnect() {
+        if (manualDisconnectRef.current) return;
+        clearReconnectTimer();
+
+        const waitMs = Math.min(15000, 1000 * 2 ** reconnectAttemptRef.current);
+        reconnectAttemptRef.current += 1;
+
+        logLine(`再接続を予約 (${Math.round(waitMs / 1000)}s)`);
+
+        reconnectTimerRef.current = window.setTimeout(() => {
+            reconnectTimerRef.current = null;
+            connect(true);
+        }, waitMs);
+    }
 
     function cleanupAllPeers() {
         for (const [token, pc] of pcsRef.current.entries()) {
@@ -205,9 +261,11 @@ export default function AudioReceiverPage() {
         return pc;
     }
 
-    const connect = () => {
-        if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const connect = (isReconnect = false) => {
+        if (wsRef.current?.readyState === WebSocket.OPEN || wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
+        manualDisconnectRef.current = false;
+        clearReconnectTimer();
         setError(null);
 
         const base = normalizeWsUrl(signalingWsUrl);
@@ -219,7 +277,8 @@ export default function AudioReceiverPage() {
 
         ws.onopen = () => {
             setConnected(true);
-            logLine("シグナリング接続(open)");
+            reconnectAttemptRef.current = 0;
+            logLine(isReconnect ? "シグナリング再接続(open)" : "シグナリング接続(open)");
 
             // server.mjs は join メッセージでも room を設定できるので送っておく（?room= が無い場合の保険）
             sendWs({ type: "join", roomId, role: "viewer", id: receiverId });
@@ -227,10 +286,11 @@ export default function AudioReceiverPage() {
         };
 
         ws.onclose = (ev) => {
+            if (wsRef.current === ws) wsRef.current = null;
             setConnected(false);
             logLine(`シグナリング切断(close) code=${ev.code} reason=${ev.reason || "(none)"}`);
-            cleanupWs();
             cleanupAllPeers();
+            scheduleReconnect();
         };
 
         ws.onerror = () => {
@@ -324,15 +384,21 @@ export default function AudioReceiverPage() {
         };
     };
 
+
     const disconnect = () => {
+        manualDisconnectRef.current = true;
+        clearReconnectTimer();
         logLine("手動切断");
         cleanupWs();
         cleanupAllPeers();
         setConnected(false);
     };
 
+
     useEffect(() => {
         return () => {
+            manualDisconnectRef.current = true;
+            clearReconnectTimer();
             cleanupWs();
             cleanupAllPeers();
         };
@@ -388,7 +454,7 @@ export default function AudioReceiverPage() {
 
                     <div className="flex flex-wrap gap-2 text-sm">
                         <button
-                            onClick={connect}
+                            onClick={() => { manualDisconnectRef.current = false; connect(); }}
                             disabled={connected}
                             className={
                                 connected

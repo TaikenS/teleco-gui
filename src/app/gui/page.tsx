@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import React from "react";
 import Link from "next/link";
 import AudioSender from "@/app/gui/_components/AudioSender";
@@ -8,10 +8,22 @@ import RemoteVideo from "@/app/gui/_components/RemoteVideo";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
 
 type VideoSourceMode = "local" | "webSender" ;
+const VIDEO_MODE_STORAGE_KEY = "teleco.gui.videoMode";
 
 export default function GuiPage() {
   const [mode, setMode] = useState<VideoSourceMode>("local");
   const [selectedVideoId] = useState<string | undefined>();
+
+  useEffect(() => {
+    const savedMode = window.localStorage.getItem(VIDEO_MODE_STORAGE_KEY);
+    if (savedMode === "local" || savedMode === "webSender") {
+      setMode(savedMode);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(VIDEO_MODE_STORAGE_KEY, mode);
+  }, [mode]);
 
   return (
       <div className="min-h-screen bg-slate-50 text-slate-900">

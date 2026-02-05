@@ -6,19 +6,70 @@ import { getSignalingUrl } from "@/lib/siganling";
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 type Role = "sender" | "viewer";
+const ROOM_ID_STORAGE_KEY = "teleco.sender.roomId";
 
 export default function SenderPage() {
-  const [roomId, setRoomId] = useState("room1"); // 適当な部屋名
+  const [roomId, setRoomId] = useState("room1");
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
+
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [log, setLog] = useState<string[]>([]);
+
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const manualCloseRef = useRef(false);
 
   const logLine = (line: string) =>
       setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+
+  const clearReconnectTimer = () => {
+    if (reconnectTimerRef.current != null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  };
+
+  const closePc = () => {
+    if (!pcRef.current) return;
+    try {
+      pcRef.current.onicecandidate = null;
+      pcRef.current.onconnectionstatechange = null;
+      pcRef.current.close();
+    } catch {}
+    pcRef.current = null;
+  };
+
+  const closeWs = () => {
+    if (!wsRef.current) return;
+    try {
+      wsRef.current.onopen = null;
+      wsRef.current.onclose = null;
+      wsRef.current.onerror = null;
+      wsRef.current.onmessage = null;
+      wsRef.current.close();
+    } catch {}
+    wsRef.current = null;
+    setConnected(false);
+  };
+
+  const scheduleReconnect = () => {
+    if (manualCloseRef.current) return;
+    clearReconnectTimer();
+
+    const waitMs = Math.min(15000, 1000 * 2 ** reconnectAttemptRef.current);
+    reconnectAttemptRef.current += 1;
+    logLine(`シグナリング再接続を予約 (${Math.round(waitMs / 1000)}s)`);
+
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      connectSignaling(true);
+    }, waitMs);
+  };
 
   // カメラ起動
   const startCamera = async () => {
@@ -27,6 +78,12 @@ export default function SenderPage() {
         video: { width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+      }
+
+      streamRef.current = media;
       setStream(media);
       logLine("カメラ起動");
     } catch (e) {
@@ -36,8 +93,14 @@ export default function SenderPage() {
   };
 
   // シグナリングへの接続
-  const connectSignaling = () => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+  const connectSignaling = (isReconnect = false) => {
+    const current = wsRef.current;
+    if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    clearReconnectTimer();
+    setWsError(null);
 
     const ws = new WebSocket(getSignalingUrl());
     wsRef.current = ws;
@@ -45,13 +108,16 @@ export default function SenderPage() {
     ws.onopen = () => {
       setConnected(true);
       setWsError(null);
-      logLine("シグナリング接続");
+      reconnectAttemptRef.current = 0;
+      logLine(isReconnect ? "シグナリング再接続" : "シグナリング接続");
       ws.send(JSON.stringify({ type: "join", roomId, role: "sender" as Role }));
     };
 
     ws.onclose = () => {
+      if (wsRef.current === ws) wsRef.current = null;
       setConnected(false);
       logLine("シグナリング切断");
+      scheduleReconnect();
     };
 
     ws.onerror = (e) => {
@@ -60,15 +126,23 @@ export default function SenderPage() {
     };
 
     ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-      if (!pcRef.current) return;
+      let msg: any;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
+        return;
+      }
+
+      const pc = pcRef.current;
+      if (!pc) return;
+
       if (msg.type === "answer") {
         const desc = new RTCSessionDescription(msg.payload);
-        await pcRef.current.setRemoteDescription(desc);
+        await pc.setRemoteDescription(desc);
         logLine("viewer から answer 受信");
       } else if (msg.type === "ice-candidate") {
         try {
-          await pcRef.current.addIceCandidate(msg.payload);
+          await pc.addIceCandidate(msg.payload);
         } catch (e) {
           console.error(e);
         }
@@ -78,7 +152,8 @@ export default function SenderPage() {
 
   // WebRTC 接続開始
   const startWebRTC = async () => {
-    if (!stream) {
+    const currentStream = streamRef.current;
+    if (!currentStream) {
       logLine("先にカメラを起動してください");
       return;
     }
@@ -87,23 +162,24 @@ export default function SenderPage() {
       return;
     }
 
+    closePc();
+
     const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
     pcRef.current = pc;
 
     // ローカルストリームを全部乗せる
-    stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+    currentStream.getTracks().forEach((track) => pc.addTrack(track, currentStream));
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        wsRef.current?.send(
-            JSON.stringify({
-              type: "ice-candidate",
-              roomId,
-              role: "sender",
-              payload: event.candidate,
-            }),
-        );
-      }
+      if (!event.candidate) return;
+      wsRef.current?.send(
+          JSON.stringify({
+            type: "ice-candidate",
+            roomId,
+            role: "sender",
+            payload: event.candidate,
+          }),
+      );
     };
 
     pc.onconnectionstatechange = () => {
@@ -132,14 +208,31 @@ export default function SenderPage() {
     if (stream) v.play().catch(() => {});
   }, [stream]);
 
+  useEffect(() => {
+    const saved = window.localStorage.getItem(ROOM_ID_STORAGE_KEY);
+    if (saved) setRoomId(saved);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(ROOM_ID_STORAGE_KEY, roomId);
+  }, [roomId]);
+
   // cleanup
   useEffect(() => {
     return () => {
-      stream?.getTracks().forEach((t) => t.stop());
-      pcRef.current?.close();
-      wsRef.current?.close();
+      manualCloseRef.current = true;
+      clearReconnectTimer();
+
+      closePc();
+      closeWs();
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
     };
-  }, [stream]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
       <main className="min-h-screen bg-slate-50">
@@ -163,7 +256,10 @@ export default function SenderPage() {
                 カメラ起動
               </button>
               <button
-                  onClick={connectSignaling}
+                  onClick={() => {
+                    manualCloseRef.current = false;
+                    connectSignaling();
+                  }}
                   className="rounded-xl bg-slate-100 px-4 py-2"
               >
                 シグナリング接続
@@ -189,6 +285,9 @@ export default function SenderPage() {
             </div>
             <p className="text-xs text-slate-500">
               これは「送信側PCのローカルプレビュー」です。
+            </p>
+            <p className="text-xs text-slate-500">
+              Signal: {connected ? "接続中" : "未接続"}
             </p>
           </div>
 

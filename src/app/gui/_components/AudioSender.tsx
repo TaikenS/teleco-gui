@@ -10,6 +10,15 @@ type Vowel = "a" | "i" | "u" | "e" | "o" | "xn";
 type TelecoArrowDirection = "left" | "right";
 const TELECO_ARROW_EVENT = "teleco:arrow";
 
+const STORAGE_KEYS = {
+  roomHint: "teleco.gui.audio.roomHint",
+  signalWsUrl: "teleco.gui.audio.signalWsUrl",
+  receiverDestination: "teleco.gui.audio.receiverDestination",
+  commandWsUrl: "teleco.gui.audio.commandWsUrl",
+  telecoDebugUrl: "teleco.gui.audio.telecoDebugUrl",
+  selectedMicId: "teleco.gui.audio.selectedMicId",
+};
+
 function clamp01(v: number) {
   if (v < 0) return 0;
   if (v > 1) return 1;
@@ -380,6 +389,14 @@ export default function AudioSender() {
   // WS: teleco向け（/command）
   const commandWsRef = useRef<WebSocket | null>(null);
 
+  const signalReconnectTimerRef = useRef<number | null>(null);
+  const signalReconnectAttemptRef = useRef(0);
+  const manualSignalDisconnectRef = useRef(false);
+
+  const commandReconnectTimerRef = useRef<number | null>(null);
+  const commandReconnectAttemptRef = useRef(0);
+  const manualCommandDisconnectRef = useRef(false);
+
   // WebRTC call
   const callIdRef = useRef<string | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -733,11 +750,106 @@ export default function AudioSender() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  useEffect(() => {
+    const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomHint);
+    if (savedRoomHint) setRoomHint(savedRoomHint);
+
+    const savedSignalWsUrl = window.localStorage.getItem(STORAGE_KEYS.signalWsUrl);
+    if (savedSignalWsUrl) setSignalWsUrl(savedSignalWsUrl);
+
+    const savedDest = window.localStorage.getItem(STORAGE_KEYS.receiverDestination);
+    if (savedDest) setReceiverDestination(savedDest);
+
+    const savedCommandWsUrl = window.localStorage.getItem(STORAGE_KEYS.commandWsUrl);
+    if (savedCommandWsUrl) setCommandWsUrl(savedCommandWsUrl);
+
+    const savedDebugUrl = window.localStorage.getItem(STORAGE_KEYS.telecoDebugUrl);
+    if (savedDebugUrl) setTelecoDebugUrl(savedDebugUrl);
+
+    const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
+    if (savedMicId) setSelectedMicId(savedMicId);
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.roomHint, roomHint);
+  }, [roomHint]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.signalWsUrl, signalWsUrl);
+  }, [signalWsUrl]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.receiverDestination, receiverDestination);
+  }, [receiverDestination]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.commandWsUrl, commandWsUrl);
+  }, [commandWsUrl]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.telecoDebugUrl, telecoDebugUrl);
+  }, [telecoDebugUrl]);
+
+  useEffect(() => {
+    if (!selectedMicId) return;
+    window.localStorage.setItem(STORAGE_KEYS.selectedMicId, selectedMicId);
+  }, [selectedMicId]);
+
+  const clearSignalReconnectTimer = () => {
+    if (signalReconnectTimerRef.current != null) {
+      window.clearTimeout(signalReconnectTimerRef.current);
+      signalReconnectTimerRef.current = null;
+    }
+  };
+
+  const scheduleSignalReconnect = () => {
+    if (manualSignalDisconnectRef.current) return;
+    clearSignalReconnectTimer();
+
+    const waitMs = Math.min(15000, 1000 * 2 ** signalReconnectAttemptRef.current);
+    signalReconnectAttemptRef.current += 1;
+
+    signalReconnectTimerRef.current = window.setTimeout(() => {
+      signalReconnectTimerRef.current = null;
+      connectSignalWs(true);
+    }, waitMs);
+  };
+
+  const clearCommandReconnectTimer = () => {
+    if (commandReconnectTimerRef.current != null) {
+      window.clearTimeout(commandReconnectTimerRef.current);
+      commandReconnectTimerRef.current = null;
+    }
+  };
+
+  const scheduleCommandReconnect = () => {
+    if (manualCommandDisconnectRef.current) return;
+    clearCommandReconnectTimer();
+
+    const waitMs = Math.min(15000, 1000 * 2 ** commandReconnectAttemptRef.current);
+    commandReconnectAttemptRef.current += 1;
+
+    commandReconnectTimerRef.current = window.setTimeout(() => {
+      commandReconnectTimerRef.current = null;
+      connectCommandWs(true);
+    }, waitMs);
+  };
+
+
   // ---- WS connect (signal) ----
-  const connectSignalWs = () => {
+  const connectSignalWs = (isReconnect = false) => {
     setError(null);
 
-    if (signalWsRef.current && signalWsRef.current.readyState === WebSocket.OPEN) return;
+    if (
+        signalWsRef.current &&
+        (signalWsRef.current.readyState === WebSocket.OPEN || signalWsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    manualSignalDisconnectRef.current = false;
+    clearSignalReconnectTimer();
 
     const normalized = normalizeSignalingWsUrl(signalWsUrl, roomHint);
     setSignalWsUrl(normalized);
@@ -756,16 +868,25 @@ export default function AudioSender() {
       const ws = new WebSocket(normalized);
       signalWsRef.current = ws;
 
-      ws.onopen = () => setSignalWsStatus("接続済み");
-      ws.onclose = () => {
-        setSignalWsStatus("切断");
-        signalWsRef.current = null;
+      ws.onopen = () => {
+        signalReconnectAttemptRef.current = 0;
+        setSignalWsStatus("接続済み");
+        if (isReconnect) {
+          logCommand("Signal WS 再接続");
+        }
       };
+
+      ws.onclose = () => {
+        if (signalWsRef.current === ws) signalWsRef.current = null;
+        setSignalWsStatus("切断");
+        scheduleSignalReconnect();
+      };
+
       ws.onerror = () => {
         setSignalWsStatus("エラー");
         appendError(
             "Signal WebSocket 接続でエラーが発生しました。URL/ポート/PC(IP)を確認してください。\n" +
-            "※ 統合シグナリングの場合は /ws?room=... が必須です（/ が抜けると Upgrade Required になります）。"
+            "※ 統合シグナリングの場合は /ws?room=... が必須です（/ が抜けると Upgrade Required になります）。",
         );
       };
 
@@ -790,26 +911,56 @@ export default function AudioSender() {
   };
 
   const disconnectSignalWs = () => {
-    signalWsRef.current?.close();
+    manualSignalDisconnectRef.current = true;
+    clearSignalReconnectTimer();
+
+    const ws = signalWsRef.current;
+    if (ws) {
+      ws.onopen = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.onmessage = null;
+      ws.close();
+    }
+
     signalWsRef.current = null;
     setSignalWsStatus("切断");
   };
 
+
+
   // ---- WS connect (command) ----
-  const connectCommandWs = () => {
+  const connectCommandWs = (isReconnect = false) => {
     setError(null);
 
-    if (commandWsRef.current && commandWsRef.current.readyState === WebSocket.OPEN) return;
+    if (
+        commandWsRef.current &&
+        (commandWsRef.current.readyState === WebSocket.OPEN || commandWsRef.current.readyState === WebSocket.CONNECTING)
+    ) {
+      return;
+    }
+
+    manualCommandDisconnectRef.current = false;
+    clearCommandReconnectTimer();
 
     try {
       const ws = new WebSocket(commandWsUrl);
       commandWsRef.current = ws;
 
-      ws.onopen = () => setCommandWsStatus("接続済み");
-      ws.onclose = () => {
-        setCommandWsStatus("切断");
-        commandWsRef.current = null;
+      ws.onopen = () => {
+        commandReconnectAttemptRef.current = 0;
+        setCommandWsStatus("接続済み");
+        if (isReconnect) {
+          logCommand("Command WS 再接続");
+        }
       };
+
+      ws.onclose = () => {
+        if (commandWsRef.current === ws) commandWsRef.current = null;
+        setCommandWsStatus("切断");
+        scheduleCommandReconnect();
+      };
+
       ws.onerror = () => {
         setCommandWsStatus("エラー");
         appendError("Command WebSocket 接続でエラーが発生しました。");
@@ -835,10 +986,22 @@ export default function AudioSender() {
   };
 
   const disconnectCommandWs = () => {
-    commandWsRef.current?.close();
+    manualCommandDisconnectRef.current = true;
+    clearCommandReconnectTimer();
+
+    const ws = commandWsRef.current;
+    if (ws) {
+      ws.onopen = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.onmessage = null;
+      ws.close();
+    }
+
     commandWsRef.current = null;
     setCommandWsStatus("切断");
   };
+
 
   // ---- WebRTC (audio send) ----
   const startSending = async () => {
@@ -922,6 +1085,33 @@ export default function AudioSender() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
+  useEffect(() => {
+    const onKeyDown = (ev: KeyboardEvent) => {
+      const target = ev.target as HTMLElement | null;
+      if (
+          target &&
+          (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)
+      ) {
+        return;
+      }
+
+      if (ev.key === "ArrowLeft") {
+        ev.preventDefault();
+        sendArrowMove("left");
+      } else if (ev.key === "ArrowRight") {
+        ev.preventDefault();
+        sendArrowMove("right");
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // cleanup
   useEffect(() => {
     return () => {
@@ -930,13 +1120,16 @@ export default function AudioSender() {
       usingForMicTestRef.current = false;
       stopSharedStreamIfUnused();
 
-
       stopMicTest();
       stopSending();
 
+      manualSignalDisconnectRef.current = true;
+      manualCommandDisconnectRef.current = true;
+      clearSignalReconnectTimer();
+      clearCommandReconnectTimer();
+
       disconnectSignalWs();
       disconnectCommandWs();
-
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1019,7 +1212,7 @@ export default function AudioSender() {
             </button>
 
             <button
-                onClick={connectSignalWs}
+                onClick={() => { manualSignalDisconnectRef.current = false; connectSignalWs(); }}
                 disabled={signalWsStatus === "接続済み"}
                 className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
             >
@@ -1069,7 +1262,7 @@ export default function AudioSender() {
 
           <div className="flex flex-wrap gap-2">
             <button
-                onClick={connectCommandWs}
+                onClick={() => { manualCommandDisconnectRef.current = false; connectCommandWs(); }}
                 disabled={commandWsStatus === "接続済み"}
                 className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
             >

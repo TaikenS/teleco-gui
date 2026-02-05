@@ -11,6 +11,11 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  const reconnectTimerRef = useRef<number | null>(null);
+  const reconnectAttemptRef = useRef(0);
+  const manualCloseRef = useRef(false);
+
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [fps, setFps] = useState<number | null>(null);
@@ -24,10 +29,27 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   const logLine = (line: string) =>
       setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
-  // シグナリング接続 + WebRTC 初期化
-  useEffect(() => {
-    const ws = new WebSocket(getSignalingUrl());
-    wsRef.current = ws;
+  const clearReconnectTimer = () => {
+    if (reconnectTimerRef.current != null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  };
+
+  const closePeer = () => {
+    if (pcRef.current) {
+      try {
+        pcRef.current.ontrack = null;
+        pcRef.current.onicecandidate = null;
+        pcRef.current.onconnectionstatechange = null;
+        pcRef.current.close();
+      } catch {}
+      pcRef.current = null;
+    }
+  };
+
+  const createPeer = () => {
+    closePeer();
 
     const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
     pcRef.current = pc;
@@ -45,33 +67,71 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     };
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        wsRef.current?.send(
-            JSON.stringify({
-              type: "ice-candidate",
-              roomId,
-              role: "viewer" as Role,
-              payload: event.candidate,
-            }),
-        );
-      }
+      if (!event.candidate) return;
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      ws.send(
+          JSON.stringify({
+            type: "ice-candidate",
+            roomId,
+            role: "viewer" as Role,
+            payload: event.candidate,
+          }),
+      );
     };
 
     pc.onconnectionstatechange = () => {
       logLine(`WebRTC状態: ${pc.connectionState}`);
     };
 
+    return pc;
+  };
+
+  const scheduleReconnect = () => {
+    if (manualCloseRef.current) return;
+    clearReconnectTimer();
+
+    const waitMs = Math.min(15000, 1000 * 2 ** reconnectAttemptRef.current);
+    reconnectAttemptRef.current += 1;
+    logLine(`シグナリング再接続を予約 (${Math.round(waitMs / 1000)}s)`);
+
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      connectSignaling();
+    }, waitMs);
+  };
+
+  const connectSignaling = () => {
+    if (manualCloseRef.current) return;
+    const current = wsRef.current;
+    if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    const ws = new WebSocket(getSignalingUrl());
+    wsRef.current = ws;
+
+    createPeer();
+
     ws.onopen = () => {
+      reconnectAttemptRef.current = 0;
+      setError(null);
       logLine("シグナリング接続");
       ws.send(JSON.stringify({ type: "join", roomId, role: "viewer" as Role }));
     };
 
     ws.onmessage = async (event) => {
-      const msg = JSON.parse(event.data);
-      if (!msg) {
+      let msg: any;
+      try {
+        msg = JSON.parse(event.data);
+      } catch {
         logLine("不正なシグナリングメッセージを無視しました");
         return;
       }
+
+      const pc = pcRef.current;
+      if (!pc) return;
+
       if (msg.type === "offer") {
         logLine("sender から offer 受信");
         const desc = new RTCSessionDescription(msg.payload);
@@ -102,13 +162,40 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     };
 
     ws.onclose = () => {
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+      }
       logLine("シグナリング切断");
+      closePeer();
+      scheduleReconnect();
     };
+  };
+
+  // シグナリング接続 + WebRTC 初期化
+  useEffect(() => {
+    manualCloseRef.current = false;
+    reconnectAttemptRef.current = 0;
+    connectSignaling();
 
     return () => {
-      pc.close();
-      ws.close();
+      manualCloseRef.current = true;
+      clearReconnectTimer();
+
+      if (wsRef.current) {
+        try {
+          wsRef.current.onopen = null;
+          wsRef.current.onmessage = null;
+          wsRef.current.onerror = null;
+          wsRef.current.onclose = null;
+          wsRef.current.close();
+        } catch {}
+        wsRef.current = null;
+      }
+
+      closePeer();
     };
+    // roomを変えたら再接続し直す
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
 
   // FPS / 解像度計測
