@@ -73,13 +73,13 @@ export default function AudioSender() {
 
   // ---- Command WS テスト送信用 ----
   const [commandJson, setCommandJson] = useState<string>(
-      `{
-  "label": "move_multi",
-  "joints": [10],
-  "angles": [10],
-  "speeds": [20],
-  "dontsendback": true
-}`
+          `{
+      "label": "move_multi",
+      "joints": [10],
+      "angles": [10],
+      "speeds": [20],
+      "dontsendback": true
+    }`
   );
   const [commandLog, setCommandLog] = useState<string>("");
 
