@@ -9,6 +9,7 @@ type Role = "sender" | "viewer";
 
 const STORAGE = {
   roomId: "teleco.sender.roomId",
+  signalingWsUrl: "teleco.sender.signalingWsUrl",
   autoConnect: "teleco.sender.autoConnect",
   cameraActive: "teleco.sender.cameraActive",
   streamingActive: "teleco.sender.streamingActive",
@@ -18,8 +19,40 @@ const WS_KEEPALIVE_MS = 10_000;
 
 const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
 
+function normalizeWsUrl(input: string) {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return getSignalingUrl();
+  }
+
+  if (trimmed.startsWith("http://")) return `ws://${trimmed.slice("http://".length)}`;
+  if (trimmed.startsWith("https://")) return `wss://${trimmed.slice("https://".length)}`;
+
+  if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
+    const proto = window.location.protocol === "https:" ? "wss" : "ws";
+    return `${proto}://${trimmed.replace(/^\/+/, "")}`;
+  }
+
+  return trimmed;
+}
+
+function withRoomQuery(wsUrl: string, roomId: string) {
+  try {
+    const u = new URL(wsUrl);
+    if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
+    if (roomId) u.searchParams.set("room", roomId);
+    return u.toString();
+  } catch {
+    const base = wsUrl.endsWith("/ws") ? wsUrl : `${wsUrl}/ws`;
+    if (!roomId) return base;
+    return `${base}${base.includes("?") ? "&" : "?"}room=${encodeURIComponent(roomId)}`;
+  }
+}
+
 export default function SenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
+  const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => getSignalingUrl(DEFAULT_VIDEO_ROOM));
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -168,7 +201,15 @@ export default function SenderPage() {
     clearReconnectTimer();
     setWsError(null);
 
-    const ws = new WebSocket(getSignalingUrl());
+    const base = normalizeWsUrl(signalingWsUrl);
+    const url = withRoomQuery(base, roomId);
+
+    if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
+      setWsError(`無効なSignal URLです: ${url}`);
+      return;
+    }
+
+    const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
@@ -178,7 +219,7 @@ export default function SenderPage() {
 
       startKeepalive(ws);
 
-      logLine(isReconnect ? "シグナリング再接続" : "シグナリング接続");
+      logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
       ws.send(JSON.stringify({ type: "join", roomId, role: "sender" as Role }));
 
       maybeAutoStartWebRTC();
@@ -322,6 +363,9 @@ export default function SenderPage() {
     const savedRoom = window.localStorage.getItem(STORAGE.roomId);
     if (savedRoom) setRoomId(savedRoom);
 
+    const savedSignalWsUrl = window.localStorage.getItem(STORAGE.signalingWsUrl);
+    if (savedSignalWsUrl) setSignalingWsUrl(savedSignalWsUrl);
+
     shouldAutoConnectRef.current = window.localStorage.getItem(STORAGE.autoConnect) === "1";
     shouldAutoStartCameraRef.current = window.localStorage.getItem(STORAGE.cameraActive) === "1";
     desiredStreamingRef.current = window.localStorage.getItem(STORAGE.streamingActive) === "1";
@@ -340,6 +384,10 @@ export default function SenderPage() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE.roomId, roomId);
   }, [roomId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE.signalingWsUrl, signalingWsUrl);
+  }, [signalingWsUrl]);
 
   useEffect(() => {
     const recoverIfNeeded = () => {
@@ -403,6 +451,19 @@ export default function SenderPage() {
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value)}
               />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm text-slate-700">Signaling WS URL</label>
+              <input
+                  className="w-full rounded-xl border px-3 py-2 text-sm"
+                  value={signalingWsUrl}
+                  onChange={(e) => setSignalingWsUrl(e.target.value)}
+                  placeholder="ws://192.168.1.12:3000/ws"
+                  disabled={connected}
+              />
+              <p className="text-[11px] text-slate-500">
+                送信先Receiver側GUIのSignal URLを指定（例: ws://192.168.1.12:3000/ws）。
+              </p>
             </div>
             <div className="flex flex-wrap gap-2 text-sm">
               <button onClick={startCamera} className="rounded-xl bg-slate-900 px-4 py-2 text-white">

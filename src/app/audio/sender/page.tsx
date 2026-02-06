@@ -9,6 +9,7 @@ type Role = "sender" | "viewer";
 
 const STORAGE_KEYS = {
     roomId: "teleco.audioSender.roomId",
+    signalingWsUrl: "teleco.audioSender.signalingWsUrl",
     sendEnabled: "teleco.audioSender.sendEnabled",
     autoConnect: "teleco.audioSender.autoConnect",
     micActive: "teleco.audioSender.micActive",
@@ -18,8 +19,40 @@ const STORAGE_KEYS = {
 const WS_KEEPALIVE_MS = 10_000;
 const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
 
+function normalizeWsUrl(input: string) {
+    const trimmed = input.trim();
+
+    if (!trimmed) {
+        return getSignalingUrl();
+    }
+
+    if (trimmed.startsWith("http://")) return `ws://${trimmed.slice("http://".length)}`;
+    if (trimmed.startsWith("https://")) return `wss://${trimmed.slice("https://".length)}`;
+
+    if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
+        const proto = window.location.protocol === "https:" ? "wss" : "ws";
+        return `${proto}://${trimmed.replace(/^\/+/, "")}`;
+    }
+
+    return trimmed;
+}
+
+function withRoomQuery(wsUrl: string, roomId: string) {
+    try {
+        const u = new URL(wsUrl);
+        if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
+        if (roomId) u.searchParams.set("room", roomId);
+        return u.toString();
+    } catch {
+        const base = wsUrl.endsWith("/ws") ? wsUrl : `${wsUrl}/ws`;
+        if (!roomId) return base;
+        return `${base}${base.includes("?") ? "&" : "?"}room=${encodeURIComponent(roomId)}`;
+    }
+}
+
 export default function AudioSenderPage() {
     const [roomId, setRoomId] = useState(DEFAULT_AUDIO_ROOM);
+    const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => getSignalingUrl(DEFAULT_AUDIO_ROOM));
     const [connected, setConnected] = useState(false);
     const [micReady, setMicReady] = useState(false);
     const [sendEnabled, setSendEnabled] = useState(false);
@@ -167,14 +200,22 @@ export default function AudioSenderPage() {
         setError(null);
         clearReconnectTimer();
 
-        const ws = new WebSocket(getSignalingUrl());
+        const base = normalizeWsUrl(signalingWsUrl);
+        const url = withRoomQuery(base, roomId);
+
+        if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
+            setError(`無効なSignal URLです: ${url}`);
+            return;
+        }
+
+        const ws = new WebSocket(url);
         wsRef.current = ws;
 
         ws.onopen = () => {
             setConnected(true);
             reconnectAttemptRef.current = 0;
             startKeepalive(ws);
-            logLine(isReconnect ? "シグナリング再接続" : "シグナリング接続");
+            logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
             ws.send(JSON.stringify({ type: "join", roomId, role: "sender" as Role }));
 
             maybeAutoStartSend();
@@ -302,6 +343,9 @@ export default function AudioSenderPage() {
         const savedRoom = window.localStorage.getItem(STORAGE_KEYS.roomId);
         if (savedRoom) setRoomId(savedRoom);
 
+        const savedSignalWsUrl = window.localStorage.getItem(STORAGE_KEYS.signalingWsUrl);
+        if (savedSignalWsUrl) setSignalingWsUrl(savedSignalWsUrl);
+
         const savedSend = window.localStorage.getItem(STORAGE_KEYS.sendEnabled);
         if (savedSend != null) setSendEnabled(savedSend === "1");
 
@@ -323,6 +367,10 @@ export default function AudioSenderPage() {
     useEffect(() => {
         window.localStorage.setItem(STORAGE_KEYS.roomId, roomId);
     }, [roomId]);
+
+    useEffect(() => {
+        window.localStorage.setItem(STORAGE_KEYS.signalingWsUrl, signalingWsUrl);
+    }, [signalingWsUrl]);
 
     useEffect(() => {
         window.localStorage.setItem(STORAGE_KEYS.sendEnabled, sendEnabled ? "1" : "0");
@@ -402,6 +450,20 @@ export default function AudioSenderPage() {
                             onChange={(e) => setRoomId(e.target.value)}
                             disabled={connected}
                         />
+                    </div>
+
+                    <div className="space-y-1">
+                        <label className="text-sm text-slate-700">Signaling WS URL</label>
+                        <input
+                            className="w-full rounded-xl border px-3 py-2 text-sm"
+                            value={signalingWsUrl}
+                            onChange={(e) => setSignalingWsUrl(e.target.value)}
+                            disabled={connected}
+                            placeholder="ws://192.168.1.12:3000/ws"
+                        />
+                        <p className="text-[11px] text-slate-500">
+                            送信先Receiver側GUIのSignal URLを指定（例: ws://192.168.1.12:3000/ws）。
+                        </p>
                     </div>
 
                     <div className="flex flex-wrap gap-2 text-sm">

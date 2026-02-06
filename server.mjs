@@ -1,7 +1,7 @@
 import fs from "fs";
+import http from "http";
 import os from "os";
 import path from "path";
-import http from "http";
 import next from "next";
 import { WebSocketServer } from "ws";
 

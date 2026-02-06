@@ -9,22 +9,45 @@ import VideoPreview from "@/app/gui/_components/VideoPreview";
 
 type VideoSourceMode = "local" | "webSender" ;
 const VIDEO_MODE_STORAGE_KEY = "teleco.gui.videoMode";
+const VIDEO_ROOM_STORAGE_KEY = "teleco.gui.video.roomId";
+const VIDEO_SIGNAL_URL_STORAGE_KEY = "teleco.gui.video.signalingWsUrl";
 const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
+const DEFAULT_SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "";
 
 export default function GuiPage() {
   const [mode, setMode] = useState<VideoSourceMode>("local");
   const [selectedVideoId] = useState<string | undefined>();
+  const [videoRoomId, setVideoRoomId] = useState<string>(DEFAULT_VIDEO_ROOM);
+  const [videoSignalingWsUrl, setVideoSignalingWsUrl] = useState<string>(DEFAULT_SIGNALING_URL);
 
   useEffect(() => {
     const savedMode = window.localStorage.getItem(VIDEO_MODE_STORAGE_KEY);
     if (savedMode === "local" || savedMode === "webSender") {
       setMode(savedMode);
     }
+
+    const savedVideoRoomId = window.localStorage.getItem(VIDEO_ROOM_STORAGE_KEY);
+    if (savedVideoRoomId) {
+      setVideoRoomId(savedVideoRoomId);
+    }
+
+    const savedVideoSignalUrl = window.localStorage.getItem(VIDEO_SIGNAL_URL_STORAGE_KEY);
+    if (savedVideoSignalUrl != null) {
+      setVideoSignalingWsUrl(savedVideoSignalUrl);
+    }
   }, []);
 
   useEffect(() => {
     window.localStorage.setItem(VIDEO_MODE_STORAGE_KEY, mode);
   }, [mode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(VIDEO_ROOM_STORAGE_KEY, videoRoomId);
+  }, [videoRoomId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(VIDEO_SIGNAL_URL_STORAGE_KEY, videoSignalingWsUrl);
+  }, [videoSignalingWsUrl]);
 
   return (
       <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -78,7 +101,37 @@ export default function GuiPage() {
           <section className="space-y-4 lg:col-span-7">
             <Card title="Preview" subtitle={subtitleForMode(mode)}>
               {mode === "local" && <VideoPreview videoDeviceId={selectedVideoId} />}
-              {mode === "webSender" && <RemoteVideo roomId={DEFAULT_VIDEO_ROOM} />}
+              {mode === "webSender" && (
+                  <div className="space-y-3">
+                    <div className="grid gap-2 md:grid-cols-2">
+                      <label className="text-sm text-slate-700">
+                        Video Room ID
+                        <input
+                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                            value={videoRoomId}
+                            onChange={(e) => setVideoRoomId(e.target.value)}
+                            placeholder="video_ab"
+                        />
+                      </label>
+
+                      <label className="text-sm text-slate-700">
+                        Signaling WS URL（空ならこのGUI自身）
+                        <input
+                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                            value={videoSignalingWsUrl}
+                            onChange={(e) => setVideoSignalingWsUrl(e.target.value)}
+                            placeholder="ws://192.168.1.12:3000/ws"
+                        />
+                      </label>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500">
+                      1インスタンス運用向け: ここで受信先Signal/Roomを切り替えできます。Sender側のRoom IDと合わせてください。
+                    </p>
+
+                    <RemoteVideo roomId={videoRoomId || DEFAULT_VIDEO_ROOM} signalingWsUrl={videoSignalingWsUrl} />
+                  </div>
+              )}
             </Card>
 
             <Card title="Logs" subtitle="GUI status">

@@ -11,7 +11,38 @@ type TelecoArrowDirection = "left" | "right";
 const WS_KEEPALIVE_MS = 10_000;
 const TELECO_ARROW_EVENT = "teleco:arrow";
 
-export default function RemoteVideo({ roomId }: { roomId: string }) {
+function normalizeWsUrl(input: string) {
+  const trimmed = input.trim();
+
+  if (!trimmed) {
+    return getSignalingUrl();
+  }
+
+  if (trimmed.startsWith("http://")) return `ws://${trimmed.slice("http://".length)}`;
+  if (trimmed.startsWith("https://")) return `wss://${trimmed.slice("https://".length)}`;
+
+  if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
+    const proto = window.location.protocol === "https:" ? "wss" : "ws";
+    return `${proto}://${trimmed.replace(/^\/+/, "")}`;
+  }
+
+  return trimmed;
+}
+
+function withRoomQuery(wsUrl: string, roomId: string) {
+  try {
+    const u = new URL(wsUrl);
+    if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
+    if (roomId) u.searchParams.set("room", roomId);
+    return u.toString();
+  } catch {
+    const base = wsUrl.endsWith("/ws") ? wsUrl : `${wsUrl}/ws`;
+    if (!roomId) return base;
+    return `${base}${base.includes("?") ? "&" : "?"}room=${encodeURIComponent(roomId)}`;
+  }
+}
+
+export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string; signalingWsUrl?: string }) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -203,13 +234,21 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
       createPeer();
     }
 
-    const ws = new WebSocket(getSignalingUrl());
+    const base = normalizeWsUrl(signalingWsUrl || getSignalingUrl(roomId));
+    const url = withRoomQuery(base, roomId);
+
+    if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
+      setError(`無効なSignal URLです: ${url}`);
+      return;
+    }
+
+    const ws = new WebSocket(url);
     wsRef.current = ws;
 
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
       setError(null);
-      logLine(isReconnect ? "シグナリング再接続" : "シグナリング接続");
+      logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
       startKeepalive(ws);
       sendJoin();
     };
@@ -332,7 +371,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     };
     // roomを変えたら再接続し直す
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  }, [roomId, signalingWsUrl]);
 
   // FPS / 解像度計測
   useEffect(() => {
