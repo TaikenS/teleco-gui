@@ -428,32 +428,6 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
         >
           <video ref={remoteVideoRef} className="h-full w-full object-contain" playsInline autoPlay />
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center">
-            <div className="pointer-events-auto flex items-center gap-2 rounded-xl bg-black/40 p-2 backdrop-blur-sm">
-              <button
-                  type="button"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    sendArrow("left");
-                  }}
-                  className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white"
-                  aria-label="左コマンド送信"
-              >
-                ← Left
-              </button>
-              <button
-                  type="button"
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    sendArrow("right");
-                  }}
-                  className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white"
-                  aria-label="右コマンド送信"
-              >
-                Right →
-              </button>
-            </div>
-          </div>
         </div>
 
         <div className="flex flex-wrap gap-4 text-xs text-slate-500">
