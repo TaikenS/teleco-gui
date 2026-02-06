@@ -572,12 +572,12 @@ export default function AudioSender() {
   }
 
   function sendArrowMove(direction: TelecoArrowDirection) {
-    const angle = direction === "left" ? 10 : -10;
+    const angle = direction === "left" ? 25 : -25;
     sendCommand({
       label: "move_multi",
-      joints: [10],
+      joints: [8],
       angles: [angle],
-      speeds: [1],
+      speeds: [30],
       dontsendback: true,
     });
   }
