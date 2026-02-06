@@ -1,25 +1,79 @@
+import fs from "fs";
+import os from "os";
+import path from "path";
 import http from "http";
 import next from "next";
 import { WebSocketServer } from "ws";
 
+function loadDotEnvFile(filePath) {
+    if (!fs.existsSync(filePath)) return;
+
+    const text = fs.readFileSync(filePath, "utf8");
+    const lines = text.split(/\r?\n/);
+
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith("#")) continue;
+
+        const eq = trimmed.indexOf("=");
+        if (eq === -1) continue;
+
+        const key = trimmed.slice(0, eq).trim();
+        if (!key || process.env[key] != null) continue;
+
+        let value = trimmed.slice(eq + 1).trim();
+
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+
+        process.env[key] = value;
+    }
+}
+
+function loadEnvForCustomServer() {
+    const cwd = process.cwd();
+    // 優先順: .env.local -> .env
+    loadDotEnvFile(path.join(cwd, ".env.local"));
+    loadDotEnvFile(path.join(cwd, ".env"));
+}
+
+function getNetworkIPv4Addresses() {
+    const nets = os.networkInterfaces();
+    const list = [];
+
+    for (const name of Object.keys(nets)) {
+        for (const ni of nets[name] || []) {
+            if (ni.family !== "IPv4") continue;
+            if (ni.internal) continue;
+            list.push(ni.address);
+        }
+    }
+
+    return [...new Set(list)];
+}
+
+loadEnvForCustomServer();
+
 const dev = process.env.NODE_ENV !== "production";
-const port = Number(process.env.PORT || 3000);
-const app = next({ dev });
+const host = process.env.HOST || "0.0.0.0";
+const appPort = Number(process.env.PORT || 3000);
+const signalingPort = Number(process.env.SIGNAL_PORT || process.env.NEXT_PUBLIC_SIGNALING_PORT || appPort);
+
+const HEARTBEAT_INTERVAL_MS = Number(process.env.WS_HEARTBEAT_INTERVAL_MS || 25_000);
+const WS_IDLE_TIMEOUT_MS = Number(process.env.WS_IDLE_TIMEOUT_MS || 240_000);
+
+const app = next({ dev, hostname: host, port: appPort });
 const handle = app.getRequestHandler();
 
 /**
- * 内蔵シグナリング (ws://<host>/ws)
+ * 内蔵シグナリング (ws://<host>:<signalPort>/ws)
  *
  * - Video: {type:"join", roomId, role} / {type:"offer"|"answer"|"ice-candidate", roomId, ...}
  * - Audio(teleco用): query で room を指定（.../ws?room=test）し、
  *   label付きメッセージ（callAudioRequest 等）を同一room内で中継
- *
- * 両方を「room単位で中継」するだけの超単純リレー。
  */
 const rooms = new Map(); // room -> Set<WebSocket>
-
-const HEARTBEAT_INTERVAL_MS = 20_000;
-const WS_IDLE_TIMEOUT_MS = 120_000;
 
 function getRoomFromReq(req) {
     try {
@@ -55,9 +109,20 @@ function markAlive(ws) {
 
 await app.prepare();
 
-const server = http.createServer((req, res) => handle(req, res));
-server.keepAliveTimeout = 75_000;
-server.headersTimeout = 76_000;
+const appServer = http.createServer((req, res) => handle(req, res));
+appServer.keepAliveTimeout = 75_000;
+appServer.headersTimeout = 76_000;
+
+let signalingServer = appServer;
+if (signalingPort !== appPort) {
+    signalingServer = http.createServer((req, res) => {
+        res.statusCode = 200;
+        res.setHeader("content-type", "text/plain; charset=utf-8");
+        res.end("teleco-gui signaling server");
+    });
+    signalingServer.keepAliveTimeout = 75_000;
+    signalingServer.headersTimeout = 76_000;
+}
 
 const wss = new WebSocketServer({
     noServer: true,
@@ -71,7 +136,6 @@ wss.on("connection", (ws, req) => {
         markAlive(ws);
     });
 
-    // 1) query param の room があればそれに参加（audio test 等）
     const roomFromQuery = getRoomFromReq(req);
     if (roomFromQuery) joinRoom(ws, roomFromQuery);
 
@@ -80,20 +144,14 @@ wss.on("connection", (ws, req) => {
 
         const text = typeof data === "string" ? data : data.toString();
 
-        // 2) join メッセージなら roomId を room として採用（video / audio page 用）
         let parsed = null;
         try {
             parsed = JSON.parse(text);
         } catch {
-            // JSONじゃない場合はそのままrelay（room参加済み前提）
+            // JSON以外はそのままrelay
         }
 
-        // keepalive メッセージは中継しない
-        if (
-            parsed?.type === "__ping" ||
-            parsed?.type === "ping" ||
-            parsed?.type === "keepalive"
-        ) {
+        if (parsed?.type === "__ping" || parsed?.type === "ping" || parsed?.type === "keepalive") {
             if (ws.readyState === ws.OPEN) {
                 try {
                     ws.send(JSON.stringify({ type: "__pong", ts: Date.now() }));
@@ -105,7 +163,6 @@ wss.on("connection", (ws, req) => {
         }
 
         if (parsed?.type === "join" && typeof parsed.roomId === "string") {
-            // 既に別roomにいた場合は抜ける
             if (ws.__room && ws.__room !== parsed.roomId) {
                 leaveRoom(ws);
             }
@@ -148,6 +205,7 @@ const heartbeatTimer = setInterval(() => {
         const lastSeen = ws.__lastSeenAt || 0;
         const idleFor = now - lastSeen;
 
+        // 余裕を持って判定（短い瞬断で落としにくくする）
         if (idleFor > WS_IDLE_TIMEOUT_MS) {
             leaveRoom(ws);
             try {
@@ -171,11 +229,7 @@ const heartbeatTimer = setInterval(() => {
     }
 }, HEARTBEAT_INTERVAL_MS);
 
-wss.on("close", () => {
-    clearInterval(heartbeatTimer);
-});
-
-server.on("upgrade", (req, socket, head) => {
+function handleUpgrade(req, socket, head) {
     try {
         const u = new URL(req.url, "http://localhost");
         if (u.pathname !== "/ws") {
@@ -190,13 +244,51 @@ server.on("upgrade", (req, socket, head) => {
     wss.handleUpgrade(req, socket, head, (ws) => {
         wss.emit("connection", ws, req);
     });
-});
+}
 
-server.on("close", () => {
+appServer.on("upgrade", handleUpgrade);
+if (signalingServer !== appServer) {
+    signalingServer.on("upgrade", handleUpgrade);
+}
+
+wss.on("close", () => {
     clearInterval(heartbeatTimer);
 });
 
-server.listen(port, () => {
-    console.log(`teleco-gui listening on http://localhost:${port}`);
-    console.log(`signaling ws: ws://localhost:${port}/ws`);
+appServer.on("close", () => {
+    clearInterval(heartbeatTimer);
+});
+if (signalingServer !== appServer) {
+    signalingServer.on("close", () => {
+        clearInterval(heartbeatTimer);
+    });
+}
+
+function printAddresses() {
+    const globals = getNetworkIPv4Addresses();
+
+    console.log(`teleco-gui listening on http://localhost:${appPort}`);
+    for (const ip of globals) {
+        console.log(`teleco-gui listening on http://${ip}:${appPort}`);
+    }
+
+    console.log(`signaling ws: ws://localhost:${signalingPort}/ws`);
+    for (const ip of globals) {
+        console.log(`signaling ws: ws://${ip}:${signalingPort}/ws`);
+    }
+
+    if (signalingPort !== appPort) {
+        console.log(`(app port WS fallback) ws://localhost:${appPort}/ws`);
+    }
+}
+
+appServer.listen(appPort, host, () => {
+    if (signalingServer === appServer) {
+        printAddresses();
+        return;
+    }
+
+    signalingServer.listen(signalingPort, host, () => {
+        printAddresses();
+    });
 });

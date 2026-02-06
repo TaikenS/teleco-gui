@@ -16,8 +16,10 @@ const STORAGE = {
 
 const WS_KEEPALIVE_MS = 10_000;
 
+const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
+
 export default function SenderPage() {
-  const [roomId, setRoomId] = useState("room1");
+  const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);

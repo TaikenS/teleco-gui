@@ -16,9 +16,10 @@ const STORAGE_KEYS = {
 };
 
 const WS_KEEPALIVE_MS = 10_000;
+const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
 
 export default function AudioSenderPage() {
-    const [roomId, setRoomId] = useState("audio1");
+    const [roomId, setRoomId] = useState(DEFAULT_AUDIO_ROOM);
     const [connected, setConnected] = useState(false);
     const [micReady, setMicReady] = useState(false);
     const [sendEnabled, setSendEnabled] = useState(false);

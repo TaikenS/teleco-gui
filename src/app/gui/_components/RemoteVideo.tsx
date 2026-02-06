@@ -6,13 +6,16 @@ import { getSignalingUrl } from "@/lib/siganling";
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 type Role = "sender" | "viewer";
+type TelecoArrowDirection = "left" | "right";
 
 const WS_KEEPALIVE_MS = 10_000;
+const TELECO_ARROW_EVENT = "teleco:arrow";
 
 export default function RemoteVideo({ roomId }: { roomId: string }) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
@@ -32,6 +35,11 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
 
   const logLine = (line: string) =>
       setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+
+  const sendArrow = (direction: TelecoArrowDirection) => {
+    if (typeof window === "undefined") return;
+    window.dispatchEvent(new CustomEvent(TELECO_ARROW_EVENT, { detail: { direction } }));
+  };
 
   const stopKeepalive = () => {
     if (keepaliveTimerRef.current != null) {
@@ -183,10 +191,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
     if (manualCloseRef.current) return;
 
     const current = wsRef.current;
-    if (
-        current &&
-        (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)
-    ) {
+    if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
       return;
     }
 
@@ -339,11 +344,7 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
         const w = video.videoWidth;
         const h = video.videoHeight;
         if (w && h) {
-          setResolution((prev) =>
-              !prev || prev.width !== w || prev.height !== h
-                  ? { width: w, height: h }
-                  : prev,
-          );
+          setResolution((prev) => (!prev || prev.width !== w || prev.height !== h ? { width: w, height: h } : prev));
         }
 
         if (lastTimeRef.current == null) {
@@ -373,19 +374,47 @@ export default function RemoteVideo({ roomId }: { roomId: string }) {
   return (
       <div className="space-y-3">
         <div
-            className="w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
+            ref={frameRef}
+            className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
             title="クリックでフルスクリーン切替"
             onClick={() => {
-              const el = remoteVideoRef.current;
-              if (!el) return;
+              const frame = frameRef.current;
+              if (!frame) return;
               if (document.fullscreenElement) {
                 void document.exitFullscreen();
               } else {
-                void el.requestFullscreen();
+                void frame.requestFullscreen();
               }
             }}
         >
           <video ref={remoteVideoRef} className="h-full w-full object-contain" playsInline autoPlay />
+
+          <div className="pointer-events-none absolute inset-x-0 bottom-3 z-20 flex justify-center">
+            <div className="pointer-events-auto flex items-center gap-2 rounded-xl bg-black/40 p-2 backdrop-blur-sm">
+              <button
+                  type="button"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    sendArrow("left");
+                  }}
+                  className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white"
+                  aria-label="左コマンド送信"
+              >
+                ← Left
+              </button>
+              <button
+                  type="button"
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    sendArrow("right");
+                  }}
+                  className="rounded-lg bg-white/90 px-4 py-2 text-sm font-medium text-slate-900 hover:bg-white"
+                  aria-label="右コマンド送信"
+              >
+                Right →
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-4 text-xs text-slate-500">

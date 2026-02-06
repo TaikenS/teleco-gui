@@ -9,6 +9,7 @@ import VideoPreview from "@/app/gui/_components/VideoPreview";
 
 type VideoSourceMode = "local" | "webSender" ;
 const VIDEO_MODE_STORAGE_KEY = "teleco.gui.videoMode";
+const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
 
 export default function GuiPage() {
   const [mode, setMode] = useState<VideoSourceMode>("local");
@@ -77,7 +78,7 @@ export default function GuiPage() {
           <section className="space-y-4 lg:col-span-7">
             <Card title="Preview" subtitle={subtitleForMode(mode)}>
               {mode === "local" && <VideoPreview videoDeviceId={selectedVideoId} />}
-              {mode === "webSender" && <RemoteVideo roomId="room1" />}
+              {mode === "webSender" && <RemoteVideo roomId={DEFAULT_VIDEO_ROOM} />}
             </Card>
 
             <Card title="Logs" subtitle="GUI status">

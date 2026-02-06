@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { getSignalingUrl } from "@/lib/siganling";
 
 /**
  * Signalingは WebSocket (/ws)。
@@ -12,8 +13,7 @@ function normalizeWsUrl(input: string) {
     const trimmed = input.trim();
 
     if (!trimmed) {
-        const proto = window.location.protocol === "https:" ? "wss" : "ws";
-        return `${proto}://${window.location.host}/ws`;
+        return getSignalingUrl();
     }
 
     // http(s) -> ws(s)
@@ -37,7 +37,7 @@ function withRoomQuery(wsUrl: string, roomId: string) {
         const u = new URL(wsUrl);
         if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
 
-        if (roomId && !u.searchParams.get("room")) {
+        if (roomId) {
             u.searchParams.set("room", roomId);
         }
         return u.toString();
@@ -57,6 +57,9 @@ const STORAGE_KEYS = {
     signalingWsUrl: "teleco.audio.signalingWsUrl",
     autoConnect: "teleco.audio.autoConnect",
 };
+
+const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+const DEFAULT_RECEIVER_ID = process.env.NEXT_PUBLIC_DEFAULT_RECEIVER_ID || "rover003";
 
 /**
  * teleco-gui-master の label方式（Teleco互換）
@@ -106,13 +109,9 @@ function nowTime() {
 }
 
 export default function AudioReceiverPage() {
-    const [receiverId, setReceiverId] = useState<string>("rover003");
-    const [roomId, setRoomId] = useState<string>("audio1");
-    const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => {
-        if (typeof window === "undefined") return "ws://localhost:3000/ws?room=audio1";
-        const proto = window.location.protocol === "https:" ? "wss" : "ws";
-        return `${proto}://${window.location.host}/ws?room=audio1`;
-    });
+    const [receiverId, setReceiverId] = useState<string>(DEFAULT_RECEIVER_ID);
+    const [roomId, setRoomId] = useState<string>(DEFAULT_AUDIO_ROOM);
+    const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => getSignalingUrl(DEFAULT_AUDIO_ROOM));
 
     const [connected, setConnected] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);

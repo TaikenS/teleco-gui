@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
+import { getSignalingUrl } from "@/lib/siganling";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 type MicOption = { deviceId: string; label: string };
@@ -21,6 +22,11 @@ const STORAGE_KEYS = {
   commandAutoConnect: "teleco.gui.audio.commandAutoConnect",
   sendingActive: "teleco.gui.audio.sendingActive",
 };
+
+const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+const DEFAULT_RECEIVER_ID = process.env.NEXT_PUBLIC_DEFAULT_RECEIVER_ID || "rover003";
+const DEFAULT_TELECO_COMMAND_WS_URL = process.env.NEXT_PUBLIC_TELECO_COMMAND_WS_URL || "ws://localhost:11920/command";
+const DEFAULT_TELECO_HTTP_URL = process.env.NEXT_PUBLIC_TELECO_HTTP_URL || "http://localhost:11920/";
 
 function clamp01(v: number) {
   if (v < 0) return 0;
@@ -369,8 +375,8 @@ function normalizeSignalingWsUrl(input: string, fallbackRoom: string) {
       u.pathname = "/ws";
     }
 
-    // room が無ければ付ける
-    if (!u.searchParams.get("room")) {
+    // room は常に roomHint 側を優先（UIとズレないようにする）
+    if (fallbackRoom) {
       u.searchParams.set("room", fallbackRoom);
     }
 
@@ -411,19 +417,14 @@ export default function AudioSender() {
   const streamRef = useRef<MediaStream | null>(null);
 
   // UI state
-  const [roomHint, setRoomHint] = useState<string>("audio1");
+  const [roomHint, setRoomHint] = useState<string>(DEFAULT_AUDIO_ROOM);
 
-  const [signalWsUrl, setSignalWsUrl] = useState<string>(() => {
-    if (typeof window === "undefined") return "ws://localhost:3000/ws?room=audio1";
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    // ★統合シグナリング：Nextサーバと同じhost/portの /ws
-    return `${proto}://${window.location.host}/ws?room=audio1`;
-  });
+  const [signalWsUrl, setSignalWsUrl] = useState<string>(() => getSignalingUrl(DEFAULT_AUDIO_ROOM));
 
-  const [receiverDestination, setReceiverDestination] = useState<string>("rover003");
+  const [receiverDestination, setReceiverDestination] = useState<string>(DEFAULT_RECEIVER_ID);
 
-  const [commandWsUrl, setCommandWsUrl] = useState<string>("ws://localhost:11920/command");
-  const [telecoDebugUrl, setTelecoDebugUrl] = useState<string>("http://localhost:11920/");
+  const [commandWsUrl, setCommandWsUrl] = useState<string>(DEFAULT_TELECO_COMMAND_WS_URL);
+  const [telecoDebugUrl, setTelecoDebugUrl] = useState<string>(DEFAULT_TELECO_HTTP_URL);
 
   const [mics, setMics] = useState<MicOption[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string>("");
