@@ -56,6 +56,10 @@ export default function AudioSenderPage() {
     const [connected, setConnected] = useState(false);
     const [micReady, setMicReady] = useState(false);
     const [sendEnabled, setSendEnabled] = useState(false);
+    const [micBusy, setMicBusy] = useState(false);
+    const [sendBusy, setSendBusy] = useState(false);
+    const [wsBusy, setWsBusy] = useState(false);
+    const [rtcState, setRtcState] = useState<RTCPeerConnectionState>("new");
     const [error, setError] = useState<string | null>(null);
     const [log, setLog] = useState<string[]>([]);
 
@@ -75,9 +79,6 @@ export default function AudioSenderPage() {
 
     const logLine = (line: string) =>
         setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
-
-    const canConnectSignaling = !connected;
-    const canStartSend = micReady && connected;
 
     const clearReconnectTimer = () => {
         if (reconnectTimerRef.current != null) {
@@ -116,6 +117,8 @@ export default function AudioSenderPage() {
             // noop
         }
         pcRef.current = null;
+        setRtcState("closed");
+        setSendBusy(false);
     };
 
     const closeWs = () => {
@@ -131,6 +134,8 @@ export default function AudioSenderPage() {
             // noop
         }
         wsRef.current = null;
+        setConnected(false);
+        setWsBusy(false);
     };
 
     const maybeAutoStartSend = () => {
@@ -158,8 +163,10 @@ export default function AudioSenderPage() {
     };
 
     const startMic = async () => {
+        if (micBusy) return;
         try {
             setError(null);
+            setMicBusy(true);
             const s = await navigator.mediaDevices.getUserMedia({
                 audio: true,
                 video: false,
@@ -193,6 +200,8 @@ export default function AudioSenderPage() {
         } catch (e) {
             console.error(e);
             setError("マイクの取得に失敗しました（権限を確認してください）");
+        } finally {
+            setMicBusy(false);
         }
     };
 
@@ -201,6 +210,7 @@ export default function AudioSenderPage() {
             return;
         }
         setError(null);
+        setWsBusy(true);
         clearReconnectTimer();
 
         const base = normalizeWsUrl(signalingWsUrl);
@@ -208,6 +218,7 @@ export default function AudioSenderPage() {
 
         if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
             setError(`無効なSignal URLです: ${url}`);
+            setWsBusy(false);
             return;
         }
 
@@ -216,6 +227,7 @@ export default function AudioSenderPage() {
 
         ws.onopen = () => {
             setConnected(true);
+            setWsBusy(false);
             reconnectAttemptRef.current = 0;
             startKeepalive(ws);
             logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
@@ -228,6 +240,7 @@ export default function AudioSenderPage() {
             if (wsRef.current === ws) wsRef.current = null;
             stopKeepalive();
             setConnected(false);
+            setWsBusy(false);
             logLine(`シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`);
 
             // WS断では即座にPCを落とさない
@@ -237,6 +250,7 @@ export default function AudioSenderPage() {
         ws.onerror = (e) => {
             console.error(e);
             setError("シグナリングサーバへの接続に失敗しました");
+            setWsBusy(false);
         };
 
         ws.onmessage = async (event) => {
@@ -273,15 +287,18 @@ export default function AudioSenderPage() {
 
     const startSend = async (isAuto = false) => {
         if (!sendEnabled) {
+            setSendBusy(false);
             if (!isAuto) logLine("送信がOFFです（チェックをONにしてください）");
             return;
         }
 
         if (!streamRef.current) {
+            setSendBusy(false);
             if (!isAuto) logLine("先にマイクを起動してください");
             return;
         }
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+            setSendBusy(false);
             if (!isAuto) logLine("先にシグナリングへ接続してください");
             return;
         }
@@ -290,10 +307,14 @@ export default function AudioSenderPage() {
         if (existingPc && (existingPc.connectionState === "connected" || existingPc.connectionState === "connecting")) {
             desiredSendingRef.current = true;
             window.localStorage.setItem(STORAGE_KEYS.sendingActive, "1");
+            setRtcState(existingPc.connectionState);
+            setSendBusy(false);
             return;
         }
 
         closePc();
+        setRtcState("new");
+        setSendBusy(true);
 
         const pc = new RTCPeerConnection({ iceServers: STUN_SERVERS });
         pcRef.current = pc;
@@ -314,6 +335,7 @@ export default function AudioSenderPage() {
 
         pc.onconnectionstatechange = () => {
             const state = pc.connectionState;
+            setRtcState(state);
             logLine(`WebRTC状態: ${state}`);
 
             if (state === "failed" || state === "closed") {
@@ -325,21 +347,29 @@ export default function AudioSenderPage() {
             }
         };
 
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        wsRef.current.send(
-            JSON.stringify({
-                type: "offer",
-                roomId,
-                role: "sender",
-                payload: offer,
-            }),
-        );
+        try {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            wsRef.current.send(
+                JSON.stringify({
+                    type: "offer",
+                    roomId,
+                    role: "sender",
+                    payload: offer,
+                }),
+            );
 
-        desiredSendingRef.current = true;
-        window.localStorage.setItem(STORAGE_KEYS.sendingActive, "1");
+            desiredSendingRef.current = true;
+            window.localStorage.setItem(STORAGE_KEYS.sendingActive, "1");
 
-        logLine(isAuto ? "offer 再送信（自動復旧）" : "offer 送信");
+            logLine(isAuto ? "offer 再送信（自動復旧）" : "offer 送信");
+        } catch (e) {
+            console.error(e);
+            setError("音声送信の開始に失敗しました");
+            logLine(`offer送信失敗: ${String(e)}`);
+        } finally {
+            setSendBusy(false);
+        }
     };
 
     useEffect(() => {
@@ -429,6 +459,12 @@ export default function AudioSenderPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    const sendLive = rtcState === "connected" || rtcState === "connecting";
+    const canConnectSignal = !connected && !wsBusy && roomId.trim().length > 0 && signalingWsUrl.trim().length > 0;
+    const canStartSend = micReady && connected && sendEnabled && !sendBusy && !sendLive;
+    const canStopConnection = connected || wsBusy || sendBusy || sendLive;
+    const canStartMic = !micBusy;
+
     return (
         <main className="min-h-screen bg-slate-50">
             <div className="mx-auto max-w-3xl p-4 space-y-4">
@@ -445,13 +481,37 @@ export default function AudioSenderPage() {
                 </div>
 
                 <div className="space-y-2 rounded-2xl border bg-white p-4">
+                    <div className="status-chip-row">
+                        <span className={`status-chip ${micReady ? "is-on" : micBusy ? "is-busy" : "is-off"}`}>
+                            Mic {micReady ? "READY" : micBusy ? "STARTING" : "OFF"}
+                        </span>
+                        <span className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}>
+                            Signal {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
+                        </span>
+                        <span className={`status-chip ${rtcState === "connected" ? "is-on" : sendBusy || rtcState === "connecting" ? "is-busy" : "is-off"}`}>
+                            Send {rtcState === "connected" ? "LIVE" : sendBusy || rtcState === "connecting" ? "STARTING" : "IDLE"}
+                        </span>
+                    </div>
+
+                    <p className="action-state-hint" role="status" aria-live="polite">
+                        {!micReady
+                            ? "次の操作: ① マイク起動"
+                            : !connected
+                                ? "次の操作: ② シグナリング接続"
+                                : !sendEnabled
+                                    ? "次の操作: ③ 「送信を有効化」をON"
+                                    : !sendLive
+                                        ? "次の操作: ④ Receiverへ送信開始"
+                                        : "現在: Receiverへ音声送信中です"}
+                    </p>
+
                     <div className="flex items-center gap-2">
                         <label className="text-sm text-slate-700">Room ID</label>
                         <input
                             className="rounded-xl border px-3 py-1 text-sm"
                             value={roomId}
                             onChange={(e) => setRoomId(e.target.value)}
-                            disabled={connected}
+                            disabled={connected || wsBusy}
                         />
                     </div>
 
@@ -461,7 +521,7 @@ export default function AudioSenderPage() {
                             className="w-full rounded-xl border px-3 py-2 text-sm"
                             value={signalingWsUrl}
                             onChange={(e) => setSignalingWsUrl(e.target.value)}
-                            disabled={connected}
+                            disabled={connected || wsBusy}
                             placeholder="ws://192.168.1.12:3000/ws"
                         />
                         <p className="text-[11px] text-slate-500">
@@ -469,64 +529,109 @@ export default function AudioSenderPage() {
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-sm action-toolbar">
-                        <button onClick={startMic} className="rounded-xl bg-slate-900 px-4 py-2 text-white">
-                            {micReady ? "マイク再起動" : "マイク起動"}
-                        </button>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={startMic}
+                                className="action-button rounded-xl bg-slate-900 px-4 py-2 text-white"
+                                disabled={!canStartMic}
+                                data-disabled-label="利用不可"
+                                data-busy={micBusy ? "1" : "0"}
+                                aria-busy={micBusy}
+                            >
+                                {micBusy ? "マイク起動中..." : "マイク起動"}
+                            </button>
+                            <p className={`button-reason ${canStartMic ? "is-ready" : "is-disabled"}`}>
+                                {micBusy ? "マイク起動処理中です" : micReady ? "マイク準備OKです" : "マイクを起動できます"}
+                            </p>
+                        </div>
 
-                        <button
-                            onClick={() => {
-                                manualCloseRef.current = false;
-                                shouldAutoConnectRef.current = true;
-                                window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
-                                connectSignaling(false);
-                            }}
-                            disabled={!canConnectSignaling}
-                            className="rounded-xl bg-slate-100 px-4 py-2 disabled:opacity-60"
-                        >
-                            {connected ? "シグナリング接続中" : "シグナリング接続"}
-                        </button>
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={() => {
+                                    manualCloseRef.current = false;
+                                    shouldAutoConnectRef.current = true;
+                                    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
+                                    connectSignaling(false);
+                                }}
+                                disabled={!canConnectSignal}
+                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                data-disabled-label="利用不可"
+                                data-busy={wsBusy ? "1" : "0"}
+                                aria-busy={wsBusy}
+                            >
+                                {wsBusy ? "接続中..." : "シグナリング接続"}
+                            </button>
+                            <p className={`button-reason ${canConnectSignal ? "is-ready" : "is-disabled"}`}>
+                                {!roomId.trim() || !signalingWsUrl.trim()
+                                    ? "Room ID と Signal URL を入力してください"
+                                    : connected
+                                        ? "すでに接続中です"
+                                        : wsBusy
+                                            ? "接続処理中です"
+                                            : "シグナリング接続できます"}
+                            </p>
+                        </div>
 
-                        <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2">
-                            <input type="checkbox" checked={sendEnabled} onChange={(e) => setSendEnabled(e.target.checked)} />
-                            送信を有効化
-                        </label>
+                        <div className="action-button-wrap">
+                            <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2">
+                                <input type="checkbox" checked={sendEnabled} onChange={(e) => setSendEnabled(e.target.checked)} />
+                                送信を有効化
+                            </label>
+                            <p className={`button-reason ${sendEnabled ? "is-ready" : "is-disabled"}`}>
+                                {sendEnabled ? "送信開始ボタンを押せます" : "ONにすると送信開始できます"}
+                            </p>
+                        </div>
 
-                        <button
-                            onClick={() => void startSend(false)}
-                            disabled={!canStartSend}
-                            className="rounded-xl bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
-                        >
-                            Receiverへ送信開始
-                        </button>
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={() => void startSend(false)}
+                                disabled={!canStartSend}
+                                className="action-button rounded-xl bg-emerald-600 px-4 py-2 text-white"
+                                data-disabled-label="利用不可"
+                                data-busy={sendBusy ? "1" : "0"}
+                                aria-busy={sendBusy}
+                            >
+                                {sendBusy ? "開始中..." : "Receiverへ送信開始"}
+                            </button>
+                            <p className={`button-reason ${canStartSend ? "is-ready" : "is-disabled"}`}>
+                                {!micReady
+                                    ? "先にマイク起動が必要です"
+                                    : !connected
+                                        ? "先にシグナリング接続が必要です"
+                                        : !sendEnabled
+                                            ? "先に「送信を有効化」をONにしてください"
+                                            : sendBusy
+                                                ? "送信開始処理中です"
+                                                : sendLive
+                                                    ? "すでに送信中です"
+                                                    : "Receiverへ送信できます"}
+                            </p>
+                        </div>
 
-                        <button
-                            onClick={() => {
-                                desiredSendingRef.current = false;
-                                window.localStorage.setItem(STORAGE_KEYS.sendingActive, "0");
-                                shouldAutoConnectRef.current = false;
-                                window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
-                                manualCloseRef.current = true;
-                                closePc();
-                                closeWs();
-                                setConnected(false);
-                            }}
-                            disabled={!connected}
-                            className="rounded-xl bg-slate-100 px-4 py-2 disabled:opacity-60"
-                        >
-                            接続停止
-                        </button>
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={() => {
+                                    desiredSendingRef.current = false;
+                                    window.localStorage.setItem(STORAGE_KEYS.sendingActive, "0");
+                                    shouldAutoConnectRef.current = false;
+                                    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
+                                    manualCloseRef.current = true;
+                                    closePc();
+                                    closeWs();
+                                    setConnected(false);
+                                }}
+                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                disabled={!canStopConnection}
+                                data-disabled-label="利用不可"
+                            >
+                                接続停止
+                            </button>
+                            <p className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}>
+                                {canStopConnection ? "接続を停止できます" : "停止対象がありません"}
+                            </p>
+                        </div>
                     </div>
-
-                    <p className="action-state-hint text-xs text-slate-600">
-                        {!micReady
-                            ? "まずマイク起動を行ってください。"
-                            : !connected
-                                ? "次にシグナリング接続を行うと送信開始が有効になります。"
-                                : !sendEnabled
-                                    ? "送信を有効化にチェックすると送信開始を押せます。"
-                                    : "準備完了。Receiverへ送信開始を押せます。"}
-                    </p>
 
                     {error && <p className="text-xs text-red-600">{error}</p>}
                 </div>

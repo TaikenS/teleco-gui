@@ -147,8 +147,25 @@ export default function VideoPreview({ videoDeviceId }: Props) {
     };
   }, [stream]);
 
+  const cameraOn = !!stream;
+  const canStart = !isStarting;
+  const canStop = !!stream;
+
   return (
       <div className="space-y-3">
+        <div className="status-chip-row">
+          <span className={`status-chip ${cameraOn ? "is-on" : isStarting ? "is-busy" : "is-off"}`}>
+            Camera {cameraOn ? "ON" : isStarting ? "STARTING" : "OFF"}
+          </span>
+          <span className={`status-chip ${fps != null ? "is-on" : cameraOn ? "is-busy" : "is-off"}`}>
+            Monitor {fps != null ? "ACTIVE" : cameraOn ? "WARMUP" : "IDLE"}
+          </span>
+        </div>
+
+        <p className="action-state-hint" role="status" aria-live="polite">
+          {!cameraOn ? "次の操作: カメラ開始" : "現在: プレビュー表示中です（クリックでフルスクリーン）"}
+        </p>
+
         <div
             className="w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
             title="クリックでフルスクリーン切替"
@@ -170,42 +187,46 @@ export default function VideoPreview({ videoDeviceId }: Props) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-sm action-toolbar">
-          <button
-              type="button"
-              onClick={start}
-              disabled={isStarting}
-              aria-busy={isStarting}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-          >
-            {isStarting ? "起動中…" : "カメラ開始"}
-          </button>
-          <button
-              type="button"
-              onClick={stop}
-              disabled={!stream}
-              className="rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-900 disabled:opacity-60"
-          >
-            停止
-          </button>
+        <div className="flex flex-wrap items-center gap-3 text-sm">
+          <div className="action-button-wrap">
+            <button
+                type="button"
+                onClick={start}
+                disabled={!canStart}
+                className="action-button rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+                data-busy={isStarting ? "1" : "0"}
+                aria-busy={isStarting}
+            >
+              {isStarting ? "起動中..." : cameraOn ? "カメラ再起動" : "カメラ開始"}
+            </button>
+            <p className={`button-reason ${canStart ? "is-ready" : "is-disabled"}`}>
+              {isStarting ? "カメラ起動処理中です" : cameraOn ? "現在の設定で再起動できます" : "カメラを起動できます"}
+            </p>
+          </div>
+
+          <div className="action-button-wrap">
+            <button
+                type="button"
+                onClick={stop}
+                disabled={!canStop}
+                className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-900"
+            >
+              停止
+            </button>
+            <p className={`button-reason ${canStop ? "is-ready" : "is-disabled"}`}>
+              {canStop ? "プレビューを停止できます" : "停止対象がありません"}
+            </p>
+          </div>
 
           {error && <span className="text-xs text-red-600">{error}</span>}
         </div>
 
-        <p className="action-state-hint text-xs text-slate-600">
-          {isStarting
-              ? "カメラを起動しています。完了後に停止ボタンが有効になります。"
-              : stream
-                  ? "プレビュー動作中です。停止ボタンで終了できます。"
-                  : "カメラ開始を押すとプレビューが開始されます。"}
-        </p>
-
-        <div className="status-chip-row flex flex-wrap gap-4 text-xs text-slate-500">
-          <span className={`status-chip ${stream ? "ok" : "idle"}`}>Camera: {stream ? "ON" : "OFF"}</span>
-          <span className="status-chip idle">FPS: {fps ?? "--"}</span>
-          <span className="status-chip idle">
-            解像度: {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
-          </span>
+        <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+          <span>FPS: {fps ?? "--"}</span>
+          <span>
+          解像度:{" "}
+            {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
+        </span>
         </div>
       </div>
   );

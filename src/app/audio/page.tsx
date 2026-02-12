@@ -114,6 +114,8 @@ export default function AudioReceiverPage() {
     const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => getSignalingUrl(DEFAULT_AUDIO_ROOM));
 
     const [connected, setConnected] = useState<boolean>(false);
+    const [wsBusy, setWsBusy] = useState<boolean>(false);
+    const [hasAudioTrack, setHasAudioTrack] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [log, setLog] = useState<string[]>([]);
 
@@ -134,9 +136,6 @@ export default function AudioReceiverPage() {
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     const logLine = (line: string) => setLog((prev) => [...prev, `[${nowTime()}] ${line}`]);
-
-    const canConnect = !connected;
-    const canDisconnect = connected;
 
     useEffect(() => {
         const savedReceiver = window.localStorage.getItem(STORAGE_KEYS.receiverId);
@@ -223,6 +222,10 @@ export default function AudioReceiverPage() {
             pcsRef.current.delete(token);
             streamsRef.current.delete(token);
         }
+        setHasAudioTrack(false);
+        if (audioRef.current) {
+            audioRef.current.srcObject = null;
+        }
     }
 
     function cleanupWs() {
@@ -233,6 +236,8 @@ export default function AudioReceiverPage() {
             // noop
         }
         wsRef.current = null;
+        setConnected(false);
+        setWsBusy(false);
     }
 
     function sendWs(obj: any) {
@@ -261,6 +266,7 @@ export default function AudioReceiverPage() {
                 streamsRef.current.set(token, stream);
             }
             stream.addTrack(ev.track);
+            setHasAudioTrack(true);
 
             const audio = audioRef.current;
             if (audio) {
@@ -297,6 +303,13 @@ export default function AudioReceiverPage() {
                 }
                 pcsRef.current.delete(token);
                 streamsRef.current.delete(token);
+
+                if (streamsRef.current.size === 0) {
+                    setHasAudioTrack(false);
+                    if (audioRef.current) {
+                        audioRef.current.srcObject = null;
+                    }
+                }
             }
         };
 
@@ -309,16 +322,28 @@ export default function AudioReceiverPage() {
         manualDisconnectRef.current = false;
         clearReconnectTimer();
         setError(null);
+        setWsBusy(true);
 
         const base = normalizeWsUrl(signalingWsUrl);
         const url = withRoomQuery(base, roomId);
 
         logLine(`Signaling接続開始: ${url}`);
-        const ws = new WebSocket(url);
+
+        let ws: WebSocket;
+        try {
+            ws = new WebSocket(url);
+        } catch (e) {
+            setWsBusy(false);
+            setError(`Signaling URL が不正です: ${url}`);
+            logLine(`WS URL invalid: ${String(e)}`);
+            return;
+        }
+
         wsRef.current = ws;
 
         ws.onopen = () => {
             setConnected(true);
+            setWsBusy(false);
             reconnectAttemptRef.current = 0;
             startKeepalive(ws);
             logLine(isReconnect ? "シグナリング再接続(open)" : "シグナリング接続(open)");
@@ -328,6 +353,7 @@ export default function AudioReceiverPage() {
         ws.onclose = (ev) => {
             if (wsRef.current === ws) wsRef.current = null;
             setConnected(false);
+            setWsBusy(false);
             stopKeepalive();
             logLine(`シグナリング切断(close) code=${ev.code} reason=${ev.reason || "(none)"}`);
 
@@ -339,6 +365,7 @@ export default function AudioReceiverPage() {
         ws.onerror = () => {
             setError(`シグナリングサーバへの接続に失敗しました。URL=${url}`);
             logLine(`WS error (URL=${url})`);
+            setWsBusy(false);
         };
 
         ws.onmessage = async (event) => {
@@ -477,21 +504,45 @@ export default function AudioReceiverPage() {
         };
     }, []);
 
+    const canConnect =
+        !connected && !wsBusy && roomId.trim().length > 0 && receiverId.trim().length > 0 && signalingWsUrl.trim().length > 0;
+    const canDisconnect = connected || wsBusy;
+
     return (
         <main className="min-h-screen bg-slate-50">
             <div className="mx-auto max-w-3xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Audio Receiver（別PC用 / label方式 Teleco互換）</h1>
+                    <Link href="/gui" className="text-sm text-slate-600 hover:text-slate-900">
+                        GUIへ戻る
+                    </Link>
                 </div>
 
                 <div className="space-y-3 rounded-2xl border bg-white p-4">
+                    <div className="status-chip-row">
+                        <span className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}>
+                            Signal {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
+                        </span>
+                        <span className={`status-chip ${hasAudioTrack ? "is-on" : connected ? "is-busy" : "is-off"}`}>
+                            Audio {hasAudioTrack ? "PLAYING" : connected ? "WAITING" : "IDLE"}
+                        </span>
+                    </div>
+
+                    <p className="action-state-hint" role="status" aria-live="polite">
+                        {!connected
+                            ? "次の操作: ① シグナリング接続"
+                            : !hasAudioTrack
+                                ? "待機中: Senderからの offer/音声受信を待っています"
+                                : "現在: 音声受信中です"}
+                    </p>
+
                     <label className="block text-sm text-slate-700">
                         Signaling WS URL（GUIと同じURLにする）
                         <input
                             className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
                             value={signalingWsUrl}
                             onChange={(e) => setSignalingWsUrl(e.target.value)}
-                            disabled={connected}
+                            disabled={connected || wsBusy}
                             placeholder="ws://192.168.0.10:3000/ws?room=audio1"
                         />
                         <div className="mt-1 text-[11px] text-slate-500">
@@ -506,7 +557,7 @@ export default function AudioReceiverPage() {
                                 className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                                 value={roomId}
                                 onChange={(e) => setRoomId(e.target.value)}
-                                disabled={connected}
+                                disabled={connected || wsBusy}
                             />
                         </label>
 
@@ -516,48 +567,63 @@ export default function AudioReceiverPage() {
                                 className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                                 value={receiverId}
                                 onChange={(e) => setReceiverId(e.target.value)}
-                                disabled={connected}
+                                disabled={connected || wsBusy}
                                 placeholder="rover003"
                             />
                         </label>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-sm action-toolbar">
-                        <button
-                            onClick={() => {
-                                manualDisconnectRef.current = false;
-                                shouldAutoConnectRef.current = true;
-                                window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
-                                connect(false);
-                            }}
-                            disabled={!canConnect}
-                            className="rounded-xl bg-slate-100 px-4 py-2 disabled:opacity-60"
-                        >
-                            {connected ? "接続中" : "接続"}
-                        </button>
+                    <div className="flex flex-wrap gap-3 text-sm">
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={() => {
+                                    manualDisconnectRef.current = false;
+                                    shouldAutoConnectRef.current = true;
+                                    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
+                                    connect(false);
+                                }}
+                                disabled={!canConnect}
+                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                data-busy={wsBusy ? "1" : "0"}
+                                aria-busy={wsBusy}
+                            >
+                                {wsBusy ? "接続中..." : "接続"}
+                            </button>
+                            <p className={`button-reason ${canConnect ? "is-ready" : "is-disabled"}`}>
+                                {!roomId.trim() || !receiverId.trim() || !signalingWsUrl.trim()
+                                    ? "Room ID / Receiver ID / Signal URL を入力してください"
+                                    : connected
+                                        ? "すでに接続中です"
+                                        : wsBusy
+                                            ? "接続処理中です"
+                                            : "シグナリングへ接続できます"}
+                            </p>
+                        </div>
 
-                        <button
-                            onClick={disconnect}
-                            disabled={!canDisconnect}
-                            className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
-                        >
-                            切断
-                        </button>
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={disconnect}
+                                disabled={!canDisconnect}
+                                className="action-button rounded-xl bg-slate-900 px-4 py-2 text-white"
+                            >
+                                切断
+                            </button>
+                            <p className={`button-reason ${canDisconnect ? "is-ready" : "is-disabled"}`}>
+                                {canDisconnect ? "接続を停止できます" : "現在は未接続です"}
+                            </p>
+                        </div>
 
-                        <button
-                            onClick={() => window.open("/ws", "_blank")}
-                            className="rounded-xl bg-slate-100 px-4 py-2 hover:bg-slate-200"
-                            type="button"
-                        >
-                            /ws を開く（デバッグ）
-                        </button>
+                        <div className="action-button-wrap">
+                            <button
+                                onClick={() => window.open("/ws", "_blank")}
+                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                type="button"
+                            >
+                                /ws を開く（デバッグ）
+                            </button>
+                            <p className="button-reason is-ready">接続確認用に別タブで開けます</p>
+                        </div>
                     </div>
-
-                    <p className="action-state-hint text-xs text-slate-600">
-                        {connected
-                            ? "接続中です。切断ボタンで手動停止できます。"
-                            : "接続ボタンを押すと、Audio Senderからの受信待機が開始されます。"}
-                    </p>
 
                     {error && <p className="text-xs text-red-600">{error}</p>}
                 </div>
