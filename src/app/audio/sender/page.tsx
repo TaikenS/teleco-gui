@@ -76,6 +76,9 @@ export default function AudioSenderPage() {
     const logLine = (line: string) =>
         setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
+    const canConnectSignaling = !connected;
+    const canStartSend = micReady && connected;
+
     const clearReconnectTimer = () => {
         if (reconnectTimerRef.current != null) {
             window.clearTimeout(reconnectTimerRef.current);
@@ -466,9 +469,9 @@ export default function AudioSenderPage() {
                         </p>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-sm">
+                    <div className="flex flex-wrap gap-2 text-sm action-toolbar">
                         <button onClick={startMic} className="rounded-xl bg-slate-900 px-4 py-2 text-white">
-                            マイク起動
+                            {micReady ? "マイク再起動" : "マイク起動"}
                         </button>
 
                         <button
@@ -478,12 +481,8 @@ export default function AudioSenderPage() {
                                 window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
                                 connectSignaling(false);
                             }}
-                            disabled={connected}
-                            className={
-                                connected
-                                    ? "rounded-xl bg-emerald-600 px-4 py-2 text-white opacity-80"
-                                    : "rounded-xl bg-slate-100 px-4 py-2 hover:bg-slate-200"
-                            }
+                            disabled={!canConnectSignaling}
+                            className="rounded-xl bg-slate-100 px-4 py-2 disabled:opacity-60"
                         >
                             {connected ? "シグナリング接続中" : "シグナリング接続"}
                         </button>
@@ -495,7 +494,7 @@ export default function AudioSenderPage() {
 
                         <button
                             onClick={() => void startSend(false)}
-                            disabled={!micReady || !connected}
+                            disabled={!canStartSend}
                             className="rounded-xl bg-emerald-600 px-4 py-2 text-white disabled:opacity-60"
                         >
                             Receiverへ送信開始
@@ -512,11 +511,22 @@ export default function AudioSenderPage() {
                                 closeWs();
                                 setConnected(false);
                             }}
-                            className="rounded-xl bg-slate-100 px-4 py-2"
+                            disabled={!connected}
+                            className="rounded-xl bg-slate-100 px-4 py-2 disabled:opacity-60"
                         >
                             接続停止
                         </button>
                     </div>
+
+                    <p className="action-state-hint text-xs text-slate-600">
+                        {!micReady
+                            ? "まずマイク起動を行ってください。"
+                            : !connected
+                                ? "次にシグナリング接続を行うと送信開始が有効になります。"
+                                : !sendEnabled
+                                    ? "送信を有効化にチェックすると送信開始を押せます。"
+                                    : "準備完了。Receiverへ送信開始を押せます。"}
+                    </p>
 
                     {error && <p className="text-xs text-red-600">{error}</p>}
                 </div>

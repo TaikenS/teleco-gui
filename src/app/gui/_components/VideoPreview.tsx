@@ -170,11 +170,12 @@ export default function VideoPreview({ videoDeviceId }: Props) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-sm">
+        <div className="flex flex-wrap items-center gap-2 text-sm action-toolbar">
           <button
               type="button"
               onClick={start}
               disabled={isStarting}
+              aria-busy={isStarting}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
           >
             {isStarting ? "起動中…" : "カメラ開始"}
@@ -191,12 +192,20 @@ export default function VideoPreview({ videoDeviceId }: Props) {
           {error && <span className="text-xs text-red-600">{error}</span>}
         </div>
 
-        <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-          <span>FPS: {fps ?? "--"}</span>
-          <span>
-          解像度:{" "}
-            {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
-        </span>
+        <p className="action-state-hint text-xs text-slate-600">
+          {isStarting
+              ? "カメラを起動しています。完了後に停止ボタンが有効になります。"
+              : stream
+                  ? "プレビュー動作中です。停止ボタンで終了できます。"
+                  : "カメラ開始を押すとプレビューが開始されます。"}
+        </p>
+
+        <div className="status-chip-row flex flex-wrap gap-4 text-xs text-slate-500">
+          <span className={`status-chip ${stream ? "ok" : "idle"}`}>Camera: {stream ? "ON" : "OFF"}</span>
+          <span className="status-chip idle">FPS: {fps ?? "--"}</span>
+          <span className="status-chip idle">
+            解像度: {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
+          </span>
         </div>
       </div>
   );

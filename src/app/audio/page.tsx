@@ -135,6 +135,9 @@ export default function AudioReceiverPage() {
 
     const logLine = (line: string) => setLog((prev) => [...prev, `[${nowTime()}] ${line}`]);
 
+    const canConnect = !connected;
+    const canDisconnect = connected;
+
     useEffect(() => {
         const savedReceiver = window.localStorage.getItem(STORAGE_KEYS.receiverId);
         if (savedReceiver) setReceiverId(savedReceiver);
@@ -479,9 +482,6 @@ export default function AudioReceiverPage() {
             <div className="mx-auto max-w-3xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Audio Receiver（別PC用 / label方式 Teleco互換）</h1>
-                    <Link href="/gui" className="text-sm text-slate-600 hover:text-slate-900">
-                        GUIへ戻る
-                    </Link>
                 </div>
 
                 <div className="space-y-3 rounded-2xl border bg-white p-4">
@@ -522,7 +522,7 @@ export default function AudioReceiverPage() {
                         </label>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-sm">
+                    <div className="flex flex-wrap gap-2 text-sm action-toolbar">
                         <button
                             onClick={() => {
                                 manualDisconnectRef.current = false;
@@ -530,19 +530,15 @@ export default function AudioReceiverPage() {
                                 window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
                                 connect(false);
                             }}
-                            disabled={connected}
-                            className={
-                                connected
-                                    ? "rounded-xl bg-emerald-600 px-4 py-2 text-white opacity-80"
-                                    : "rounded-xl bg-slate-100 px-4 py-2 hover:bg-slate-200"
-                            }
+                            disabled={!canConnect}
+                            className="rounded-xl bg-slate-100 px-4 py-2 disabled:opacity-60"
                         >
                             {connected ? "接続中" : "接続"}
                         </button>
 
                         <button
                             onClick={disconnect}
-                            disabled={!connected}
+                            disabled={!canDisconnect}
                             className="rounded-xl bg-slate-900 px-4 py-2 text-white disabled:opacity-60"
                         >
                             切断
@@ -556,6 +552,12 @@ export default function AudioReceiverPage() {
                             /ws を開く（デバッグ）
                         </button>
                     </div>
+
+                    <p className="action-state-hint text-xs text-slate-600">
+                        {connected
+                            ? "接続中です。切断ボタンで手動停止できます。"
+                            : "接続ボタンを押すと、Audio Senderからの受信待機が開始されます。"}
+                    </p>
 
                     {error && <p className="text-xs text-red-600">{error}</p>}
                 </div>

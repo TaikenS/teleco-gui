@@ -472,7 +472,11 @@ export default function AudioSender() {
   const [callStatus, setCallStatus] = useState<string>("停止");
   const [error, setError] = useState<string | null>(null);
 
+  const signalConnected = signalWsStatus === "接続済み";
   const commandConnected = commandWsStatus === "接続済み";
+  const sendingActive = callStatus !== "停止";
+  const canStartSending = signalConnected && !!selectedMicId && !sendingActive;
+  const canStopSending = sendingActive;
 
 
   const clientIdRef = useRef<string>(`teleco-gui-master-${Math.random().toString(36).slice(2, 10)}`);
@@ -1313,7 +1317,7 @@ export default function AudioSender() {
             </select>
           </label>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 action-toolbar">
             <button onClick={refreshDevices} className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200">
               デバイス更新
             </button>
@@ -1325,7 +1329,7 @@ export default function AudioSender() {
                   window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "1");
                   connectSignalWs();
                 }}
-                disabled={signalWsStatus === "接続済み"}
+                disabled={signalConnected}
                 className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
             >
               Signal WS接続
@@ -1333,7 +1337,7 @@ export default function AudioSender() {
 
             <button
                 onClick={disconnectSignalWs}
-                disabled={signalWsStatus !== "接続済み"}
+                disabled={!signalConnected}
                 className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
             >
               Signal WS切断
@@ -1341,21 +1345,36 @@ export default function AudioSender() {
 
             <button
                 onClick={startSending}
-                className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700"
+                disabled={!canStartSending}
+                className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm hover:bg-emerald-700 disabled:opacity-50"
             >
               Receiver送信開始
             </button>
 
-            <button onClick={stopSending} className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200">
+            <button
+                onClick={stopSending}
+                disabled={!canStopSending}
+                className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
+            >
               送信停止
             </button>
           </div>
 
-          <div className="text-xs text-slate-600 space-y-1">
-            <div>Signal WS: {signalWsStatus}</div>
-            <div>Audio Send: {callStatus}</div>
-            <div>Last Vowel: {lastVowelRef.current}</div>
-            <div>Command WS: {commandWsStatus === "接続済み" ? "接続済み（口パク送信有効）" : "未接続（音声送信のみ継続）"}</div>
+          <p className="action-state-hint text-xs text-slate-600">
+            {!signalConnected
+                ? "まず Signal WS接続でオンライン化すると、送信開始ボタンが有効になります。"
+                : sendingActive
+                    ? "送信中です。停止したい場合は「送信停止」を押してください。"
+                    : "準備OK。Receiver送信開始を押せます。"}
+          </p>
+
+          <div className="status-chip-row text-xs text-slate-600">
+            <span className={`status-chip ${signalConnected ? "ok" : "idle"}`}>Signal WS: {signalWsStatus}</span>
+            <span className={`status-chip ${sendingActive ? "ok" : "idle"}`}>Audio Send: {callStatus}</span>
+            <span className="status-chip idle">Last Vowel: {lastVowelRef.current}</span>
+            <span className={`status-chip ${commandConnected ? "ok" : "idle"}`}>
+              Command WS: {commandConnected ? "接続済み（口パク送信有効）" : "未接続（音声送信のみ継続）"}
+            </span>
           </div>
         </div>
 
@@ -1372,7 +1391,7 @@ export default function AudioSender() {
             />
           </label>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 action-toolbar">
             <button
                 onClick={() => {
                   manualCommandDisconnectRef.current = false;
@@ -1380,7 +1399,7 @@ export default function AudioSender() {
                   window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "1");
                   connectCommandWs();
                 }}
-                disabled={commandWsStatus === "接続済み"}
+                disabled={commandConnected}
                 className="rounded-xl bg-slate-900 text-white px-4 py-2 text-sm hover:bg-slate-700 disabled:opacity-50"
             >
               Command WS接続
@@ -1388,7 +1407,7 @@ export default function AudioSender() {
 
             <button
                 onClick={disconnectCommandWs}
-                disabled={commandWsStatus !== "接続済み"}
+                disabled={!commandConnected}
                 className="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 disabled:opacity-50"
             >
               Command WS切断
@@ -1396,7 +1415,8 @@ export default function AudioSender() {
 
             <button
                 onClick={() => sendMouthVowel("a")}
-                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700"
+                disabled={!commandConnected}
+                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
             >
               口パクテスト（a）
             </button>
@@ -1419,14 +1439,22 @@ export default function AudioSender() {
 
           </div>
 
-          <div className="text-xs text-slate-600">Command WS: {commandWsStatus}</div>
+          <p className="action-state-hint text-xs text-slate-600">
+            {commandConnected
+                ? "Command WS接続中。口パクテストと矢印コマンドを送信できます。"
+                : "Command WSを接続すると、口パクテストと矢印操作ボタンが有効になります。"}
+          </p>
+
+          <div className="status-chip-row text-xs text-slate-600">
+            <span className={`status-chip ${commandConnected ? "ok" : "idle"}`}>Command WS: {commandWsStatus}</span>
+          </div>
         </div>
 
         {/* ---- Mic Test Panel ---- */}
         <div className="rounded-xl border bg-white p-3 space-y-3">
           <div className="text-sm font-semibold">マイクテスト（ローカル再生 + 母音推定 → faceCommand）</div>
 
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-wrap gap-2 items-center action-toolbar">
             <button
                 onClick={startMicTest}
                 disabled={micTestRunning}
@@ -1442,11 +1470,15 @@ export default function AudioSender() {
               Mic Test Stop
             </button>
 
-            <label className="flex items-center gap-2 text-xs text-slate-700">
+            <label className="inline-flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100/70 px-3 py-2">
               <input type="checkbox" checked={autoMouthEnabled} onChange={(e) => setAutoMouthEnabled(e.target.checked)} />
               口パク送信（faceCommand）
             </label>
           </div>
+
+          <p className="action-state-hint text-xs text-slate-600">
+            {micTestRunning ? "Mic Test 実行中です。停止ボタンが有効になっています。" : "Mic Test Start を押すと入力レベル確認が開始します。"}
+          </p>
 
           <div className="grid gap-2 md:grid-cols-3">
             <label className="text-xs text-slate-700">
@@ -1516,7 +1548,8 @@ export default function AudioSender() {
                 <button
                     key={v}
                     onClick={() => sendMouthVowel(v)}
-                    className={`rounded-xl px-4 py-2 text-sm hover:opacity-90 ${
+                    disabled={!commandConnected}
+                    className={`rounded-xl px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50 ${
                         v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
                     }`}
                 >
@@ -1541,8 +1574,12 @@ export default function AudioSender() {
               onChange={(e) => setCommandJson(e.target.value)}
           />
 
-          <div className="flex flex-wrap gap-2">
-            <button onClick={sendRawCommandJson} className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700">
+          <div className="flex flex-wrap gap-2 action-toolbar">
+            <button
+                onClick={sendRawCommandJson}
+                disabled={!commandConnected}
+                className="rounded-xl bg-blue-600 text-white px-4 py-2 text-sm hover:bg-blue-700 disabled:opacity-50"
+            >
               Send Command
             </button>
 
@@ -1550,6 +1587,10 @@ export default function AudioSender() {
               Clear Log
             </button>
           </div>
+
+          <p className="action-state-hint text-xs text-slate-600">
+            {commandConnected ? "コマンド送信可能です。" : "Command WS未接続のため、送信ボタンは無効です。"}
+          </p>
 
           <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
 {commandLog || "(no logs)"}
