@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { getSignalingUrl } from "@/lib/siganling";
 
 /**
@@ -513,9 +512,6 @@ export default function AudioReceiverPage() {
             <div className="mx-auto max-w-3xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-xl font-semibold">Audio Receiver（別PC用 / label方式 Teleco互換）</h1>
-                    <Link href="/gui" className="text-sm text-slate-600 hover:text-slate-900">
-                        GUIへ戻る
-                    </Link>
                 </div>
 
                 <div className="space-y-3 rounded-2xl border bg-white p-4">
