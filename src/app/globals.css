@@ -177,23 +177,45 @@ h3 {
 button,
 a.rounded-xl,
 a.rounded-lg {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid transparent;
+  font-weight: 600;
+  letter-spacing: 0.01em;
   transition:
           transform 0.14s ease,
-          box-shadow 0.2s ease,
+          box-shadow 0.22s ease,
           background-color 0.2s ease,
-          filter 0.2s ease;
+          filter 0.2s ease,
+          border-color 0.2s ease,
+          opacity 0.2s ease;
 }
 
-button:hover,
+button:not(:disabled),
+a.rounded-xl,
+a.rounded-lg {
+  cursor: pointer;
+}
+
+button:not(:disabled):hover,
 a.rounded-xl:hover,
 a.rounded-lg:hover {
   transform: translateY(-1px);
 }
 
-button:active,
+button:not(:disabled):active,
 a.rounded-xl:active,
 a.rounded-lg:active {
   transform: translateY(0);
+}
+
+button:focus-visible,
+a.rounded-xl:focus-visible,
+a.rounded-lg:focus-visible {
+  outline: none;
+  box-shadow:
+          0 0 0 4px var(--ring),
+          0 10px 24px rgba(15, 23, 42, 0.12);
 }
 
 /* Primary */
@@ -207,9 +229,9 @@ a.bg-slate-900 {
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
 }
 
-button.bg-slate-900:hover,
+button.bg-slate-900:not(:disabled):hover,
 a.bg-slate-900:hover {
-  filter: brightness(1.04);
+  filter: brightness(1.05);
 }
 
 /* Secondary */
@@ -220,9 +242,10 @@ a.bg-slate-100 {
   color: var(--foreground);
 }
 
-button.bg-slate-100:hover,
+button.bg-slate-100:not(:disabled):hover,
 a.bg-slate-100:hover {
   background: color-mix(in srgb, var(--surface-muted) 90%, white 10%) !important;
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border-strong));
 }
 
 /* Status buttons */
@@ -245,9 +268,110 @@ a.bg-violet-600 {
 }
 
 button:disabled {
-  opacity: 0.6;
+  color: color-mix(in srgb, var(--foreground) 55%, #94a3b8) !important;
+  border-color: color-mix(in srgb, var(--border-strong) 72%, transparent) !important;
+  background:
+          repeating-linear-gradient(
+                  -45deg,
+                  color-mix(in srgb, var(--surface-muted) 88%, transparent) 0 10px,
+                  color-mix(in srgb, var(--surface-muted) 72%, transparent) 10px 20px
+          ) !important;
   transform: none !important;
-  box-shadow: none !important;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border) 88%, transparent) !important;
+  filter: saturate(0.75);
+  opacity: 0.88;
+  cursor: not-allowed;
+}
+
+button:disabled[class*="px-4"]::after {
+  position: absolute;
+  right: 8px;
+  top: -8px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border-strong) 70%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: color-mix(in srgb, var(--foreground) 78%, white 22%);
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+button[aria-busy="true"] {
+  padding-right: 2.2rem;
+}
+
+button[aria-busy="true"]::before {
+  content: "";
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin-top: -6px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.42);
+  border-top-color: rgba(255, 255, 255, 0.95);
+  animation: spin 0.85s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Button timing / state hints */
+.action-toolbar {
+  border-top: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+  padding-top: 0.65rem;
+}
+
+.action-state-hint {
+  margin-top: 0.35rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--border) 84%, transparent);
+  border-left: 4px solid color-mix(in srgb, var(--accent) 62%, var(--border-strong));
+  background: color-mix(in srgb, var(--surface-muted) 68%, transparent);
+}
+
+.status-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.6rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--border) 86%, transparent);
+  background: color-mix(in srgb, var(--surface-muted) 70%, transparent);
+  color: color-mix(in srgb, var(--foreground) 80%, white 20%);
+}
+
+.status-chip.ok {
+  background: color-mix(in srgb, var(--success) 15%, var(--surface));
+  border-color: color-mix(in srgb, var(--success) 38%, var(--border));
+  color: color-mix(in srgb, var(--success) 72%, var(--foreground));
+}
+
+.status-chip.idle {
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--border));
+}
+
+/* Checkbox / slider polish */
+input[type="checkbox"] {
+  accent-color: color-mix(in srgb, var(--accent) 85%, var(--accent-2));
+}
+
+input[type="range"] {
+  accent-color: color-mix(in srgb, var(--accent) 80%, var(--accent-2));
 }
 
 /* ---------- Media blocks ---------- */
