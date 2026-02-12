@@ -7,10 +7,13 @@ import AudioSender from "@/app/gui/_components/AudioSender";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
 
-type VideoSourceMode = "local" | "webSender" ;
+type VideoSourceMode = "local" | "webSender";
 const VIDEO_MODE_STORAGE_KEY = "teleco.gui.videoMode";
 const VIDEO_ROOM_STORAGE_KEY = "teleco.gui.video.roomId";
 const VIDEO_SIGNAL_URL_STORAGE_KEY = "teleco.gui.video.signalingWsUrl";
+const EMBED_VIDEO_SENDER_KEY = "teleco.gui.embed.videoSender";
+const EMBED_AUDIO_RECEIVER_KEY = "teleco.gui.embed.audioReceiver";
+
 const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
 const DEFAULT_SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "";
 
@@ -19,6 +22,10 @@ export default function GuiPage() {
   const [selectedVideoId] = useState<string | undefined>();
   const [videoRoomId, setVideoRoomId] = useState<string>(DEFAULT_VIDEO_ROOM);
   const [videoSignalingWsUrl, setVideoSignalingWsUrl] = useState<string>(DEFAULT_SIGNALING_URL);
+
+  // 1タブ統合パネルの表示状態
+  const [showVideoSenderPanel, setShowVideoSenderPanel] = useState<boolean>(true);
+  const [showAudioReceiverPanel, setShowAudioReceiverPanel] = useState<boolean>(true);
 
   useEffect(() => {
     const savedMode = window.localStorage.getItem(VIDEO_MODE_STORAGE_KEY);
@@ -35,6 +42,16 @@ export default function GuiPage() {
     if (savedVideoSignalUrl != null) {
       setVideoSignalingWsUrl(savedVideoSignalUrl);
     }
+
+    const savedShowVideoSender = window.localStorage.getItem(EMBED_VIDEO_SENDER_KEY);
+    if (savedShowVideoSender != null) {
+      setShowVideoSenderPanel(savedShowVideoSender === "1");
+    }
+
+    const savedShowAudioReceiver = window.localStorage.getItem(EMBED_AUDIO_RECEIVER_KEY);
+    if (savedShowAudioReceiver != null) {
+      setShowAudioReceiverPanel(savedShowAudioReceiver === "1");
+    }
   }, []);
 
   useEffect(() => {
@@ -48,6 +65,14 @@ export default function GuiPage() {
   useEffect(() => {
     window.localStorage.setItem(VIDEO_SIGNAL_URL_STORAGE_KEY, videoSignalingWsUrl);
   }, [videoSignalingWsUrl]);
+
+  useEffect(() => {
+    window.localStorage.setItem(EMBED_VIDEO_SENDER_KEY, showVideoSenderPanel ? "1" : "0");
+  }, [showVideoSenderPanel]);
+
+  useEffect(() => {
+    window.localStorage.setItem(EMBED_AUDIO_RECEIVER_KEY, showAudioReceiverPanel ? "1" : "0");
+  }, [showAudioReceiverPanel]);
 
   return (
       <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -145,6 +170,72 @@ export default function GuiPage() {
                     </li>
                 ))}
               </ul>
+            </Card>
+          </section>
+
+          <section className="space-y-4 lg:col-span-12">
+            <Card title="1タブ統合パネル" subtitle="/sender と /audio をこのページ内に埋め込みます">
+              <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                      type="checkbox"
+                      checked={showVideoSenderPanel}
+                      onChange={(e) => setShowVideoSenderPanel(e.target.checked)}
+                  />
+                  Video Sender パネルを表示
+                </label>
+
+                <label className="inline-flex items-center gap-2">
+                  <input
+                      type="checkbox"
+                      checked={showAudioReceiverPanel}
+                      onChange={(e) => setShowAudioReceiverPanel(e.target.checked)}
+                  />
+                  Audio Receiver パネルを表示
+                </label>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                {showVideoSenderPanel && (
+                    <section className="rounded-xl border bg-slate-50 p-2">
+                      <div className="mb-2 flex items-center justify-between px-1">
+                        <h3 className="text-sm font-semibold">Video Sender (/sender)</h3>
+                        <Link href="/sender" target="_blank" className="text-xs text-slate-600 hover:text-slate-900">
+                          別タブで開く
+                        </Link>
+                      </div>
+
+                      <iframe
+                          src="/sender"
+                          title="Video Sender"
+                          className="h-[760px] w-full rounded-lg border bg-white"
+                          allow="camera; microphone; autoplay"
+                      />
+                    </section>
+                )}
+
+                {showAudioReceiverPanel && (
+                    <section className="rounded-xl border bg-slate-50 p-2">
+                      <div className="mb-2 flex items-center justify-between px-1">
+                        <h3 className="text-sm font-semibold">Audio Receiver (/audio)</h3>
+                        <Link href="/audio" target="_blank" className="text-xs text-slate-600 hover:text-slate-900">
+                          別タブで開く
+                        </Link>
+                      </div>
+
+                      <iframe
+                          src="/audio"
+                          title="Audio Receiver"
+                          className="h-[760px] w-full rounded-lg border bg-white"
+                          allow="autoplay"
+                      />
+                    </section>
+                )}
+              </div>
+
+              {!showVideoSenderPanel && !showAudioReceiverPanel && (
+                  <p className="text-sm text-slate-500">パネルが非表示です。必要なものにチェックを入れてください。</p>
+              )}
             </Card>
           </section>
         </main>
