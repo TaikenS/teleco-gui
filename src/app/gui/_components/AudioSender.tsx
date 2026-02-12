@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getSignalingUrl } from "@/lib/siganling";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
+import { getSignalingUrl } from "@/lib/siganling";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 type MicOption = { deviceId: string; label: string };
@@ -21,6 +21,9 @@ const STORAGE_KEYS = {
   signalAutoConnect: "teleco.gui.audio.signalAutoConnect",
   commandAutoConnect: "teleco.gui.audio.commandAutoConnect",
   sendingActive: "teleco.gui.audio.sendingActive",
+  showMicTestPanel: "teleco.gui.audio.showMicTestPanel",
+  showMouthPresetPanel: "teleco.gui.audio.showMouthPresetPanel",
+  showRawCommandPanel: "teleco.gui.audio.showRawCommandPanel",
 };
 
 const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
@@ -716,6 +719,10 @@ export default function AudioSender() {
   const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
   const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
 
+  const [showMicTestPanel, setShowMicTestPanel] = useState(true);
+  const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(true);
+  const [showRawCommandPanel, setShowRawCommandPanel] = useState(true);
+
   // レベルメータ用（RMS）
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
   const [gain, setGain] = useState<number>(20);
@@ -800,6 +807,15 @@ export default function AudioSender() {
     const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
     if (savedMicId) setSelectedMicId(savedMicId);
 
+    const savedShowMicTestPanel = window.localStorage.getItem(STORAGE_KEYS.showMicTestPanel);
+    if (savedShowMicTestPanel != null) setShowMicTestPanel(savedShowMicTestPanel === "1");
+
+    const savedShowMouthPresetPanel = window.localStorage.getItem(STORAGE_KEYS.showMouthPresetPanel);
+    if (savedShowMouthPresetPanel != null) setShowMouthPresetPanel(savedShowMouthPresetPanel === "1");
+
+    const savedShowRawCommandPanel = window.localStorage.getItem(STORAGE_KEYS.showRawCommandPanel);
+    if (savedShowRawCommandPanel != null) setShowRawCommandPanel(savedShowRawCommandPanel === "1");
+
     shouldAutoSignalRef.current = window.localStorage.getItem(STORAGE_KEYS.signalAutoConnect) === "1";
     shouldAutoCommandRef.current = window.localStorage.getItem(STORAGE_KEYS.commandAutoConnect) === "1";
     shouldAutoSendingRef.current = window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
@@ -839,6 +855,18 @@ export default function AudioSender() {
     if (!selectedMicId) return;
     window.localStorage.setItem(STORAGE_KEYS.selectedMicId, selectedMicId);
   }, [selectedMicId]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.showMicTestPanel, showMicTestPanel ? "1" : "0");
+  }, [showMicTestPanel]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.showMouthPresetPanel, showMouthPresetPanel ? "1" : "0");
+  }, [showMouthPresetPanel]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.showRawCommandPanel, showRawCommandPanel ? "1" : "0");
+  }, [showRawCommandPanel]);
 
   const clearSignalReconnectTimer = () => {
     if (signalReconnectTimerRef.current != null) {
@@ -1383,6 +1411,7 @@ export default function AudioSender() {
                   }}
                   disabled={!canConnectSignal}
                   className="action-button rounded-xl bg-slate-900 text-white px-4 py-2 text-sm"
+
                   data-busy={signalBusy ? "1" : "0"}
                   aria-busy={signalBusy}
               >
@@ -1398,6 +1427,7 @@ export default function AudioSender() {
                   onClick={disconnectSignalWs}
                   disabled={!canDisconnectSignal}
                   className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+
               >
                 Signal WS切断
               </button>
@@ -1411,6 +1441,7 @@ export default function AudioSender() {
                   onClick={() => void startSending()}
                   disabled={!canStartSending}
                   className="action-button rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm"
+
                   data-busy={callStatus === "offer送信中" ? "1" : "0"}
                   aria-busy={callStatus === "offer送信中"}
               >
@@ -1432,6 +1463,7 @@ export default function AudioSender() {
                   onClick={stopSending}
                   className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
                   disabled={!canStopSending}
+
               >
                 送信停止
               </button>
@@ -1485,6 +1517,7 @@ export default function AudioSender() {
                   }}
                   disabled={!canConnectCommand}
                   className="action-button rounded-xl bg-slate-900 text-white px-4 py-2 text-sm"
+
                   data-busy={commandBusy ? "1" : "0"}
                   aria-busy={commandBusy}
               >
@@ -1500,6 +1533,7 @@ export default function AudioSender() {
                   onClick={disconnectCommandWs}
                   disabled={!canDisconnectCommand}
                   className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+
               >
                 Command WS切断
               </button>
@@ -1513,6 +1547,7 @@ export default function AudioSender() {
                   onClick={() => sendMouthVowel("a")}
                   disabled={!canRunMouthTest}
                   className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
+
               >
                 口パクテスト（a）
               </button>
@@ -1526,6 +1561,7 @@ export default function AudioSender() {
                   onClick={() => sendArrowMove("left")}
                   disabled={!commandConnected}
                   className="action-button rounded-xl bg-violet-600 text-white px-4 py-2 text-sm"
+
               >
                 ← 左（+10）
               </button>
@@ -1539,6 +1575,7 @@ export default function AudioSender() {
                   onClick={() => sendArrowMove("right")}
                   disabled={!commandConnected}
                   className="action-button rounded-xl bg-violet-600 text-white px-4 py-2 text-sm"
+
               >
                 → 右（-10）
               </button>
@@ -1552,188 +1589,226 @@ export default function AudioSender() {
           <div className="text-xs text-slate-600">Command WS: {commandWsStatus}</div>
         </div>
 
-        {/* ---- Mic Test Panel ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-3">
-          <div className="text-sm font-semibold">マイクテスト（ローカル再生 + 母音推定 → faceCommand）</div>
-
-          <div className="status-chip-row">
-            <span className={`status-chip ${micTestRunning ? "is-on" : "is-off"}`}>Mic Test {micTestRunning ? "RUNNING" : "STOPPED"}</span>
-            <span className={`status-chip ${autoMouthEnabled ? "is-on" : "is-off"}`}>Auto Mouth {autoMouthEnabled ? "ON" : "OFF"}</span>
+        <div className="rounded-xl border bg-white p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-semibold">詳細パネル表示</div>
+            <div className="text-[11px] text-slate-500">表示/非表示を切り替え</div>
           </div>
 
           <p className="action-state-hint" role="status" aria-live="polite">
-            {!hasMic
-                ? "次の操作: マイクを選択してください"
-                : !micTestRunning
-                    ? "次の操作: Mic Test Start"
-                    : "現在: マイクテスト動作中です"}
+            下の3パネルはチェックで表示/非表示を切り替えできます。
           </p>
 
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="action-button-wrap">
-              <button
-                  onClick={() => void startMicTest()}
-                  disabled={!canStartMicTest}
-                  className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
-              >
-                Mic Test Start
-              </button>
-              <p className={`button-reason ${canStartMicTest ? "is-ready" : "is-disabled"}`}>
-                {!hasMic ? "先にマイクを選択してください" : micTestRunning ? "すでに実行中です" : "マイクテストを開始できます"}
-              </p>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
+              <input type="checkbox" checked={showMicTestPanel} onChange={(e) => setShowMicTestPanel(e.target.checked)} />
+              マイクテスト
+            </label>
 
-            <div className="action-button-wrap">
-              <button
-                  onClick={stopMicTest}
-                  disabled={!canStopMicTest}
-                  className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
-              >
-                Mic Test Stop
-              </button>
-              <p className={`button-reason ${canStopMicTest ? "is-ready" : "is-disabled"}`}>
-                {canStopMicTest ? "マイクテストを停止できます" : "現在は停止中です"}
-              </p>
-            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
+              <input type="checkbox" checked={showMouthPresetPanel} onChange={(e) => setShowMouthPresetPanel(e.target.checked)} />
+              口パク手動プリセット
+            </label>
 
-            <div className="action-button-wrap">
-              <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
-                <input type="checkbox" checked={autoMouthEnabled} onChange={(e) => setAutoMouthEnabled(e.target.checked)} />
-                口パク送信（faceCommand）
-              </label>
-              <p className={`button-reason ${autoMouthEnabled ? "is-ready" : "is-disabled"}`}>
-                {autoMouthEnabled ? "母音推定をfaceCommandとして送信します" : "ONにすると母音推定を送信します"}
-              </p>
-            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
+              <input type="checkbox" checked={showRawCommandPanel} onChange={(e) => setShowRawCommandPanel(e.target.checked)} />
+              任意コマンド送信
+            </label>
           </div>
-
-          <div className="grid gap-2 md:grid-cols-3">
-            <label className="text-xs text-slate-700">
-              Monitor Volume（ハウリング注意）
-              <input
-                  className="mt-1 w-full"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.01}
-                  value={monitorVolume}
-                  onChange={(e) => setMonitorVolume(Number(e.target.value))}
-              />
-              <div className="text-[11px] text-slate-500">{monitorVolume.toFixed(2)}</div>
-            </label>
-
-            <label className="text-xs text-slate-700">
-              Noise Floor（レベルメータ用）
-              <input
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                  type="number"
-                  step="0.001"
-                  value={noiseFloor}
-                  onChange={(e) => setNoiseFloor(Number(e.target.value))}
-              />
-            </label>
-
-            <label className="text-xs text-slate-700">
-              Gain（レベルメータ用）
-              <input
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                  type="number"
-                  step="1"
-                  value={gain}
-                  onChange={(e) => setGain(Number(e.target.value))}
-              />
-            </label>
-
-            <label className="text-xs text-slate-700">
-              Mouth Send FPS（送信頻度制限）
-              <input
-                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                  type="number"
-                  step="1"
-                  value={mouthSendFps}
-                  onChange={(e) => setMouthSendFps(Number(e.target.value))}
-              />
-            </label>
-
-            <div className="md:col-span-2">
-              <div className="text-xs text-slate-700">Mic Level</div>
-              <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
-                <div className="h-3 bg-emerald-500" style={{ width: `${Math.round(micLevel * 100)}%` }} />
-              </div>
-              <div className="text-[11px] text-slate-500">level={micLevel.toFixed(3)}</div>
-            </div>
-          </div>
-
-          <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
         </div>
+
+        {/* ---- Mic Test Panel ---- */}
+        {showMicTestPanel && (
+            <div className="rounded-xl border bg-white p-3 space-y-3">
+              <div className="text-sm font-semibold">マイクテスト（ローカル再生 + 母音推定 → faceCommand）</div>
+
+              <div className="status-chip-row">
+                <span className={`status-chip ${micTestRunning ? "is-on" : "is-off"}`}>Mic Test {micTestRunning ? "RUNNING" : "STOPPED"}</span>
+                <span className={`status-chip ${autoMouthEnabled ? "is-on" : "is-off"}`}>Auto Mouth {autoMouthEnabled ? "ON" : "OFF"}</span>
+              </div>
+
+              <p className="action-state-hint" role="status" aria-live="polite">
+                {!hasMic
+                    ? "次の操作: マイクを選択してください"
+                    : !micTestRunning
+                        ? "次の操作: Mic Test Start"
+                        : "現在: マイクテスト動作中です"}
+              </p>
+
+              <div className="flex flex-wrap gap-3 items-center">
+                <div className="action-button-wrap">
+                  <button
+                      onClick={() => void startMicTest()}
+                      disabled={!canStartMicTest}
+                      className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
+    
+                  >
+                    Mic Test Start
+                  </button>
+                  <p className={`button-reason ${canStartMicTest ? "is-ready" : "is-disabled"}`}>
+                    {!hasMic ? "先にマイクを選択してください" : micTestRunning ? "すでに実行中です" : "マイクテストを開始できます"}
+                  </p>
+                </div>
+
+                <div className="action-button-wrap">
+                  <button
+                      onClick={stopMicTest}
+                      disabled={!canStopMicTest}
+                      className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+    
+                  >
+                    Mic Test Stop
+                  </button>
+                  <p className={`button-reason ${canStopMicTest ? "is-ready" : "is-disabled"}`}>
+                    {canStopMicTest ? "マイクテストを停止できます" : "現在は停止中です"}
+                  </p>
+                </div>
+
+                <div className="action-button-wrap">
+                  <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
+                    <input type="checkbox" checked={autoMouthEnabled} onChange={(e) => setAutoMouthEnabled(e.target.checked)} />
+                    口パク送信（faceCommand）
+                  </label>
+                  <p className={`button-reason ${autoMouthEnabled ? "is-ready" : "is-disabled"}`}>
+                    {autoMouthEnabled ? "母音推定をfaceCommandとして送信します" : "ONにすると母音推定を送信します"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-3">
+                <label className="text-xs text-slate-700">
+                  Monitor Volume（ハウリング注意）
+                  <input
+                      className="mt-1 w-full"
+                      type="range"
+                      min={0}
+                      max={1}
+                      step={0.01}
+                      value={monitorVolume}
+                      onChange={(e) => setMonitorVolume(Number(e.target.value))}
+                  />
+                  <div className="text-[11px] text-slate-500">{monitorVolume.toFixed(2)}</div>
+                </label>
+
+                <label className="text-xs text-slate-700">
+                  Noise Floor（レベルメータ用）
+                  <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                      type="number"
+                      step="0.001"
+                      value={noiseFloor}
+                      onChange={(e) => setNoiseFloor(Number(e.target.value))}
+                  />
+                </label>
+
+                <label className="text-xs text-slate-700">
+                  Gain（レベルメータ用）
+                  <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                      type="number"
+                      step="1"
+                      value={gain}
+                      onChange={(e) => setGain(Number(e.target.value))}
+                  />
+                </label>
+
+                <label className="text-xs text-slate-700">
+                  Mouth Send FPS（送信頻度制限）
+                  <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                      type="number"
+                      step="1"
+                      value={mouthSendFps}
+                      onChange={(e) => setMouthSendFps(Number(e.target.value))}
+                  />
+                </label>
+
+                <div className="md:col-span-2">
+                  <div className="text-xs text-slate-700">Mic Level</div>
+                  <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
+                    <div className="h-3 bg-emerald-500" style={{ width: `${Math.round(micLevel * 100)}%` }} />
+                  </div>
+                  <div className="text-[11px] text-slate-500">level={micLevel.toFixed(3)}</div>
+                </div>
+              </div>
+
+              <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
+            </div>
+        )}
 
         {/* ---- Mouth Manual Presets ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">口パク手動プリセット（faceCommand）</div>
-          <p className="action-state-hint" role="status" aria-live="polite">
-            {commandConnected ? "Command WS接続済み: 手動プリセットを送信できます" : "Command WS未接続: 接続すると手動プリセットを送信できます"}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {(["a", "i", "u", "e", "o", "xn"] as Vowel[]).map((v) => (
-                <button
-                    key={v}
-                    onClick={() => sendMouthVowel(v)}
-                    disabled={!commandConnected}
-                    className={`action-button rounded-xl px-4 py-2 text-sm hover:opacity-90 ${
-                        v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
-                    }`}
-                >
-                  {v === "xn" ? "close(xn)" : v}
-                </button>
-            ))}
-          </div>
-        </div>
+        {showMouthPresetPanel && (
+            <div className="rounded-xl border bg-white p-3 space-y-2">
+              <div className="text-sm font-semibold">口パク手動プリセット（faceCommand）</div>
+              <p className="action-state-hint" role="status" aria-live="polite">
+                {commandConnected ? "Command WS接続済み: 手動プリセットを送信できます" : "Command WS未接続: 接続すると手動プリセットを送信できます"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {(["a", "i", "u", "e", "o", "xn"] as Vowel[]).map((v) => (
+                    <button
+                        key={v}
+                        onClick={() => sendMouthVowel(v)}
+                        disabled={!commandConnected}
+      
+                        className={`action-button rounded-xl px-4 py-2 text-sm hover:opacity-90 ${
+                            v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
+                        }`}
+                    >
+                      {v === "xn" ? "close(xn)" : v}
+                    </button>
+                ))}
+              </div>
+            </div>
+        )}
 
         {/* ---- Command WS Test Panel ---- */}
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">任意コマンド送信（/command）</div>
+        {showRawCommandPanel && (
+            <div className="rounded-xl border bg-white p-3 space-y-2">
+              <div className="text-sm font-semibold">任意コマンド送信（/command）</div>
 
-          <p className="action-state-hint" role="status" aria-live="polite">
-            {commandConnected ? "Command WS接続済み: JSONコマンドを送信できます" : "Command WS未接続: 接続するとJSONコマンドを送信できます"}
-          </p>
-
-          <div className="text-xs text-slate-600">
-            move_multi でハンド等を試す場合はここから送ってください（口は faceCommand で口パク）。
-          </div>
-
-          <textarea
-              className="w-full rounded-xl border px-3 py-2 text-xs font-mono bg-slate-50"
-              rows={10}
-              value={commandJson}
-              onChange={(e) => setCommandJson(e.target.value)}
-          />
-
-          <div className="flex flex-wrap gap-3">
-            <div className="action-button-wrap">
-              <button
-                  onClick={sendRawCommandJson}
-                  disabled={!commandConnected}
-                  className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
-              >
-                Send Command
-              </button>
-              <p className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}>
-                {commandConnected ? "現在のJSONを送信できます" : "Command WS接続後に送信できます"}
+              <p className="action-state-hint" role="status" aria-live="polite">
+                {commandConnected ? "Command WS接続済み: JSONコマンドを送信できます" : "Command WS未接続: 接続するとJSONコマンドを送信できます"}
               </p>
-            </div>
 
-            <div className="action-button-wrap">
-              <button onClick={() => setCommandLog("")} className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm">
-                Clear Log
-              </button>
-              <p className="button-reason is-ready">ログ表示をクリアします</p>
-            </div>
-          </div>
+              <div className="text-xs text-slate-600">
+                move_multi でハンド等を試す場合はここから送ってください（口は faceCommand で口パク）。
+              </div>
 
-          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
+              <textarea
+                  className="w-full rounded-xl border px-3 py-2 text-xs font-mono bg-slate-50"
+                  rows={10}
+                  value={commandJson}
+                  onChange={(e) => setCommandJson(e.target.value)}
+              />
+
+              <div className="flex flex-wrap gap-3">
+                <div className="action-button-wrap">
+                  <button
+                      onClick={sendRawCommandJson}
+                      disabled={!commandConnected}
+                      className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
+    
+                  >
+                    Send Command
+                  </button>
+                  <p className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}>
+                    {commandConnected ? "現在のJSONを送信できます" : "Command WS接続後に送信できます"}
+                  </p>
+                </div>
+
+                <div className="action-button-wrap">
+                  <button onClick={() => setCommandLog("")} className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm">
+                    Clear Log
+                  </button>
+                  <p className="button-reason is-ready">ログ表示をクリアします</p>
+                </div>
+              </div>
+
+              <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
 {commandLog || "(no logs)"}
         </pre>
-        </div>
+            </div>
+        )}
       </div>
   );
 }
