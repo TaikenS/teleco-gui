@@ -28,8 +28,7 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
-const DEFAULT_RECEIVER_ID =
-  process.env.NEXT_PUBLIC_DEFAULT_RECEIVER_ID || "rover003";
+const DEFAULT_RECEIVER_ID = "";
 const DEFAULT_TELECO_COMMAND_WS_URL =
   process.env.NEXT_PUBLIC_TELECO_COMMAND_WS_URL ||
   "ws://localhost:11920/command";
@@ -1502,7 +1501,7 @@ export default function AudioSender() {
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={receiverDestination}
               onChange={(e) => setReceiverDestination(e.target.value)}
-              placeholder="rover003"
+              placeholder="receiver-id"
             />
           </label>
         </div>

@@ -69,8 +69,7 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
-const DEFAULT_RECEIVER_ID =
-  process.env.NEXT_PUBLIC_DEFAULT_RECEIVER_ID || "rover003";
+const DEFAULT_RECEIVER_ID = "";
 
 function nowTime() {
   return new Date().toLocaleTimeString();
@@ -554,7 +553,7 @@ export default function AudioReceiverPage() {
                 value={receiverId}
                 onChange={(e) => setReceiverId(e.target.value)}
                 disabled={connected || wsBusy}
-                placeholder="rover003"
+                placeholder="receiver-id"
               />
             </label>
           </div>
