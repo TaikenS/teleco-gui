@@ -22,7 +22,8 @@ const STORAGE = {
 
 const WS_KEEPALIVE_MS = 10_000;
 
-const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
+const DEFAULT_VIDEO_ROOM =
+  process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
 
 function normalizeWsUrl(input: string) {
   const trimmed = input.trim();
@@ -31,8 +32,10 @@ function normalizeWsUrl(input: string) {
     return getSignalingUrl();
   }
 
-  if (trimmed.startsWith("http://")) return `ws://${trimmed.slice("http://".length)}`;
-  if (trimmed.startsWith("https://")) return `wss://${trimmed.slice("https://".length)}`;
+  if (trimmed.startsWith("http://"))
+    return `ws://${trimmed.slice("http://".length)}`;
+  if (trimmed.startsWith("https://"))
+    return `wss://${trimmed.slice("https://".length)}`;
 
   if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -57,7 +60,9 @@ function withRoomQuery(wsUrl: string, roomId: string) {
 
 export default function SenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
-  const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() => getSignalingUrl(DEFAULT_VIDEO_ROOM));
+  const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() =>
+    getSignalingUrl(DEFAULT_VIDEO_ROOM),
+  );
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
@@ -83,7 +88,8 @@ export default function SenderPage() {
   const shouldAutoStartCameraRef = useRef(false);
   const desiredStreamingRef = useRef(false);
 
-  const logLine = (line: string) => setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+  const logLine = (line: string) =>
+    setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
   const cameraLabelById = (deviceId: string, indexFallback = 0) => {
     const idx = videoInputs.findIndex((d) => d.deviceId === deviceId);
@@ -216,14 +222,14 @@ export default function SenderPage() {
     setCameraBusy(true);
 
     const open = (deviceId?: string) =>
-        navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-            ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-          },
-          audio: false,
-        });
+      navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+        },
+        audio: false,
+      });
 
     const targetDeviceId = preferredDeviceId ?? selectedCameraId;
 
@@ -234,8 +240,13 @@ export default function SenderPage() {
       } catch (err) {
         const name = err instanceof DOMException ? err.name : "";
         // 保存済みdeviceIdが無効になった場合などはデフォルトカメラへフォールバック
-        if (targetDeviceId && (name === "OverconstrainedError" || name === "NotFoundError")) {
-          logLine("選択中カメラが見つからないため、利用可能なカメラで再試行します");
+        if (
+          targetDeviceId &&
+          (name === "OverconstrainedError" || name === "NotFoundError")
+        ) {
+          logLine(
+            "選択中カメラが見つからないため、利用可能なカメラで再試行します",
+          );
           media = await open(undefined);
         } else {
           throw err;
@@ -259,7 +270,10 @@ export default function SenderPage() {
       setStream(media);
 
       const activeTrack = media.getVideoTracks()[0];
-      const activeDeviceId = (activeTrack?.getSettings?.().deviceId as string | undefined) || targetDeviceId || "";
+      const activeDeviceId =
+        (activeTrack?.getSettings?.().deviceId as string | undefined) ||
+        targetDeviceId ||
+        "";
 
       if (activeDeviceId) {
         setSelectedCameraId(activeDeviceId);
@@ -267,7 +281,9 @@ export default function SenderPage() {
       }
 
       window.localStorage.setItem(STORAGE.cameraActive, "1");
-      logLine(`カメラ起動${activeDeviceId ? `: ${cameraLabelById(activeDeviceId)}` : ""}`);
+      logLine(
+        `カメラ起動${activeDeviceId ? `: ${cameraLabelById(activeDeviceId)}` : ""}`,
+      );
 
       // 権限許可後はデバイスラベルが取れるので更新
       await enumerateVideoInputs();
@@ -284,7 +300,11 @@ export default function SenderPage() {
   // シグナリングへの接続
   const connectSignaling = (isReconnect = false) => {
     const current = wsRef.current;
-    if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+    if (
+      current &&
+      (current.readyState === WebSocket.OPEN ||
+        current.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
@@ -312,7 +332,9 @@ export default function SenderPage() {
 
       startKeepalive(ws);
 
-      logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
+      logLine(
+        `${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`,
+      );
       ws.send(JSON.stringify({ type: "join", roomId, role: "sender" }));
 
       maybeAutoStartWebRTC();
@@ -323,7 +345,9 @@ export default function SenderPage() {
       stopKeepalive();
       setConnected(false);
       setWsBusy(false);
-      logLine(`シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`);
+      logLine(
+        `シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`,
+      );
 
       // WSが切れても既存PeerConnectionはすぐには閉じない（メディア継続を優先）
       scheduleReconnect();
@@ -383,7 +407,11 @@ export default function SenderPage() {
     }
 
     const existingPc = pcRef.current;
-    if (existingPc && (existingPc.connectionState === "connected" || existingPc.connectionState === "connecting")) {
+    if (
+      existingPc &&
+      (existingPc.connectionState === "connected" ||
+        existingPc.connectionState === "connecting")
+    ) {
       // 既に送信中
       desiredStreamingRef.current = true;
       window.localStorage.setItem(STORAGE.streamingActive, "1");
@@ -399,17 +427,19 @@ export default function SenderPage() {
     pcRef.current = pc;
 
     // ローカルストリームを全部乗せる
-    currentStream.getTracks().forEach((track) => pc.addTrack(track, currentStream));
+    currentStream
+      .getTracks()
+      .forEach((track) => pc.addTrack(track, currentStream));
 
     pc.onicecandidate = (event) => {
       if (!event.candidate) return;
       wsRef.current?.send(
-          JSON.stringify({
-            type: "ice-candidate",
-            roomId,
-            role: "sender",
-            payload: event.candidate,
-          }),
+        JSON.stringify({
+          type: "ice-candidate",
+          roomId,
+          role: "sender",
+          payload: event.candidate,
+        }),
       );
     };
 
@@ -433,12 +463,12 @@ export default function SenderPage() {
       await pc.setLocalDescription(offer);
 
       wsRef.current?.send(
-          JSON.stringify({
-            type: "offer",
-            roomId,
-            role: "sender",
-            payload: offer,
-          }),
+        JSON.stringify({
+          type: "offer",
+          roomId,
+          role: "sender",
+          payload: offer,
+        }),
       );
 
       desiredStreamingRef.current = true;
@@ -466,15 +496,21 @@ export default function SenderPage() {
     const savedRoom = window.localStorage.getItem(STORAGE.roomId);
     if (savedRoom) setRoomId(savedRoom);
 
-    const savedSignalWsUrl = window.localStorage.getItem(STORAGE.signalingWsUrl);
+    const savedSignalWsUrl = window.localStorage.getItem(
+      STORAGE.signalingWsUrl,
+    );
     if (savedSignalWsUrl) setSignalingWsUrl(savedSignalWsUrl);
 
-    const savedCameraDeviceId = window.localStorage.getItem(STORAGE.cameraDeviceId) || "";
+    const savedCameraDeviceId =
+      window.localStorage.getItem(STORAGE.cameraDeviceId) || "";
     if (savedCameraDeviceId) setSelectedCameraId(savedCameraDeviceId);
 
-    shouldAutoConnectRef.current = window.localStorage.getItem(STORAGE.autoConnect) === "1";
-    shouldAutoStartCameraRef.current = window.localStorage.getItem(STORAGE.cameraActive) === "1";
-    desiredStreamingRef.current = window.localStorage.getItem(STORAGE.streamingActive) === "1";
+    shouldAutoConnectRef.current =
+      window.localStorage.getItem(STORAGE.autoConnect) === "1";
+    shouldAutoStartCameraRef.current =
+      window.localStorage.getItem(STORAGE.cameraActive) === "1";
+    desiredStreamingRef.current =
+      window.localStorage.getItem(STORAGE.streamingActive) === "1";
 
     void enumerateVideoInputs();
 
@@ -498,7 +534,10 @@ export default function SenderPage() {
 
     navigator.mediaDevices.addEventListener?.("devicechange", onDeviceChange);
     return () => {
-      navigator.mediaDevices.removeEventListener?.("devicechange", onDeviceChange);
+      navigator.mediaDevices.removeEventListener?.(
+        "devicechange",
+        onDeviceChange,
+      );
     };
   }, []);
 
@@ -566,217 +605,274 @@ export default function SenderPage() {
   }, []);
 
   const activeCameraLabel = selectedCameraId
-      ? cameraLabelById(selectedCameraId)
-      : videoInputs.length > 0
-          ? cameraLabelById(videoInputs[0].deviceId)
-          : "未選択";
+    ? cameraLabelById(selectedCameraId)
+    : videoInputs.length > 0
+      ? cameraLabelById(videoInputs[0].deviceId)
+      : "未選択";
 
   const hasCameraStream = !!stream;
   const wsConnected = connected;
-  const rtcConnectingOrConnected = rtcState === "connecting" || rtcState === "connected";
+  const rtcConnectingOrConnected =
+    rtcState === "connecting" || rtcState === "connected";
 
   const canStartCamera = !cameraBusy;
-  const canConnectSignaling = !wsConnected && !wsBusy && roomId.trim().length > 0 && signalingWsUrl.trim().length > 0;
-  const canStartStreaming = hasCameraStream && wsConnected && !rtcBusy && !rtcConnectingOrConnected;
-  const canStopConnection = wsConnected || wsBusy || rtcBusy || rtcConnectingOrConnected;
+  const canConnectSignaling =
+    !wsConnected &&
+    !wsBusy &&
+    roomId.trim().length > 0 &&
+    signalingWsUrl.trim().length > 0;
+  const canStartStreaming =
+    hasCameraStream && wsConnected && !rtcBusy && !rtcConnectingOrConnected;
+  const canStopConnection =
+    wsConnected || wsBusy || rtcBusy || rtcConnectingOrConnected;
 
-  const startCameraReason = canStartCamera ? "カメラを起動できます" : "カメラ起動処理中です";
+  const startCameraReason = canStartCamera
+    ? "カメラを起動できます"
+    : "カメラ起動処理中です";
 
   const connectReason = canConnectSignaling
-      ? "シグナリング接続できます"
-      : wsConnected
-          ? "すでに接続中です"
-          : wsBusy
-              ? "シグナリング接続処理中です"
-              : "Room ID と Signal URL を入力してください";
+    ? "シグナリング接続できます"
+    : wsConnected
+      ? "すでに接続中です"
+      : wsBusy
+        ? "シグナリング接続処理中です"
+        : "Room ID と Signal URL を入力してください";
 
   const startStreamingReason = canStartStreaming
-      ? "viewer への配信を開始できます"
-      : !hasCameraStream
-          ? "先にカメラ起動が必要です"
-          : !wsConnected
-              ? "先にシグナリング接続が必要です"
-              : rtcBusy
-                  ? "配信開始処理中です"
-                  : "すでに送信中です";
+    ? "viewer への配信を開始できます"
+    : !hasCameraStream
+      ? "先にカメラ起動が必要です"
+      : !wsConnected
+        ? "先にシグナリング接続が必要です"
+        : rtcBusy
+          ? "配信開始処理中です"
+          : "すでに送信中です";
 
-  const stopReason = canStopConnection ? "接続を停止できます" : "停止対象がありません";
+  const stopReason = canStopConnection
+    ? "接続を停止できます"
+    : "停止対象がありません";
 
   const nextActionHint = !hasCameraStream
-      ? "次の操作: ① カメラ起動"
-      : !wsConnected
-          ? "次の操作: ② シグナリング接続"
-          : !rtcConnectingOrConnected
-              ? "次の操作: ③ viewerへ映像送信開始"
-              : "現在: viewerへ映像送信中です";
+    ? "次の操作: ① カメラ起動"
+    : !wsConnected
+      ? "次の操作: ② シグナリング接続"
+      : !rtcConnectingOrConnected
+        ? "次の操作: ③ viewerへ映像送信開始"
+        : "現在: viewerへ映像送信中です";
 
   return (
-      <main className="min-h-screen bg-slate-50">
-        <div className="mx-auto max-w-3xl space-y-4 p-4">
-          <h1 className="text-xl font-semibold">Sender (別PC用)</h1>
+    <main className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-3xl space-y-4 p-4">
+        <h1 className="text-xl font-semibold">Sender (別PC用)</h1>
 
-          <div className="space-y-2 rounded-2xl border bg-white p-4">
-            <div className="status-chip-row">
-              <span className={`status-chip ${hasCameraStream ? "is-on" : "is-off"}`}>Camera {hasCameraStream ? "ON" : "OFF"}</span>
-              <span className={`status-chip ${wsConnected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}>
-              Signal {wsConnected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
+        <div className="space-y-2 rounded-2xl border bg-white p-4">
+          <div className="status-chip-row">
+            <span
+              className={`status-chip ${hasCameraStream ? "is-on" : "is-off"}`}
+            >
+              Camera {hasCameraStream ? "ON" : "OFF"}
             </span>
-              <span className={`status-chip ${rtcState === "connected" ? "is-on" : rtcBusy || rtcState === "connecting" ? "is-busy" : "is-off"}`}>
-              Stream {rtcState === "connected" ? "LIVE" : rtcBusy || rtcState === "connecting" ? "STARTING" : "IDLE"}
+            <span
+              className={`status-chip ${wsConnected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}
+            >
+              Signal{" "}
+              {wsConnected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
             </span>
-            </div>
+            <span
+              className={`status-chip ${rtcState === "connected" ? "is-on" : rtcBusy || rtcState === "connecting" ? "is-busy" : "is-off"}`}
+            >
+              Stream{" "}
+              {rtcState === "connected"
+                ? "LIVE"
+                : rtcBusy || rtcState === "connecting"
+                  ? "STARTING"
+                  : "IDLE"}
+            </span>
+          </div>
 
-            <p className="action-state-hint" role="status" aria-live="polite">
-              {nextActionHint}
+          <p className="action-state-hint" role="status" aria-live="polite">
+            {nextActionHint}
+          </p>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-slate-700">Room ID</label>
+            <input
+              className="rounded-xl border px-3 py-1 text-sm"
+              value={roomId}
+              onChange={(e) => setRoomId(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm text-slate-700">Signaling WS URL</label>
+            <input
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              value={signalingWsUrl}
+              onChange={(e) => setSignalingWsUrl(e.target.value)}
+              placeholder="ws://192.168.1.12:3000/ws"
+              disabled={connected}
+            />
+            <p className="text-[11px] text-slate-500">
+              送信先Receiver側GUIのSignal URLを指定（例:
+              ws://192.168.1.12:3000/ws）。
             </p>
+          </div>
 
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-slate-700">Room ID</label>
-              <input className="rounded-xl border px-3 py-1 text-sm" value={roomId} onChange={(e) => setRoomId(e.target.value)} />
+          <div className="space-y-1">
+            <label className="text-sm text-slate-700">カメラ</label>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="min-w-[240px] rounded-xl border px-3 py-2 text-sm"
+                value={selectedCameraId}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  setSelectedCameraId(nextId);
+                  window.localStorage.setItem(STORAGE.cameraDeviceId, nextId);
+
+                  if (streamRef.current) {
+                    // 配信中の切替もできるよう、選択後すぐ再起動
+                    void startCamera(nextId);
+                  }
+                }}
+                disabled={videoInputs.length === 0}
+              >
+                {videoInputs.length === 0 ? (
+                  <option value="">カメラが見つかりません</option>
+                ) : (
+                  videoInputs.map((d, i) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label?.trim() || `カメラ ${i + 1}`}
+                    </option>
+                  ))
+                )}
+              </select>
+
+              <button
+                onClick={() => void enumerateVideoInputs()}
+                className="rounded-xl bg-slate-100 px-3 py-2 text-sm"
+              >
+                カメラ再読み込み
+              </button>
             </div>
+            <p className="text-[11px] text-slate-500">
+              {videoInputs.length > 0
+                ? "カメラを変更したあと「カメラ起動」を押すか、配信中なら自動でそのカメラに切り替わります。"
+                : "カメラデバイスが未検出です。接続後に再読み込みしてください。"}
+            </p>
+          </div>
 
-            <div className="space-y-1">
-              <label className="text-sm text-slate-700">Signaling WS URL</label>
-              <input
-                  className="w-full rounded-xl border px-3 py-2 text-sm"
-                  value={signalingWsUrl}
-                  onChange={(e) => setSignalingWsUrl(e.target.value)}
-                  placeholder="ws://192.168.1.12:3000/ws"
-                  disabled={connected}
-              />
-              <p className="text-[11px] text-slate-500">
-                送信先Receiver側GUIのSignal URLを指定（例: ws://192.168.1.12:3000/ws）。
+          <div className="flex flex-wrap gap-3 text-sm">
+            <div className="action-button-wrap">
+              <button
+                onClick={() => void startCamera()}
+                className="action-button bg-slate-900 text-white"
+                disabled={!canStartCamera}
+                data-busy={cameraBusy ? "1" : "0"}
+                aria-busy={cameraBusy}
+              >
+                {cameraBusy ? "カメラ起動中..." : "カメラ起動"}
+              </button>
+              <p
+                className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}
+              >
+                {startCameraReason}
               </p>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-sm text-slate-700">カメラ</label>
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                    className="min-w-[240px] rounded-xl border px-3 py-2 text-sm"
-                    value={selectedCameraId}
-                    onChange={(e) => {
-                      const nextId = e.target.value;
-                      setSelectedCameraId(nextId);
-                      window.localStorage.setItem(STORAGE.cameraDeviceId, nextId);
-
-                      if (streamRef.current) {
-                        // 配信中の切替もできるよう、選択後すぐ再起動
-                        void startCamera(nextId);
-                      }
-                    }}
-                    disabled={videoInputs.length === 0}
-                >
-                  {videoInputs.length === 0 ? (
-                      <option value="">カメラが見つかりません</option>
-                  ) : (
-                      videoInputs.map((d, i) => (
-                          <option key={d.deviceId} value={d.deviceId}>
-                            {d.label?.trim() || `カメラ ${i + 1}`}
-                          </option>
-                      ))
-                  )}
-                </select>
-
-                <button onClick={() => void enumerateVideoInputs()} className="rounded-xl bg-slate-100 px-3 py-2 text-sm">
-                  カメラ再読み込み
-                </button>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                {videoInputs.length > 0
-                    ? "カメラを変更したあと「カメラ起動」を押すか、配信中なら自動でそのカメラに切り替わります。"
-                    : "カメラデバイスが未検出です。接続後に再読み込みしてください。"}
+            <div className="action-button-wrap">
+              <button
+                onClick={() => {
+                  manualCloseRef.current = false;
+                  shouldAutoConnectRef.current = true;
+                  window.localStorage.setItem(STORAGE.autoConnect, "1");
+                  connectSignaling();
+                }}
+                className="action-button bg-slate-100"
+                disabled={!canConnectSignaling}
+                data-busy={wsBusy ? "1" : "0"}
+                aria-busy={wsBusy}
+              >
+                {wsBusy ? "接続中..." : "シグナリング接続"}
+              </button>
+              <p
+                className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
+              >
+                {connectReason}
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-3 text-sm">
-              <div className="action-button-wrap">
-                <button
-                    onClick={() => void startCamera()}
-                    className="action-button bg-slate-900 text-white"
-                    disabled={!canStartCamera}
-                    data-busy={cameraBusy ? "1" : "0"}
-                    aria-busy={cameraBusy}
-                >
-                  {cameraBusy ? "カメラ起動中..." : "カメラ起動"}
-                </button>
-                <p className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}>{startCameraReason}</p>
-              </div>
-
-              <div className="action-button-wrap">
-                <button
-                    onClick={() => {
-                      manualCloseRef.current = false;
-                      shouldAutoConnectRef.current = true;
-                      window.localStorage.setItem(STORAGE.autoConnect, "1");
-                      connectSignaling();
-                    }}
-                    className="action-button bg-slate-100"
-                    disabled={!canConnectSignaling}
-                    data-busy={wsBusy ? "1" : "0"}
-                    aria-busy={wsBusy}
-                >
-                  {wsBusy ? "接続中..." : "シグナリング接続"}
-                </button>
-                <p className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}>{connectReason}</p>
-              </div>
-
-              <div className="action-button-wrap">
-                <button
-                    onClick={() => void startWebRTC(false)}
-                    className="action-button bg-emerald-600 text-white"
-                    disabled={!canStartStreaming}
-                    data-busy={rtcBusy ? "1" : "0"}
-                    aria-busy={rtcBusy}
-                >
-                  {rtcBusy ? "開始中..." : "viewer へ映像送信開始"}
-                </button>
-                <p className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}>{startStreamingReason}</p>
-              </div>
-
-              <div className="action-button-wrap">
-                <button
-                    onClick={() => {
-                      shouldAutoConnectRef.current = false;
-                      desiredStreamingRef.current = false;
-                      window.localStorage.setItem(STORAGE.autoConnect, "0");
-                      window.localStorage.setItem(STORAGE.streamingActive, "0");
-                      manualCloseRef.current = true;
-                      closeWs();
-                      closePc();
-                      setRtcBusy(false);
-                    }}
-                    className="action-button bg-slate-100"
-                    disabled={!canStopConnection}
-                >
-                  接続停止
-                </button>
-                <p className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}>{stopReason}</p>
-              </div>
+            <div className="action-button-wrap">
+              <button
+                onClick={() => void startWebRTC(false)}
+                className="action-button bg-emerald-600 text-white"
+                disabled={!canStartStreaming}
+                data-busy={rtcBusy ? "1" : "0"}
+                aria-busy={rtcBusy}
+              >
+                {rtcBusy ? "開始中..." : "viewer へ映像送信開始"}
+              </button>
+              <p
+                className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}
+              >
+                {startStreamingReason}
+              </p>
             </div>
 
-            {wsError && <p className="text-xs text-red-600">{wsError}</p>}
+            <div className="action-button-wrap">
+              <button
+                onClick={() => {
+                  shouldAutoConnectRef.current = false;
+                  desiredStreamingRef.current = false;
+                  window.localStorage.setItem(STORAGE.autoConnect, "0");
+                  window.localStorage.setItem(STORAGE.streamingActive, "0");
+                  manualCloseRef.current = true;
+                  closeWs();
+                  closePc();
+                  setRtcBusy(false);
+                }}
+                className="action-button bg-slate-100"
+                disabled={!canStopConnection}
+              >
+                接続停止
+              </button>
+              <p
+                className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}
+              >
+                {stopReason}
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-2 rounded-2xl border bg-white p-4">
-            <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-200">
-              <video ref={localVideoRef} className="h-full w-full object-cover" muted playsInline />
-            </div>
-            <p className="text-xs text-slate-500">これは「送信側PCのローカルプレビュー」です。</p>
-            <p className="text-xs text-slate-500">Signal: {connected ? "接続中" : "未接続"}</p>
-            <p className="text-xs text-slate-500">Camera: {activeCameraLabel}</p>
-          </div>
+          {wsError && <p className="text-xs text-red-600">{wsError}</p>}
+        </div>
 
-          <div className="rounded-2xl border bg-white p-4">
-            <h2 className="mb-2 text-sm font-semibold">ログ</h2>
-            <div className="max-h-48 space-y-1 overflow-auto text-xs text-slate-700">
-              {log.map((l, i) => (
-                  <div key={i}>{l}</div>
-              ))}
-            </div>
+        <div className="space-y-2 rounded-2xl border bg-white p-4">
+          <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-200">
+            <video
+              ref={localVideoRef}
+              className="h-full w-full object-cover"
+              muted
+              playsInline
+            />
+          </div>
+          <p className="text-xs text-slate-500">
+            これは「送信側PCのローカルプレビュー」です。
+          </p>
+          <p className="text-xs text-slate-500">
+            Signal: {connected ? "接続中" : "未接続"}
+          </p>
+          <p className="text-xs text-slate-500">Camera: {activeCameraLabel}</p>
+        </div>
+
+        <div className="rounded-2xl border bg-white p-4">
+          <h2 className="mb-2 text-sm font-semibold">ログ</h2>
+          <div className="max-h-48 space-y-1 overflow-auto text-xs text-slate-700">
+            {log.map((l, i) => (
+              <div key={i}>{l}</div>
+            ))}
           </div>
         </div>
-      </main>
+      </div>
+    </main>
   );
 }
-

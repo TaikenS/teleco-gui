@@ -32,8 +32,8 @@ export default function VideoPreview({ videoDeviceId }: Props) {
 
       const constraints: MediaStreamConstraints = {
         video: videoDeviceId
-            ? { deviceId: { exact: videoDeviceId } }
-            : {
+          ? { deviceId: { exact: videoDeviceId } }
+          : {
               width: { ideal: 1280 },
               height: { ideal: 720 },
             },
@@ -41,13 +41,13 @@ export default function VideoPreview({ videoDeviceId }: Props) {
       };
 
       const mediaStream =
-          await navigator.mediaDevices.getUserMedia(constraints);
+        await navigator.mediaDevices.getUserMedia(constraints);
       setStream(mediaStream);
       resetStats();
     } catch (e) {
       console.error(e);
       setError(
-          "カメラの取得に失敗しました。ブラウザの権限設定を確認してください。",
+        "カメラの取得に失敗しました。ブラウザの権限設定を確認してください。",
       );
     } finally {
       setIsStarting(false);
@@ -95,9 +95,9 @@ export default function VideoPreview({ videoDeviceId }: Props) {
         const h = video.videoHeight;
         if (w && h) {
           setResolution((prev) =>
-              !prev || prev.width !== w || prev.height !== h
-                  ? { width: w, height: h }
-                  : prev,
+            !prev || prev.width !== w || prev.height !== h
+              ? { width: w, height: h }
+              : prev,
           );
         }
 
@@ -109,7 +109,7 @@ export default function VideoPreview({ videoDeviceId }: Props) {
           const delta = time - lastTimeRef.current;
           if (delta >= 1000) {
             const currentFps = Math.round(
-                (frameCountRef.current * 1000) / delta,
+              (frameCountRef.current * 1000) / delta,
             );
             setFps(currentFps);
             frameCountRef.current = 0;
@@ -152,82 +152,100 @@ export default function VideoPreview({ videoDeviceId }: Props) {
   const canStop = !!stream;
 
   return (
-      <div className="space-y-3">
-        <div className="status-chip-row">
-          <span className={`status-chip ${cameraOn ? "is-on" : isStarting ? "is-busy" : "is-off"}`}>
-            Camera {cameraOn ? "ON" : isStarting ? "STARTING" : "OFF"}
-          </span>
-          <span className={`status-chip ${fps != null ? "is-on" : cameraOn ? "is-busy" : "is-off"}`}>
-            Monitor {fps != null ? "ACTIVE" : cameraOn ? "WARMUP" : "IDLE"}
-          </span>
-        </div>
-
-        <p className="action-state-hint" role="status" aria-live="polite">
-          {!cameraOn ? "次の操作: カメラ開始" : "現在: プレビュー表示中です（クリックでフルスクリーン）"}
-        </p>
-
-        <div
-            className="w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
-            title="クリックでフルスクリーン切替"
-            onClick={() => {
-              const el = videoRef.current;
-              if (!el) return;
-              if (document.fullscreenElement) {
-                void document.exitFullscreen();
-              } else {
-                void el.requestFullscreen();
-              }
-            }}
+    <div className="space-y-3">
+      <div className="status-chip-row">
+        <span
+          className={`status-chip ${cameraOn ? "is-on" : isStarting ? "is-busy" : "is-off"}`}
         >
-          <video
-              ref={videoRef}
-              className="h-full w-full object-contain"
-              muted
-              playsInline
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 text-sm">
-          <div className="action-button-wrap">
-            <button
-                type="button"
-                onClick={start}
-                disabled={!canStart}
-                className="action-button bg-slate-900 text-sm text-white"
-                data-busy={isStarting ? "1" : "0"}
-                aria-busy={isStarting}
-            >
-              {isStarting ? "起動中..." : cameraOn ? "カメラ再起動" : "カメラ開始"}
-            </button>
-            <p className={`button-reason ${canStart ? "is-ready" : "is-disabled"}`}>
-              {isStarting ? "カメラ起動処理中です" : cameraOn ? "現在の設定で再起動できます" : "カメラを起動できます"}
-            </p>
-          </div>
-
-          <div className="action-button-wrap">
-            <button
-                type="button"
-                onClick={stop}
-                disabled={!canStop}
-                className="action-button bg-slate-100 text-sm text-slate-900"
-            >
-              停止
-            </button>
-            <p className={`button-reason ${canStop ? "is-ready" : "is-disabled"}`}>
-              {canStop ? "プレビューを停止できます" : "停止対象がありません"}
-            </p>
-          </div>
-
-          {error && <span className="text-xs text-red-600">{error}</span>}
-        </div>
-
-        <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-          <span>FPS: {fps ?? "--"}</span>
-          <span>
-          解像度:{" "}
-            {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
+          Camera {cameraOn ? "ON" : isStarting ? "STARTING" : "OFF"}
         </span>
-        </div>
+        <span
+          className={`status-chip ${fps != null ? "is-on" : cameraOn ? "is-busy" : "is-off"}`}
+        >
+          Monitor {fps != null ? "ACTIVE" : cameraOn ? "WARMUP" : "IDLE"}
+        </span>
       </div>
+
+      <p className="action-state-hint" role="status" aria-live="polite">
+        {!cameraOn
+          ? "次の操作: カメラ開始"
+          : "現在: プレビュー表示中です（クリックでフルスクリーン）"}
+      </p>
+
+      <div
+        className="w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
+        title="クリックでフルスクリーン切替"
+        onClick={() => {
+          const el = videoRef.current;
+          if (!el) return;
+          if (document.fullscreenElement) {
+            void document.exitFullscreen();
+          } else {
+            void el.requestFullscreen();
+          }
+        }}
+      >
+        <video
+          ref={videoRef}
+          className="h-full w-full object-contain"
+          muted
+          playsInline
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="action-button-wrap">
+          <button
+            type="button"
+            onClick={start}
+            disabled={!canStart}
+            className="action-button bg-slate-900 text-sm text-white"
+            data-busy={isStarting ? "1" : "0"}
+            aria-busy={isStarting}
+          >
+            {isStarting
+              ? "起動中..."
+              : cameraOn
+                ? "カメラ再起動"
+                : "カメラ開始"}
+          </button>
+          <p
+            className={`button-reason ${canStart ? "is-ready" : "is-disabled"}`}
+          >
+            {isStarting
+              ? "カメラ起動処理中です"
+              : cameraOn
+                ? "現在の設定で再起動できます"
+                : "カメラを起動できます"}
+          </p>
+        </div>
+
+        <div className="action-button-wrap">
+          <button
+            type="button"
+            onClick={stop}
+            disabled={!canStop}
+            className="action-button bg-slate-100 text-sm text-slate-900"
+          >
+            停止
+          </button>
+          <p
+            className={`button-reason ${canStop ? "is-ready" : "is-disabled"}`}
+          >
+            {canStop ? "プレビューを停止できます" : "停止対象がありません"}
+          </p>
+        </div>
+
+        {error && <span className="text-xs text-red-600">{error}</span>}
+      </div>
+
+      <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+        <span>FPS: {fps ?? "--"}</span>
+        <span>
+          解像度:{" "}
+          {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
+        </span>
+      </div>
+    </div>
   );
 }

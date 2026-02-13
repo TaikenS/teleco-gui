@@ -102,7 +102,8 @@ function isRoomRole(value: unknown): value is "sender" | "viewer" {
 }
 
 function hasValidOptionalRoomFields(message: JsonObject): boolean {
-  if (message.roomId != null && typeof message.roomId !== "string") return false;
+  if (message.roomId != null && typeof message.roomId !== "string")
+    return false;
   if (message.role != null && !isRoomRole(message.role)) return false;
   return true;
 }
@@ -135,7 +136,9 @@ export function isWsOfferMessage(message: unknown): message is WsOfferMessage {
   return isRtcSessionDescriptionInit(message.payload);
 }
 
-export function isWsAnswerMessage(message: unknown): message is WsAnswerMessage {
+export function isWsAnswerMessage(
+  message: unknown,
+): message is WsAnswerMessage {
   if (!isObject(message)) return false;
   if (message.type !== "answer") return false;
   if (!hasValidOptionalRoomFields(message)) return false;

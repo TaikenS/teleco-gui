@@ -20,8 +20,10 @@ function normalizeWsUrl(input: string) {
     return getSignalingUrl();
   }
 
-  if (trimmed.startsWith("http://")) return `ws://${trimmed.slice("http://".length)}`;
-  if (trimmed.startsWith("https://")) return `wss://${trimmed.slice("https://".length)}`;
+  if (trimmed.startsWith("http://"))
+    return `ws://${trimmed.slice("http://".length)}`;
+  if (trimmed.startsWith("https://"))
+    return `wss://${trimmed.slice("https://".length)}`;
 
   if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
@@ -44,7 +46,13 @@ function withRoomQuery(wsUrl: string, roomId: string) {
   }
 }
 
-export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string; signalingWsUrl?: string }) {
+export default function RemoteVideo({
+  roomId,
+  signalingWsUrl,
+}: {
+  roomId: string;
+  signalingWsUrl?: string;
+}) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -67,7 +75,7 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
   const lastTimeRef = useRef<number | null>(null);
 
   const logLine = (line: string) =>
-      setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+    setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
   const stopKeepalive = () => {
     if (keepaliveTimerRef.current != null) {
@@ -140,11 +148,11 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
       if (video) {
         video.srcObject = remoteStream;
         video
-            .play()
-            .then(() => logLine("リモート映像再生開始"))
-            .catch((e) => {
-              console.error(e);
-            });
+          .play()
+          .then(() => logLine("リモート映像再生開始"))
+          .catch((e) => {
+            console.error(e);
+          });
       }
     };
 
@@ -154,12 +162,12 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
       ws.send(
-          JSON.stringify({
-            type: "ice-candidate",
-            roomId,
-            role: "viewer",
-            payload: event.candidate,
-          }),
+        JSON.stringify({
+          type: "ice-candidate",
+          roomId,
+          role: "viewer",
+          payload: event.candidate,
+        }),
       );
     };
 
@@ -219,7 +227,11 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
     if (manualCloseRef.current) return;
 
     const current = wsRef.current;
-    if (current && (current.readyState === WebSocket.OPEN || current.readyState === WebSocket.CONNECTING)) {
+    if (
+      current &&
+      (current.readyState === WebSocket.OPEN ||
+        current.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
@@ -227,7 +239,11 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
 
     // ws再接続だけでメディアが維持されるケースを優先。
     // peerが無い場合のみ再作成。
-    if (!pcRef.current || pcRef.current.connectionState === "closed" || pcRef.current.connectionState === "failed") {
+    if (
+      !pcRef.current ||
+      pcRef.current.connectionState === "closed" ||
+      pcRef.current.connectionState === "failed"
+    ) {
       createPeer();
     }
 
@@ -245,7 +261,9 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
       setError(null);
-      logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
+      logLine(
+        `${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`,
+      );
       startKeepalive(ws);
       sendJoin();
     };
@@ -273,12 +291,12 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
           await pc.setLocalDescription(answer);
 
           ws.send(
-              JSON.stringify({
-                type: "answer",
-                roomId,
-                role: "viewer",
-                payload: answer,
-              }),
+            JSON.stringify({
+              type: "answer",
+              roomId,
+              role: "viewer",
+              payload: answer,
+            }),
           );
           logLine("answer 送信");
         } catch (e) {
@@ -305,7 +323,9 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
         wsRef.current = null;
       }
 
-      logLine(`シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`);
+      logLine(
+        `シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`,
+      );
 
       // ここでpeerを閉じない: 一時的なWS断でもメディアを維持する
       scheduleReconnect();
@@ -378,7 +398,11 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
         const w = video.videoWidth;
         const h = video.videoHeight;
         if (w && h) {
-          setResolution((prev) => (!prev || prev.width !== w || prev.height !== h ? { width: w, height: h } : prev));
+          setResolution((prev) =>
+            !prev || prev.width !== w || prev.height !== h
+              ? { width: w, height: h }
+              : prev,
+          );
         }
 
         if (lastTimeRef.current == null) {
@@ -388,7 +412,9 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
           frameCountRef.current += 1;
           const delta = time - lastTimeRef.current;
           if (delta >= 1000) {
-            const currentFps = Math.round((frameCountRef.current * 1000) / delta);
+            const currentFps = Math.round(
+              (frameCountRef.current * 1000) / delta,
+            );
             setFps(currentFps);
             frameCountRef.current = 0;
             lastTimeRef.current = time;
@@ -406,41 +432,47 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
   }, []);
 
   return (
-      <div className="space-y-3">
-        <div
-            ref={frameRef}
-            className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
-            title="クリックでフルスクリーン切替"
-            onClick={() => {
-              const frame = frameRef.current;
-              if (!frame) return;
-              if (document.fullscreenElement) {
-                void document.exitFullscreen();
-              } else {
-                void frame.requestFullscreen();
-              }
-            }}
-        >
-          <video ref={remoteVideoRef} className="h-full w-full object-contain" playsInline autoPlay />
-
-        </div>
-
-        <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-          <span>FPS: {fps ?? "--"}</span>
-          <span>解像度: {resolution ? `${resolution.width} x ${resolution.height}` : "--"}</span>
-        </div>
-
-        {error && <p className="text-xs text-red-600">{error}</p>}
-
-        <details className="mt-2 rounded-xl bg-slate-100 p-2 text-xs text-slate-700">
-          <summary className="cursor-pointer select-none">ログ</summary>
-          <div className="mt-1 max-h-40 space-y-1 overflow-auto">
-            {log.map((l, i) => (
-                <div key={i}>{l}</div>
-            ))}
-          </div>
-        </details>
+    <div className="space-y-3">
+      <div
+        ref={frameRef}
+        className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
+        title="クリックでフルスクリーン切替"
+        onClick={() => {
+          const frame = frameRef.current;
+          if (!frame) return;
+          if (document.fullscreenElement) {
+            void document.exitFullscreen();
+          } else {
+            void frame.requestFullscreen();
+          }
+        }}
+      >
+        <video
+          ref={remoteVideoRef}
+          className="h-full w-full object-contain"
+          playsInline
+          autoPlay
+        />
       </div>
+
+      <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+        <span>FPS: {fps ?? "--"}</span>
+        <span>
+          解像度:{" "}
+          {resolution ? `${resolution.width} x ${resolution.height}` : "--"}
+        </span>
+      </div>
+
+      {error && <p className="text-xs text-red-600">{error}</p>}
+
+      <details className="mt-2 rounded-xl bg-slate-100 p-2 text-xs text-slate-700">
+        <summary className="cursor-pointer select-none">ログ</summary>
+        <div className="mt-1 max-h-40 space-y-1 overflow-auto">
+          {log.map((l, i) => (
+            <div key={i}>{l}</div>
+          ))}
+        </div>
+      </details>
+    </div>
   );
 }
-

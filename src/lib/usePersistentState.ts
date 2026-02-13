@@ -36,7 +36,9 @@ export function usePersistentState<T>(
       const raw = window.localStorage.getItem(key);
       if (raw == null) return initialValue;
 
-      const deserialize = options.deserialize ?? ((item: string) => defaultDeserialize(item, initialValue));
+      const deserialize =
+        options.deserialize ??
+        ((item: string) => defaultDeserialize(item, initialValue));
       return deserialize(raw);
     } catch {
       return initialValue;

@@ -79,11 +79,27 @@ body {
 
 body {
   background:
-          radial-gradient(70vw 70vw at 100% -10%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 50%),
-          radial-gradient(60vw 60vw at -10% 110%, color-mix(in srgb, var(--accent-2) 14%, transparent), transparent 55%),
-          var(--background);
+    radial-gradient(
+      70vw 70vw at 100% -10%,
+      color-mix(in srgb, var(--accent) 16%, transparent),
+      transparent 50%
+    ),
+    radial-gradient(
+      60vw 60vw at -10% 110%,
+      color-mix(in srgb, var(--accent-2) 14%, transparent),
+      transparent 55%
+    ),
+    var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), "Inter", "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family:
+    var(--font-geist-sans),
+    "Inter",
+    "Noto Sans JP",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   line-height: 1.55;
   letter-spacing: 0.01em;
   text-rendering: optimizeLegibility;
@@ -146,31 +162,47 @@ h3 {
 
 /* ---------- Inputs ---------- */
 :where(input, select, textarea) {
-  border-color: color-mix(in srgb, var(--border-strong) 86%, white 14%) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--border-strong) 86%,
+    white 14%
+  ) !important;
   background: var(--surface) !important;
   color: var(--foreground);
   border-radius: var(--radius-sm);
   transition:
-          border-color 0.18s ease,
-          box-shadow 0.18s ease,
-          background-color 0.18s ease;
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
 }
 
 :where(input, select, textarea):hover {
-  border-color: color-mix(in srgb, var(--accent) 38%, var(--border-strong)) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--accent) 38%,
+    var(--border-strong)
+  ) !important;
 }
 
 :where(input, select, textarea):focus,
 :where(input, select, textarea):focus-visible {
   outline: none;
-  border-color: color-mix(in srgb, var(--accent) 60%, var(--border-strong)) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--accent) 60%,
+    var(--border-strong)
+  ) !important;
   box-shadow: 0 0 0 4px var(--ring);
 }
 
 :where(input, select, textarea):disabled {
   opacity: 0.75;
   cursor: not-allowed;
-  background: color-mix(in srgb, var(--surface-muted) 88%, var(--surface)) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-muted) 88%,
+    var(--surface)
+  ) !important;
 }
 
 /* ---------- Buttons ---------- */
@@ -178,10 +210,10 @@ button,
 a.rounded-xl,
 a.rounded-lg {
   transition:
-          transform 0.14s ease,
-          box-shadow 0.2s ease,
-          background-color 0.2s ease,
-          filter 0.2s ease;
+    transform 0.14s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    filter 0.2s ease;
 }
 
 button:hover,
@@ -200,9 +232,9 @@ a.rounded-lg:active {
 button.bg-slate-900,
 a.bg-slate-900 {
   background: linear-gradient(
-          140deg,
-          color-mix(in srgb, var(--primary) 92%, var(--accent) 8%),
-          color-mix(in srgb, var(--primary) 84%, var(--accent-2) 16%)
+    140deg,
+    color-mix(in srgb, var(--primary) 92%, var(--accent) 8%),
+    color-mix(in srgb, var(--primary) 84%, var(--accent-2) 16%)
   ) !important;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
 }
@@ -215,14 +247,22 @@ a.bg-slate-900:hover {
 /* Secondary */
 button.bg-slate-100,
 a.bg-slate-100 {
-  background: color-mix(in srgb, var(--surface-muted) 76%, white 24%) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-muted) 76%,
+    white 24%
+  ) !important;
   border: 1px solid color-mix(in srgb, var(--border) 86%, white 14%);
   color: var(--foreground);
 }
 
 button.bg-slate-100:hover,
 a.bg-slate-100:hover {
-  background: color-mix(in srgb, var(--surface-muted) 90%, white 10%) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-muted) 90%,
+    white 10%
+  ) !important;
 }
 
 /* Status buttons */
@@ -310,12 +350,11 @@ button:disabled {
 
 .action-state-hint {
   border: 1px dashed color-mix(in srgb, var(--accent) 36%, var(--border));
-  background:
-          linear-gradient(
-                  140deg,
-                  color-mix(in srgb, var(--accent) 9%, var(--surface)),
-                  color-mix(in srgb, var(--accent-2) 8%, var(--surface))
-          );
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--accent) 9%, var(--surface)),
+    color-mix(in srgb, var(--accent-2) 8%, var(--surface))
+  );
   border-radius: 0.88rem;
   padding: 0.56rem 0.72rem;
   margin: 0.1rem 0 0.65rem;
@@ -342,7 +381,9 @@ button:disabled {
 
 .action-button:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 4px var(--ring), var(--shadow-md);
+  box-shadow:
+    0 0 0 4px var(--ring),
+    var(--shadow-md);
 }
 
 .action-button[data-busy="1"] {
@@ -368,14 +409,13 @@ button:disabled {
   opacity: 0.78;
   filter: grayscale(0.12);
   cursor: not-allowed;
-  background:
-          repeating-linear-gradient(
-                  -45deg,
-                  color-mix(in srgb, var(--surface-muted) 82%, white 18%),
-                  color-mix(in srgb, var(--surface-muted) 82%, white 18%) 8px,
-                  color-mix(in srgb, var(--surface-muted) 92%, white 8%) 8px,
-                  color-mix(in srgb, var(--surface-muted) 92%, white 8%) 16px
-          ) !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--surface-muted) 82%, white 18%),
+    color-mix(in srgb, var(--surface-muted) 82%, white 18%) 8px,
+    color-mix(in srgb, var(--surface-muted) 92%, white 8%) 8px,
+    color-mix(in srgb, var(--surface-muted) 92%, white 8%) 16px
+  ) !important;
   color: color-mix(in srgb, var(--foreground) 54%, white 46%) !important;
   border: 1px solid color-mix(in srgb, var(--border-strong) 74%, white 26%);
 }
@@ -454,7 +494,11 @@ details {
 }
 
 details {
-  background: color-mix(in srgb, var(--surface-muted) 72%, transparent) !important;
+  background: color-mix(
+    in srgb,
+    var(--surface-muted) 72%,
+    transparent
+  ) !important;
 }
 
 /* Scrollbar */
