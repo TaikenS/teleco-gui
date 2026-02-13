@@ -231,9 +231,9 @@ function autocorr(x: Float32Array, lag: number) {
 
 // ---- Levinson-Durbin for LPC ----
 function levinsonDurbin(r: number[], order: number) {
-  const a = new Array(order + 1).fill(0);
-  const e = new Array(order + 1).fill(0);
-  const k = new Array(order + 1).fill(0);
+  const a: number[] = new Array(order + 1).fill(0);
+  const e: number[] = new Array(order + 1).fill(0);
+  const k: number[] = new Array(order + 1).fill(0);
 
   a[0] = 1;
   e[0] = r[0];
@@ -255,7 +255,7 @@ function levinsonDurbin(r: number[], order: number) {
 }
 
 // ---- lpc spectrum ----
-function lpc(data: Float32Array, order: number, df: number) {
+function lpc(data: Float32Array, order: number, _df: number) {
   const r: number[] = [];
   for (let i = 0; i <= order; i++) {
     r.push(autocorr(data, i));

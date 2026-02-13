@@ -2,6 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getSignalingUrl } from "@/lib/signaling";
+import {
+    isKeepaliveSignalMessage,
+    isLegacyTypedSignalMessage,
+    isWsAudioIceRequestMessage,
+    isWsAudioRequestMessage,
+    isWsLabelMessage,
+    parseWsJsonData,
+} from "@/lib/webrtc/wsMessageUtils";
 
 /**
  * Signalingは WebSocket (/ws)。
@@ -59,49 +67,6 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
 const DEFAULT_RECEIVER_ID = process.env.NEXT_PUBLIC_DEFAULT_RECEIVER_ID || "rover003";
-
-/**
- * teleco-gui-master の label方式（Teleco互換）
- */
-type DestinationId = string;
-
-type SdpDescription = {
-    type: RTCSdpType;
-    sdp: string;
-};
-
-type SignalingLabel =
-    | "callAudioRequest"
-    | "callAudioAnswer"
-    | "audioIceCandidaterequest"
-    | "audioIceCandidateresponse"
-    | "callVideoRequest"
-    | "callVideoAnswer"
-    | "videoIceCandidateresponse";
-
-type BaseSignalingMessage = {
-    label: SignalingLabel;
-    destination: DestinationId;
-    id_call_token: string;
-};
-
-type CallAudioRequestMessage = BaseSignalingMessage & { label: "callAudioRequest"; sdp: SdpDescription };
-type CallAudioAnswerMessage = BaseSignalingMessage & { label: "callAudioAnswer"; sdp: SdpDescription };
-type AudioIceCandidateRequestMessage = BaseSignalingMessage & {
-    label: "audioIceCandidaterequest";
-    candidate: RTCIceCandidateInit;
-};
-type AudioIceCandidateResponseMessage = BaseSignalingMessage & {
-    label: "audioIceCandidateresponse";
-    candidate: RTCIceCandidateInit;
-};
-
-type SignalingMessage =
-    | CallAudioRequestMessage
-    | CallAudioAnswerMessage
-    | AudioIceCandidateRequestMessage
-    | AudioIceCandidateResponseMessage
-    | (BaseSignalingMessage & Record<string, any>);
 
 function nowTime() {
     return new Date().toLocaleTimeString();
@@ -239,7 +204,7 @@ export default function AudioReceiverPage() {
         setWsBusy(false);
     }
 
-    function sendWs(obj: any) {
+    function sendWs(obj: unknown) {
         const ws = wsRef.current;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
         ws.send(JSON.stringify(obj));
@@ -368,29 +333,20 @@ export default function AudioReceiverPage() {
         };
 
         ws.onmessage = async (event) => {
-            let msg: any;
-            try {
-                msg = JSON.parse(event.data);
-            } catch {
+            const msg = parseWsJsonData(event.data);
+            if (!msg) {
                 logLine("WS message parse failed");
                 return;
             }
 
-            if (msg?.type === "__pong" || msg?.type === "keepalive") {
+            if (isKeepaliveSignalMessage(msg)) {
                 return;
             }
 
-            // ---- label方式（Teleco互換） ----
-            if (msg && typeof msg.label === "string") {
-                const m = msg as SignalingMessage;
-
+            if (isWsAudioRequestMessage(msg) || isWsAudioIceRequestMessage(msg)) {
+                const m = msg;
                 if (m.destination && m.destination !== receiverId) {
                     logLine(`IGNORED (dest mismatch): label=${m.label} dest=${m.destination}`);
-                    return;
-                }
-
-                if (!m.id_call_token) {
-                    logLine(`WS msg(label=${m.label}) missing id_call_token`);
                     return;
                 }
 
@@ -438,12 +394,14 @@ export default function AudioReceiverPage() {
                     }
                     return;
                 }
+            }
 
-                logLine(`WS label=${m.label} (no-op)`);
+            if (isWsLabelMessage(msg)) {
+                logLine(`WS label=${msg.label} (no-op)`);
                 return;
             }
 
-            if (msg && typeof msg.type === "string") {
+            if (isLegacyTypedSignalMessage(msg)) {
                 logLine(`WS msg type=${msg.type} (legacy/no-op)`);
                 return;
             }

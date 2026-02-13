@@ -2,10 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getSignalingUrl } from "@/lib/signaling";
+import {
+  isKeepaliveSignalMessage,
+  isWsAnswerMessage,
+  isWsIceCandidateMessage,
+  parseWsJsonData,
+} from "@/lib/webrtc/wsMessageUtils";
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
-
-type Role = "sender" | "viewer";
 
 const STORAGE = {
   roomId: "teleco.sender.roomId",
@@ -309,7 +313,7 @@ export default function SenderPage() {
       startKeepalive(ws);
 
       logLine(`${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`);
-      ws.send(JSON.stringify({ type: "join", roomId, role: "sender" as Role }));
+      ws.send(JSON.stringify({ type: "join", roomId, role: "sender" }));
 
       maybeAutoStartWebRTC();
     };
@@ -332,21 +336,19 @@ export default function SenderPage() {
     };
 
     ws.onmessage = async (event) => {
-      let msg: any;
-      try {
-        msg = JSON.parse(event.data);
-      } catch {
+      const msg = parseWsJsonData(event.data);
+      if (!msg) {
         return;
       }
 
-      if (msg?.type === "__pong" || msg?.type === "keepalive") {
+      if (isKeepaliveSignalMessage(msg)) {
         return;
       }
 
       const pc = pcRef.current;
       if (!pc) return;
 
-      if (msg.type === "answer") {
+      if (isWsAnswerMessage(msg)) {
         try {
           const desc = new RTCSessionDescription(msg.payload);
           await pc.setRemoteDescription(desc);
@@ -355,7 +357,7 @@ export default function SenderPage() {
           console.error(e);
           logLine(`answer処理失敗: ${String(e)}`);
         }
-      } else if (msg.type === "ice-candidate") {
+      } else if (isWsIceCandidateMessage(msg)) {
         try {
           await pc.addIceCandidate(msg.payload);
         } catch (e) {

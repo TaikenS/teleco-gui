@@ -2,14 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { getSignalingUrl } from "@/lib/signaling";
+import {
+  isKeepaliveSignalMessage,
+  isWsIceCandidateMessage,
+  isWsOfferMessage,
+  parseWsJsonData,
+} from "@/lib/webrtc/wsMessageUtils";
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
-type Role = "sender" | "viewer";
-type TelecoArrowDirection = "left" | "right";
-
 const WS_KEEPALIVE_MS = 10_000;
-const TELECO_ARROW_EVENT = "teleco:arrow";
 
 function normalizeWsUrl(input: string) {
   const trimmed = input.trim();
@@ -67,11 +69,6 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
   const logLine = (line: string) =>
       setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
-  const sendArrow = (direction: TelecoArrowDirection) => {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(new CustomEvent(TELECO_ARROW_EVENT, { detail: { direction } }));
-  };
-
   const stopKeepalive = () => {
     if (keepaliveTimerRef.current != null) {
       window.clearInterval(keepaliveTimerRef.current);
@@ -127,7 +124,7 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
 
-    ws.send(JSON.stringify({ type: "join", roomId, role: "viewer" as Role }));
+    ws.send(JSON.stringify({ type: "join", roomId, role: "viewer" }));
     logLine("join 送信(viewer)");
   };
 
@@ -160,7 +157,7 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
           JSON.stringify({
             type: "ice-candidate",
             roomId,
-            role: "viewer" as Role,
+            role: "viewer",
             payload: event.candidate,
           }),
       );
@@ -254,22 +251,20 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
     };
 
     ws.onmessage = async (event) => {
-      let msg: any;
-      try {
-        msg = JSON.parse(event.data);
-      } catch {
+      const msg = parseWsJsonData(event.data);
+      if (!msg) {
         logLine("不正なシグナリングメッセージを無視しました");
         return;
       }
 
-      if (msg?.type === "__pong" || msg?.type === "keepalive") {
+      if (isKeepaliveSignalMessage(msg)) {
         return;
       }
 
       const pc = pcRef.current;
       if (!pc) return;
 
-      if (msg.type === "offer") {
+      if (isWsOfferMessage(msg)) {
         logLine("sender から offer 受信");
         try {
           const desc = new RTCSessionDescription(msg.payload);
@@ -290,7 +285,7 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
           console.error(e);
           logLine(`offer処理失敗: ${String(e)}`);
         }
-      } else if (msg.type === "ice-candidate") {
+      } else if (isWsIceCandidateMessage(msg)) {
         try {
           await pc.addIceCandidate(msg.payload);
         } catch (e) {
