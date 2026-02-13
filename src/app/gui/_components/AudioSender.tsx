@@ -1395,7 +1395,7 @@ export default function AudioSender() {
 
           <div className="flex flex-wrap gap-3">
             <div className="action-button-wrap">
-              <button onClick={refreshDevices} className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm">
+              <button onClick={refreshDevices} className="action-button bg-slate-100 text-sm">
                 デバイス更新
               </button>
               <p className="button-reason is-ready">接続前にマイク一覧を更新できます</p>
@@ -1410,7 +1410,7 @@ export default function AudioSender() {
                     connectSignalWs();
                   }}
                   disabled={!canConnectSignal}
-                  className="action-button rounded-xl bg-slate-900 text-white px-4 py-2 text-sm"
+                  className="action-button bg-slate-900 text-white text-sm"
 
                   data-busy={signalBusy ? "1" : "0"}
                   aria-busy={signalBusy}
@@ -1426,7 +1426,7 @@ export default function AudioSender() {
               <button
                   onClick={disconnectSignalWs}
                   disabled={!canDisconnectSignal}
-                  className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+                  className="action-button bg-slate-100 text-sm"
 
               >
                 Signal WS切断
@@ -1440,7 +1440,7 @@ export default function AudioSender() {
               <button
                   onClick={() => void startSending()}
                   disabled={!canStartSending}
-                  className="action-button rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm"
+                  className="action-button bg-emerald-600 text-white text-sm"
 
                   data-busy={callStatus === "offer送信中" ? "1" : "0"}
                   aria-busy={callStatus === "offer送信中"}
@@ -1461,7 +1461,7 @@ export default function AudioSender() {
             <div className="action-button-wrap">
               <button
                   onClick={stopSending}
-                  className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+                  className="action-button bg-slate-100 text-sm"
                   disabled={!canStopSending}
 
               >
@@ -1516,7 +1516,7 @@ export default function AudioSender() {
                     connectCommandWs();
                   }}
                   disabled={!canConnectCommand}
-                  className="action-button rounded-xl bg-slate-900 text-white px-4 py-2 text-sm"
+                  className="action-button bg-slate-900 text-white text-sm"
 
                   data-busy={commandBusy ? "1" : "0"}
                   aria-busy={commandBusy}
@@ -1532,7 +1532,7 @@ export default function AudioSender() {
               <button
                   onClick={disconnectCommandWs}
                   disabled={!canDisconnectCommand}
-                  className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+                  className="action-button bg-slate-100 text-sm"
 
               >
                 Command WS切断
@@ -1546,7 +1546,7 @@ export default function AudioSender() {
               <button
                   onClick={() => sendMouthVowel("a")}
                   disabled={!canRunMouthTest}
-                  className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
+                  className="action-button bg-blue-600 text-white text-sm"
 
               >
                 口パクテスト（a）
@@ -1560,7 +1560,7 @@ export default function AudioSender() {
               <button
                   onClick={() => sendArrowMove("left")}
                   disabled={!commandConnected}
-                  className="action-button rounded-xl bg-violet-600 text-white px-4 py-2 text-sm"
+                  className="action-button bg-violet-600 text-white text-sm"
 
               >
                 ← 左（+10）
@@ -1574,7 +1574,7 @@ export default function AudioSender() {
               <button
                   onClick={() => sendArrowMove("right")}
                   disabled={!commandConnected}
-                  className="action-button rounded-xl bg-violet-600 text-white px-4 py-2 text-sm"
+                  className="action-button bg-violet-600 text-white text-sm"
 
               >
                 → 右（-10）
@@ -1640,7 +1640,7 @@ export default function AudioSender() {
                   <button
                       onClick={() => void startMicTest()}
                       disabled={!canStartMicTest}
-                      className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
+                      className="action-button bg-blue-600 text-white text-sm"
     
                   >
                     Mic Test Start
@@ -1654,7 +1654,7 @@ export default function AudioSender() {
                   <button
                       onClick={stopMicTest}
                       disabled={!canStopMicTest}
-                      className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm"
+                      className="action-button bg-slate-100 text-sm"
     
                   >
                     Mic Test Stop
@@ -1750,7 +1750,7 @@ export default function AudioSender() {
                         onClick={() => sendMouthVowel(v)}
                         disabled={!commandConnected}
       
-                        className={`action-button rounded-xl px-4 py-2 text-sm hover:opacity-90 ${
+                        className={`action-button text-sm hover:opacity-90 ${
                             v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
                         }`}
                     >
@@ -1786,7 +1786,7 @@ export default function AudioSender() {
                   <button
                       onClick={sendRawCommandJson}
                       disabled={!commandConnected}
-                      className="action-button rounded-xl bg-blue-600 text-white px-4 py-2 text-sm"
+                      className="action-button bg-blue-600 text-white text-sm"
     
                   >
                     Send Command
@@ -1797,7 +1797,7 @@ export default function AudioSender() {
                 </div>
 
                 <div className="action-button-wrap">
-                  <button onClick={() => setCommandLog("")} className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm">
+                  <button onClick={() => setCommandLog("")} className="action-button bg-slate-100 text-sm">
                     Clear Log
                   </button>
                   <p className="button-reason is-ready">ログ表示をクリアします</p>

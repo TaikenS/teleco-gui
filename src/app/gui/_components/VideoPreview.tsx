@@ -193,7 +193,7 @@ export default function VideoPreview({ videoDeviceId }: Props) {
                 type="button"
                 onClick={start}
                 disabled={!canStart}
-                className="action-button rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+                className="action-button bg-slate-900 text-sm text-white"
                 data-busy={isStarting ? "1" : "0"}
                 aria-busy={isStarting}
             >
@@ -209,7 +209,7 @@ export default function VideoPreview({ videoDeviceId }: Props) {
                 type="button"
                 onClick={stop}
                 disabled={!canStop}
-                className="action-button rounded-xl bg-slate-100 px-4 py-2 text-sm text-slate-900"
+                className="action-button bg-slate-100 text-sm text-slate-900"
             >
               停止
             </button>

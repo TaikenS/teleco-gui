@@ -536,7 +536,7 @@ export default function AudioSenderPage() {
                         <div className="action-button-wrap">
                             <button
                                 onClick={startMic}
-                                className="action-button rounded-xl bg-slate-900 px-4 py-2 text-white"
+                                className="action-button bg-slate-900 text-white"
                                 disabled={!canStartMic}
                                 data-disabled-label="利用不可"
                                 data-busy={micBusy ? "1" : "0"}
@@ -558,7 +558,7 @@ export default function AudioSenderPage() {
                                     connectSignaling(false);
                                 }}
                                 disabled={!canConnectSignal}
-                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                className="action-button bg-slate-100"
                                 data-disabled-label="利用不可"
                                 data-busy={wsBusy ? "1" : "0"}
                                 aria-busy={wsBusy}
@@ -590,7 +590,7 @@ export default function AudioSenderPage() {
                             <button
                                 onClick={() => void startSend(false)}
                                 disabled={!canStartSend}
-                                className="action-button rounded-xl bg-emerald-600 px-4 py-2 text-white"
+                                className="action-button bg-emerald-600 text-white"
                                 data-disabled-label="利用不可"
                                 data-busy={sendBusy ? "1" : "0"}
                                 aria-busy={sendBusy}
@@ -624,7 +624,7 @@ export default function AudioSenderPage() {
                                     closeWs();
                                     setConnected(false);
                                 }}
-                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                className="action-button bg-slate-100"
                                 disabled={!canStopConnection}
                                 data-disabled-label="利用不可"
                             >

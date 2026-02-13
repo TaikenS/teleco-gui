@@ -693,7 +693,7 @@ export default function SenderPage() {
               <div className="action-button-wrap">
                 <button
                     onClick={() => void startCamera()}
-                    className="action-button rounded-xl bg-slate-900 px-4 py-2 text-white"
+                    className="action-button bg-slate-900 text-white"
                     disabled={!canStartCamera}
                     data-busy={cameraBusy ? "1" : "0"}
                     aria-busy={cameraBusy}
@@ -711,7 +711,7 @@ export default function SenderPage() {
                       window.localStorage.setItem(STORAGE.autoConnect, "1");
                       connectSignaling();
                     }}
-                    className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                    className="action-button bg-slate-100"
                     disabled={!canConnectSignaling}
                     data-busy={wsBusy ? "1" : "0"}
                     aria-busy={wsBusy}
@@ -724,7 +724,7 @@ export default function SenderPage() {
               <div className="action-button-wrap">
                 <button
                     onClick={() => void startWebRTC(false)}
-                    className="action-button rounded-xl bg-emerald-600 px-4 py-2 text-white"
+                    className="action-button bg-emerald-600 text-white"
                     disabled={!canStartStreaming}
                     data-busy={rtcBusy ? "1" : "0"}
                     aria-busy={rtcBusy}
@@ -746,7 +746,7 @@ export default function SenderPage() {
                       closePc();
                       setRtcBusy(false);
                     }}
-                    className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                    className="action-button bg-slate-100"
                     disabled={!canStopConnection}
                 >
                   接続停止

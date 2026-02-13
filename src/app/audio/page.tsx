@@ -537,7 +537,7 @@ export default function AudioReceiverPage() {
                                     connect(false);
                                 }}
                                 disabled={!canConnect}
-                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                className="action-button bg-slate-100"
                                 data-busy={wsBusy ? "1" : "0"}
                                 aria-busy={wsBusy}
                             >
@@ -558,7 +558,7 @@ export default function AudioReceiverPage() {
                             <button
                                 onClick={disconnect}
                                 disabled={!canDisconnect}
-                                className="action-button rounded-xl bg-slate-900 px-4 py-2 text-white"
+                                className="action-button bg-slate-900 text-white"
                             >
                                 切断
                             </button>
@@ -570,7 +570,7 @@ export default function AudioReceiverPage() {
                         <div className="action-button-wrap">
                             <button
                                 onClick={() => window.open("/ws", "_blank")}
-                                className="action-button rounded-xl bg-slate-100 px-4 py-2"
+                                className="action-button bg-slate-100"
                                 type="button"
                             >
                                 /ws を開く（デバッグ）
