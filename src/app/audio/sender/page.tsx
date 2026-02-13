@@ -2,7 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getSignalingUrl } from "@/lib/signaling";
+import {
+  buildSignalingBaseUrl,
+  buildSignalingUrl,
+  getDefaultSignalingIpAddress,
+  getDefaultSignalingPort,
+  parseSignalingUrl,
+} from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,
   isWsAnswerMessage,
@@ -14,7 +20,9 @@ const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 const STORAGE_KEYS = {
   roomId: "teleco.audioSender.roomId",
-  signalingWsUrl: "teleco.audioSender.signalingWsUrl",
+  signalingIpAddress: "teleco.audioSender.signalingIpAddress",
+  signalingPort: "teleco.audioSender.signalingPort",
+  signalingWsUrlLegacy: "teleco.audioSender.signalingWsUrl",
   sendEnabled: "teleco.audioSender.sendEnabled",
   autoConnect: "teleco.audioSender.autoConnect",
   micActive: "teleco.audioSender.micActive",
@@ -25,43 +33,13 @@ const WS_KEEPALIVE_MS = 10_000;
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
 
-function normalizeWsUrl(input: string) {
-  const trimmed = input.trim();
-
-  if (!trimmed) {
-    return getSignalingUrl();
-  }
-
-  if (trimmed.startsWith("http://"))
-    return `ws://${trimmed.slice("http://".length)}`;
-  if (trimmed.startsWith("https://"))
-    return `wss://${trimmed.slice("https://".length)}`;
-
-  if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${trimmed.replace(/^\/+/, "")}`;
-  }
-
-  return trimmed;
-}
-
-function withRoomQuery(wsUrl: string, roomId: string) {
-  try {
-    const u = new URL(wsUrl);
-    if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
-    if (roomId) u.searchParams.set("room", roomId);
-    return u.toString();
-  } catch {
-    const base = wsUrl.endsWith("/ws") ? wsUrl : `${wsUrl}/ws`;
-    if (!roomId) return base;
-    return `${base}${base.includes("?") ? "&" : "?"}room=${encodeURIComponent(roomId)}`;
-  }
-}
-
 export default function AudioSenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_AUDIO_ROOM);
-  const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() =>
-    getSignalingUrl(DEFAULT_AUDIO_ROOM),
+  const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
+    getDefaultSignalingIpAddress(),
+  );
+  const [signalingPort, setSignalingPort] = useState<string>(
+    getDefaultSignalingPort(),
   );
   const [connected, setConnected] = useState(false);
   const [micReady, setMicReady] = useState(false);
@@ -227,8 +205,11 @@ export default function AudioSenderPage() {
     setWsBusy(true);
     clearReconnectTimer();
 
-    const base = normalizeWsUrl(signalingWsUrl);
-    const url = withRoomQuery(base, roomId);
+    const url = buildSignalingUrl({
+      ipAddress: signalingIpAddress,
+      port: signalingPort,
+      roomId,
+    });
 
     if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
       setError(`無効なSignal URLです: ${url}`);
@@ -400,10 +381,25 @@ export default function AudioSenderPage() {
     const savedRoom = window.localStorage.getItem(STORAGE_KEYS.roomId);
     if (savedRoom) setRoomId(savedRoom);
 
-    const savedSignalWsUrl = window.localStorage.getItem(
-      STORAGE_KEYS.signalingWsUrl,
+    const savedSignalIpAddress = window.localStorage.getItem(
+      STORAGE_KEYS.signalingIpAddress,
     );
-    if (savedSignalWsUrl) setSignalingWsUrl(savedSignalWsUrl);
+    if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
+
+    const savedSignalPort = window.localStorage.getItem(
+      STORAGE_KEYS.signalingPort,
+    );
+    if (savedSignalPort) setSignalingPort(savedSignalPort);
+
+    const legacySignalUrl = window.localStorage.getItem(
+      STORAGE_KEYS.signalingWsUrlLegacy,
+    );
+    if (legacySignalUrl) {
+      const parsed = parseSignalingUrl(legacySignalUrl);
+      if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
+      if (parsed?.port) setSignalingPort(parsed.port);
+      if (parsed?.roomId) setRoomId(parsed.roomId);
+    }
 
     const savedSend = window.localStorage.getItem(STORAGE_KEYS.sendEnabled);
     if (savedSend != null) setSendEnabled(savedSend === "1");
@@ -431,8 +427,15 @@ export default function AudioSenderPage() {
   }, [roomId]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.signalingWsUrl, signalingWsUrl);
-  }, [signalingWsUrl]);
+    window.localStorage.setItem(
+      STORAGE_KEYS.signalingIpAddress,
+      signalingIpAddress,
+    );
+  }, [signalingIpAddress]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.signalingPort, signalingPort);
+  }, [signalingPort]);
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -496,11 +499,22 @@ export default function AudioSenderPage() {
     !connected &&
     !wsBusy &&
     roomId.trim().length > 0 &&
-    signalingWsUrl.trim().length > 0;
+    signalingIpAddress.trim().length > 0 &&
+    signalingPort.trim().length > 0;
   const canStartSend =
     micReady && connected && sendEnabled && !sendBusy && !sendLive;
   const canStopConnection = connected || wsBusy || sendBusy || sendLive;
   const canStartMic = !micBusy;
+
+  const signalingWsUrlForDisplay = buildSignalingUrl({
+    ipAddress: signalingIpAddress,
+    port: signalingPort,
+    roomId,
+  });
+  const signalingBaseUrlForDisplay = buildSignalingBaseUrl({
+    ipAddress: signalingIpAddress,
+    port: signalingPort,
+  });
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -570,19 +584,33 @@ export default function AudioSenderPage() {
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">Signaling WS URL</label>
-            <input
-              className="w-full rounded-xl border px-3 py-2 text-sm"
-              value={signalingWsUrl}
-              onChange={(e) => setSignalingWsUrl(e.target.value)}
-              disabled={connected || wsBusy}
-              placeholder="ws://192.168.1.12:3000/ws"
-            />
-            <p className="text-[11px] text-slate-500">
-              送信先Receiver側GUIのSignal URLを指定（例:
-              ws://192.168.1.12:3000/ws）。
-            </p>
+          <div className="grid gap-2 md:grid-cols-2">
+            <label className="text-sm text-slate-700">
+              Signaling IP Address
+              <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                value={signalingIpAddress}
+                onChange={(e) => setSignalingIpAddress(e.target.value)}
+                disabled={connected || wsBusy}
+                placeholder="192.168.1.12"
+              />
+            </label>
+            <label className="text-sm text-slate-700">
+              Signaling Port
+              <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                value={signalingPort}
+                onChange={(e) => setSignalingPort(e.target.value)}
+                disabled={connected || wsBusy}
+                placeholder="3000"
+              />
+            </label>
+          </div>
+          <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
+            <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
+            <div className="mt-1 text-slate-500">
+              Base: {signalingBaseUrlForDisplay}
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-3 text-sm">
@@ -627,8 +655,10 @@ export default function AudioSenderPage() {
               <p
                 className={`button-reason ${canConnectSignal ? "is-ready" : "is-disabled"}`}
               >
-                {!roomId.trim() || !signalingWsUrl.trim()
-                  ? "Room ID と Signal URL を入力してください"
+                {!roomId.trim() ||
+                !signalingIpAddress.trim() ||
+                !signalingPort.trim()
+                  ? "Room ID と IP Address / Port を入力してください"
                   : connected
                     ? "すでに接続中です"
                     : wsBusy

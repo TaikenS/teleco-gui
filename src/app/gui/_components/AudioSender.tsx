@@ -893,6 +893,7 @@ export default function AudioSender() {
       manualCommandDisconnectRef.current = false;
       window.setTimeout(() => connectCommandWs(false), 0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

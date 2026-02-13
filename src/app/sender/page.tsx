@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getSignalingUrl } from "@/lib/signaling";
+import {
+  buildSignalingBaseUrl,
+  buildSignalingUrl,
+  getDefaultSignalingIpAddress,
+  getDefaultSignalingPort,
+  parseSignalingUrl,
+} from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,
   isWsAnswerMessage,
@@ -13,7 +19,9 @@ const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 const STORAGE = {
   roomId: "teleco.sender.roomId",
-  signalingWsUrl: "teleco.sender.signalingWsUrl",
+  signalingIpAddress: "teleco.sender.signalingIpAddress",
+  signalingPort: "teleco.sender.signalingPort",
+  signalingWsUrlLegacy: "teleco.sender.signalingWsUrl",
   autoConnect: "teleco.sender.autoConnect",
   cameraActive: "teleco.sender.cameraActive",
   streamingActive: "teleco.sender.streamingActive",
@@ -25,43 +33,13 @@ const WS_KEEPALIVE_MS = 10_000;
 const DEFAULT_VIDEO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
 
-function normalizeWsUrl(input: string) {
-  const trimmed = input.trim();
-
-  if (!trimmed) {
-    return getSignalingUrl();
-  }
-
-  if (trimmed.startsWith("http://"))
-    return `ws://${trimmed.slice("http://".length)}`;
-  if (trimmed.startsWith("https://"))
-    return `wss://${trimmed.slice("https://".length)}`;
-
-  if (!trimmed.startsWith("ws://") && !trimmed.startsWith("wss://")) {
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${trimmed.replace(/^\/+/, "")}`;
-  }
-
-  return trimmed;
-}
-
-function withRoomQuery(wsUrl: string, roomId: string) {
-  try {
-    const u = new URL(wsUrl);
-    if (!u.pathname.endsWith("/ws")) u.pathname = "/ws";
-    if (roomId) u.searchParams.set("room", roomId);
-    return u.toString();
-  } catch {
-    const base = wsUrl.endsWith("/ws") ? wsUrl : `${wsUrl}/ws`;
-    if (!roomId) return base;
-    return `${base}${base.includes("?") ? "&" : "?"}room=${encodeURIComponent(roomId)}`;
-  }
-}
-
 export default function SenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
-  const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() =>
-    getSignalingUrl(DEFAULT_VIDEO_ROOM),
+  const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
+    getDefaultSignalingIpAddress(),
+  );
+  const [signalingPort, setSignalingPort] = useState<string>(
+    getDefaultSignalingPort(),
   );
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
@@ -312,8 +290,11 @@ export default function SenderPage() {
     clearReconnectTimer();
     setWsError(null);
 
-    const base = normalizeWsUrl(signalingWsUrl);
-    const url = withRoomQuery(base, roomId);
+    const url = buildSignalingUrl({
+      ipAddress: signalingIpAddress,
+      port: signalingPort,
+      roomId,
+    });
 
     if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
       setWsError(`無効なSignal URLです: ${url}`);
@@ -496,10 +477,23 @@ export default function SenderPage() {
     const savedRoom = window.localStorage.getItem(STORAGE.roomId);
     if (savedRoom) setRoomId(savedRoom);
 
-    const savedSignalWsUrl = window.localStorage.getItem(
-      STORAGE.signalingWsUrl,
+    const savedSignalIpAddress = window.localStorage.getItem(
+      STORAGE.signalingIpAddress,
     );
-    if (savedSignalWsUrl) setSignalingWsUrl(savedSignalWsUrl);
+    if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
+
+    const savedSignalPort = window.localStorage.getItem(STORAGE.signalingPort);
+    if (savedSignalPort) setSignalingPort(savedSignalPort);
+
+    const legacySignalUrl = window.localStorage.getItem(
+      STORAGE.signalingWsUrlLegacy,
+    );
+    if (legacySignalUrl) {
+      const parsed = parseSignalingUrl(legacySignalUrl);
+      if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
+      if (parsed?.port) setSignalingPort(parsed.port);
+      if (parsed?.roomId) setRoomId(parsed.roomId);
+    }
 
     const savedCameraDeviceId =
       window.localStorage.getItem(STORAGE.cameraDeviceId) || "";
@@ -539,6 +533,7 @@ export default function SenderPage() {
         onDeviceChange,
       );
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -546,8 +541,12 @@ export default function SenderPage() {
   }, [roomId]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE.signalingWsUrl, signalingWsUrl);
-  }, [signalingWsUrl]);
+    window.localStorage.setItem(STORAGE.signalingIpAddress, signalingIpAddress);
+  }, [signalingIpAddress]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE.signalingPort, signalingPort);
+  }, [signalingPort]);
 
   useEffect(() => {
     if (selectedCameraId) {
@@ -620,7 +619,8 @@ export default function SenderPage() {
     !wsConnected &&
     !wsBusy &&
     roomId.trim().length > 0 &&
-    signalingWsUrl.trim().length > 0;
+    signalingIpAddress.trim().length > 0 &&
+    signalingPort.trim().length > 0;
   const canStartStreaming =
     hasCameraStream && wsConnected && !rtcBusy && !rtcConnectingOrConnected;
   const canStopConnection =
@@ -636,7 +636,17 @@ export default function SenderPage() {
       ? "すでに接続中です"
       : wsBusy
         ? "シグナリング接続処理中です"
-        : "Room ID と Signal URL を入力してください";
+        : "Room ID と IP Address / Port を入力してください";
+
+  const signalingWsUrlForDisplay = buildSignalingUrl({
+    ipAddress: signalingIpAddress,
+    port: signalingPort,
+    roomId,
+  });
+  const signalingBaseUrlForDisplay = buildSignalingBaseUrl({
+    ipAddress: signalingIpAddress,
+    port: signalingPort,
+  });
 
   const startStreamingReason = canStartStreaming
     ? "viewer への配信を開始できます"
@@ -703,19 +713,33 @@ export default function SenderPage() {
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">Signaling WS URL</label>
-            <input
-              className="w-full rounded-xl border px-3 py-2 text-sm"
-              value={signalingWsUrl}
-              onChange={(e) => setSignalingWsUrl(e.target.value)}
-              placeholder="ws://192.168.1.12:3000/ws"
-              disabled={connected}
-            />
-            <p className="text-[11px] text-slate-500">
-              送信先Receiver側GUIのSignal URLを指定（例:
-              ws://192.168.1.12:3000/ws）。
-            </p>
+          <div className="grid gap-2 md:grid-cols-2">
+            <label className="text-sm text-slate-700">
+              Signaling IP Address
+              <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                value={signalingIpAddress}
+                onChange={(e) => setSignalingIpAddress(e.target.value)}
+                placeholder="192.168.1.12"
+                disabled={connected}
+              />
+            </label>
+            <label className="text-sm text-slate-700">
+              Signaling Port
+              <input
+                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                value={signalingPort}
+                onChange={(e) => setSignalingPort(e.target.value)}
+                placeholder="3000"
+                disabled={connected}
+              />
+            </label>
+          </div>
+          <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
+            <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
+            <div className="mt-1 text-slate-500">
+              Base: {signalingBaseUrlForDisplay}
+            </div>
           </div>
 
           <div className="space-y-1">

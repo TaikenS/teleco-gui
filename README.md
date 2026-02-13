@@ -37,6 +37,8 @@ SIGNAL_PORT=3000
 # NEXT_PUBLIC_SIGNALING_URL=ws://localhost:3000/ws
 # またはポートだけ固定（任意）
 # NEXT_PUBLIC_SIGNALING_PORT=3000
+# またはIP/ホストだけ固定（任意）
+# NEXT_PUBLIC_SIGNALING_IP_ADDRESS=192.168.0.10
 
 # デフォルト値
 NEXT_PUBLIC_DEFAULT_VIDEO_ROOM=room1
@@ -55,3 +57,8 @@ NEXT_PUBLIC_TELECO_COMMAND_WS_URL=ws://localhost:11920/command
 - `signaling ws: ws://<LAN_IP>:<SIGNAL_PORT>/ws`
 
 複数台/複数環境での接続テストに使えます。
+
+### Signaling設定UIについて
+
+`/gui` `/sender` `/audio` `/audio/sender` は、`Signaling WS URL` の直入力ではなく、`IP Address` / `Port` / `Room ID` 入力から URL を組み立てる方式です。  
+画面上の `Signaling WS URL` は確認用表示です。

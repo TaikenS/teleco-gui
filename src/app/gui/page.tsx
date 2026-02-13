@@ -5,18 +5,26 @@ import Link from "next/link";
 import AudioSender from "@/app/gui/_components/AudioSender";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
+import {
+  buildSignalingUrl,
+  getDefaultSignalingIpAddress,
+  getDefaultSignalingPort,
+} from "@/lib/signaling";
 import { usePersistentState } from "@/lib/usePersistentState";
 
 type VideoSourceMode = "local" | "webSender";
 const VIDEO_MODE_STORAGE_KEY = "teleco.gui.videoMode";
 const VIDEO_ROOM_STORAGE_KEY = "teleco.gui.video.roomId";
-const VIDEO_SIGNAL_URL_STORAGE_KEY = "teleco.gui.video.signalingWsUrl";
+const VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY =
+  "teleco.gui.video.signalingIpAddress";
+const VIDEO_SIGNAL_PORT_STORAGE_KEY = "teleco.gui.video.signalingPort";
 const EMBED_VIDEO_SENDER_KEY = "teleco.gui.embed.videoSender";
 const EMBED_AUDIO_RECEIVER_KEY = "teleco.gui.embed.audioReceiver";
 
 const DEFAULT_VIDEO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
-const DEFAULT_SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "";
+const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress();
+const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort();
 
 function parseVideoMode(raw: string): VideoSourceMode {
   return raw === "webSender" ? "webSender" : "local";
@@ -41,10 +49,15 @@ export default function GuiPage() {
     VIDEO_ROOM_STORAGE_KEY,
     DEFAULT_VIDEO_ROOM,
   );
-  const [videoSignalingWsUrl, setVideoSignalingWsUrl] =
+  const [videoSignalingIpAddress, setVideoSignalingIpAddress] =
     usePersistentState<string>(
-      VIDEO_SIGNAL_URL_STORAGE_KEY,
-      DEFAULT_SIGNALING_URL,
+      VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY,
+      DEFAULT_SIGNALING_IP_ADDRESS,
+    );
+  const [videoSignalingPort, setVideoSignalingPort] =
+    usePersistentState<string>(
+      VIDEO_SIGNAL_PORT_STORAGE_KEY,
+      DEFAULT_SIGNALING_PORT,
     );
 
   // 1タブ統合パネルの表示状態
@@ -58,6 +71,12 @@ export default function GuiPage() {
       deserialize: parseBinaryFlag,
       serialize: serializeBinaryFlag,
     });
+
+  const videoSignalingWsUrl = buildSignalingUrl({
+    ipAddress: videoSignalingIpAddress,
+    port: videoSignalingPort,
+    roomId: videoRoomId || DEFAULT_VIDEO_ROOM,
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -133,15 +152,31 @@ export default function GuiPage() {
                   </label>
 
                   <label className="text-sm text-slate-700">
-                    Signaling WS URL（空ならこのGUI自身）
+                    Signaling IP Address
                     <input
                       className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                      value={videoSignalingWsUrl}
-                      onChange={(e) => setVideoSignalingWsUrl(e.target.value)}
-                      placeholder="ws://192.168.1.12:3000/ws"
+                      value={videoSignalingIpAddress}
+                      onChange={(e) =>
+                        setVideoSignalingIpAddress(e.target.value)
+                      }
+                      placeholder="192.168.1.12"
+                    />
+                  </label>
+
+                  <label className="text-sm text-slate-700">
+                    Signaling Port
+                    <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+                      value={videoSignalingPort}
+                      onChange={(e) => setVideoSignalingPort(e.target.value)}
+                      placeholder="3000"
                     />
                   </label>
                 </div>
+
+                <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+                  Signaling WS URL（確認用）: {videoSignalingWsUrl}
+                </p>
 
                 <p className="text-[11px] text-slate-500">
                   1インスタンス運用向け:
