@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getSignalingUrl } from "@/lib/siganling";
+import { getSignalingUrl } from "@/lib/signaling";
 
 /**
  * Signalingは WebSocket (/ws)。
@@ -643,3 +643,4 @@ export default function AudioReceiverPage() {
         </main>
     );
 }
+

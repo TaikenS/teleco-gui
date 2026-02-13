@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { getSignalingUrl } from "@/lib/siganling";
+import { getSignalingUrl } from "@/lib/signaling";
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 type Role = "sender" | "viewer";
@@ -653,3 +653,4 @@ export default function AudioSenderPage() {
         </main>
     );
 }
+

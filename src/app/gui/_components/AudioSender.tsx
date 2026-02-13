@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getSignalingUrl } from "@/lib/signaling";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
-import { getSignalingUrl } from "@/lib/siganling";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 type MicOption = { deviceId: string; label: string };
@@ -1812,3 +1812,4 @@ export default function AudioSender() {
       </div>
   );
 }
+

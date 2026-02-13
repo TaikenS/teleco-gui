@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { getSignalingUrl } from "@/lib/siganling";
+import { getSignalingUrl } from "@/lib/signaling";
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
@@ -448,3 +448,4 @@ export default function RemoteVideo({ roomId, signalingWsUrl }: { roomId: string
       </div>
   );
 }
+

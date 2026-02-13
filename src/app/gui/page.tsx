@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import React from "react";
 import Link from "next/link";
 import AudioSender from "@/app/gui/_components/AudioSender";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
+import { usePersistentState } from "@/lib/usePersistentState";
 
 type VideoSourceMode = "local" | "webSender";
 const VIDEO_MODE_STORAGE_KEY = "teleco.gui.videoMode";
@@ -17,62 +17,43 @@ const EMBED_AUDIO_RECEIVER_KEY = "teleco.gui.embed.audioReceiver";
 const DEFAULT_VIDEO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
 const DEFAULT_SIGNALING_URL = process.env.NEXT_PUBLIC_SIGNALING_URL || "";
 
+function parseVideoMode(raw: string): VideoSourceMode {
+  return raw === "webSender" ? "webSender" : "local";
+}
+
+function parseBinaryFlag(raw: string): boolean {
+  return raw === "1";
+}
+
+function serializeBinaryFlag(value: boolean): string {
+  return value ? "1" : "0";
+}
+
 export default function GuiPage() {
-  const [mode, setMode] = useState<VideoSourceMode>("local");
-  const [selectedVideoId] = useState<string | undefined>();
-  const [videoRoomId, setVideoRoomId] = useState<string>(DEFAULT_VIDEO_ROOM);
-  const [videoSignalingWsUrl, setVideoSignalingWsUrl] = useState<string>(DEFAULT_SIGNALING_URL);
+  const [mode, setMode] = usePersistentState<VideoSourceMode>(
+    VIDEO_MODE_STORAGE_KEY,
+    "local",
+    { deserialize: parseVideoMode },
+  );
+  const selectedVideoId: string | undefined = undefined;
+  const [videoRoomId, setVideoRoomId] = usePersistentState<string>(
+    VIDEO_ROOM_STORAGE_KEY,
+    DEFAULT_VIDEO_ROOM,
+  );
+  const [videoSignalingWsUrl, setVideoSignalingWsUrl] =
+    usePersistentState<string>(VIDEO_SIGNAL_URL_STORAGE_KEY, DEFAULT_SIGNALING_URL);
 
   // 1タブ統合パネルの表示状態
-  const [showVideoSenderPanel, setShowVideoSenderPanel] = useState<boolean>(true);
-  const [showAudioReceiverPanel, setShowAudioReceiverPanel] = useState<boolean>(true);
-
-  useEffect(() => {
-    const savedMode = window.localStorage.getItem(VIDEO_MODE_STORAGE_KEY);
-    if (savedMode === "local" || savedMode === "webSender") {
-      setMode(savedMode);
-    }
-
-    const savedVideoRoomId = window.localStorage.getItem(VIDEO_ROOM_STORAGE_KEY);
-    if (savedVideoRoomId) {
-      setVideoRoomId(savedVideoRoomId);
-    }
-
-    const savedVideoSignalUrl = window.localStorage.getItem(VIDEO_SIGNAL_URL_STORAGE_KEY);
-    if (savedVideoSignalUrl != null) {
-      setVideoSignalingWsUrl(savedVideoSignalUrl);
-    }
-
-    const savedShowVideoSender = window.localStorage.getItem(EMBED_VIDEO_SENDER_KEY);
-    if (savedShowVideoSender != null) {
-      setShowVideoSenderPanel(savedShowVideoSender === "1");
-    }
-
-    const savedShowAudioReceiver = window.localStorage.getItem(EMBED_AUDIO_RECEIVER_KEY);
-    if (savedShowAudioReceiver != null) {
-      setShowAudioReceiverPanel(savedShowAudioReceiver === "1");
-    }
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(VIDEO_MODE_STORAGE_KEY, mode);
-  }, [mode]);
-
-  useEffect(() => {
-    window.localStorage.setItem(VIDEO_ROOM_STORAGE_KEY, videoRoomId);
-  }, [videoRoomId]);
-
-  useEffect(() => {
-    window.localStorage.setItem(VIDEO_SIGNAL_URL_STORAGE_KEY, videoSignalingWsUrl);
-  }, [videoSignalingWsUrl]);
-
-  useEffect(() => {
-    window.localStorage.setItem(EMBED_VIDEO_SENDER_KEY, showVideoSenderPanel ? "1" : "0");
-  }, [showVideoSenderPanel]);
-
-  useEffect(() => {
-    window.localStorage.setItem(EMBED_AUDIO_RECEIVER_KEY, showAudioReceiverPanel ? "1" : "0");
-  }, [showAudioReceiverPanel]);
+  const [showVideoSenderPanel, setShowVideoSenderPanel] =
+    usePersistentState<boolean>(EMBED_VIDEO_SENDER_KEY, true, {
+      deserialize: parseBinaryFlag,
+      serialize: serializeBinaryFlag,
+    });
+  const [showAudioReceiverPanel, setShowAudioReceiverPanel] =
+    usePersistentState<boolean>(EMBED_AUDIO_RECEIVER_KEY, true, {
+      deserialize: parseBinaryFlag,
+      serialize: serializeBinaryFlag,
+    });
 
   return (
       <div className="min-h-screen bg-slate-50 text-slate-900">
