@@ -61,7 +61,6 @@ const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 const WS_KEEPALIVE_MS = 10_000;
 
 const STORAGE_KEYS = {
-  receiverId: "teleco.audio.receiverId",
   roomId: "teleco.audio.roomId",
   signalingWsUrl: "teleco.audio.signalingWsUrl",
   autoConnect: "teleco.audio.autoConnect",
@@ -69,14 +68,12 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
-const DEFAULT_RECEIVER_ID = "";
 
 function nowTime() {
   return new Date().toLocaleTimeString();
 }
 
 export default function AudioReceiverPage() {
-  const [receiverId, setReceiverId] = useState<string>(DEFAULT_RECEIVER_ID);
   const [roomId, setRoomId] = useState<string>(DEFAULT_AUDIO_ROOM);
   const [signalingWsUrl, setSignalingWsUrl] = useState<string>(() =>
     getSignalingUrl(DEFAULT_AUDIO_ROOM),
@@ -108,9 +105,6 @@ export default function AudioReceiverPage() {
     setLog((prev) => [...prev, `[${nowTime()}] ${line}`]);
 
   useEffect(() => {
-    const savedReceiver = window.localStorage.getItem(STORAGE_KEYS.receiverId);
-    if (savedReceiver) setReceiverId(savedReceiver);
-
     const savedRoomId = window.localStorage.getItem(STORAGE_KEYS.roomId);
     if (savedRoomId) setRoomId(savedRoomId);
 
@@ -127,10 +121,6 @@ export default function AudioReceiverPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.receiverId, receiverId);
-  }, [receiverId]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.roomId, roomId);
@@ -220,8 +210,8 @@ export default function AudioReceiverPage() {
   }
 
   function sendJoin() {
-    sendWs({ type: "join", roomId, role: "viewer", id: receiverId });
-    logLine(`join送信 roomId=${roomId} role=viewer id=${receiverId}`);
+    sendWs({ type: "join", roomId, role: "viewer" });
+    logLine(`join送信 roomId=${roomId} role=viewer`);
   }
 
   function ensurePc(token: string, destination: string) {
@@ -362,15 +352,9 @@ export default function AudioReceiverPage() {
 
       if (isWsAudioRequestMessage(msg) || isWsAudioIceRequestMessage(msg)) {
         const m = msg;
-        if (m.destination && m.destination !== receiverId) {
-          logLine(
-            `IGNORED (dest mismatch): label=${m.label} dest=${m.destination}`,
-          );
-          return;
-        }
 
         const token = m.id_call_token;
-        const destination = m.destination || receiverId;
+        const destination = m.destination || "";
 
         if (m.label === "callAudioRequest") {
           logLine(`callAudioRequest受信 (token=${token})`);
@@ -484,7 +468,6 @@ export default function AudioReceiverPage() {
     !connected &&
     !wsBusy &&
     roomId.trim().length > 0 &&
-    receiverId.trim().length > 0 &&
     signalingWsUrl.trim().length > 0;
   const canDisconnect = connected || wsBusy;
 
@@ -535,7 +518,7 @@ export default function AudioReceiverPage() {
             </div>
           </label>
 
-          <div className="grid gap-2 md:grid-cols-2">
+          <div className="grid gap-2 md:grid-cols-1">
             <label className="text-sm text-slate-700">
               Room ID（?room= に入る）
               <input
@@ -543,17 +526,6 @@ export default function AudioReceiverPage() {
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value)}
                 disabled={connected || wsBusy}
-              />
-            </label>
-
-            <label className="text-sm text-slate-700">
-              Receiver ID（Destination / GUIのDestinationと一致）
-              <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                value={receiverId}
-                onChange={(e) => setReceiverId(e.target.value)}
-                disabled={connected || wsBusy}
-                placeholder="receiver-id"
               />
             </label>
           </div>
@@ -577,8 +549,8 @@ export default function AudioReceiverPage() {
               <p
                 className={`button-reason ${canConnect ? "is-ready" : "is-disabled"}`}
               >
-                {!roomId.trim() || !receiverId.trim() || !signalingWsUrl.trim()
-                  ? "Room ID / Receiver ID / Signal URL を入力してください"
+                {!roomId.trim() || !signalingWsUrl.trim()
+                  ? "Room ID / Signal URL を入力してください"
                   : connected
                     ? "すでに接続中です"
                     : wsBusy

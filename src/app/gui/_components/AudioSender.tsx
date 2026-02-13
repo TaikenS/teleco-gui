@@ -14,7 +14,6 @@ const TELECO_ARROW_EVENT = "teleco:arrow";
 const STORAGE_KEYS = {
   roomHint: "teleco.gui.audio.roomHint",
   signalWsUrl: "teleco.gui.audio.signalWsUrl",
-  receiverDestination: "teleco.gui.audio.receiverDestination",
   commandWsUrl: "teleco.gui.audio.commandWsUrl",
   telecoDebugUrl: "teleco.gui.audio.telecoDebugUrl",
   selectedMicId: "teleco.gui.audio.selectedMicId",
@@ -28,7 +27,6 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
-const DEFAULT_RECEIVER_ID = "";
 const DEFAULT_TELECO_COMMAND_WS_URL =
   process.env.NEXT_PUBLIC_TELECO_COMMAND_WS_URL ||
   "ws://localhost:11920/command";
@@ -454,9 +452,6 @@ export default function AudioSender() {
     getSignalingUrl(DEFAULT_AUDIO_ROOM),
   );
 
-  const [receiverDestination, setReceiverDestination] =
-    useState<string>(DEFAULT_RECEIVER_ID);
-
   const [commandWsUrl, setCommandWsUrl] = useState<string>(
     DEFAULT_TELECO_COMMAND_WS_URL,
   );
@@ -851,11 +846,6 @@ export default function AudioSender() {
     );
     if (savedSignalWsUrl) setSignalWsUrl(savedSignalWsUrl);
 
-    const savedDest = window.localStorage.getItem(
-      STORAGE_KEYS.receiverDestination,
-    );
-    if (savedDest) setReceiverDestination(savedDest);
-
     const savedCommandWsUrl = window.localStorage.getItem(
       STORAGE_KEYS.commandWsUrl,
     );
@@ -912,13 +902,6 @@ export default function AudioSender() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.signalWsUrl, signalWsUrl);
   }, [signalWsUrl]);
-
-  useEffect(() => {
-    window.localStorage.setItem(
-      STORAGE_KEYS.receiverDestination,
-      receiverDestination,
-    );
-  }, [receiverDestination]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.commandWsUrl, commandWsUrl);
@@ -1237,7 +1220,7 @@ export default function AudioSender() {
       const sendFn = (msg: SignalingMessage) => sendSignal(msg);
       const callId = await manager.callAudioRequest(
         track,
-        receiverDestination,
+        "",
         sendFn,
         (state) => setCallStatus(`WebRTC: ${state}`),
       );
@@ -1484,7 +1467,7 @@ export default function AudioSender() {
           />
         </label>
 
-        <div className="grid gap-2 md:grid-cols-3">
+        <div className="grid gap-2 md:grid-cols-1">
           <label className="text-sm text-slate-700">
             Room（見やすさ用メモ）
             <input
@@ -1492,16 +1475,6 @@ export default function AudioSender() {
               value={roomHint}
               onChange={(e) => setRoomHint(e.target.value)}
               placeholder="audio1"
-            />
-          </label>
-
-          <label className="text-sm text-slate-700 md:col-span-2">
-            Destination（AudioReceiver 側の ID ラベル）
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-              value={receiverDestination}
-              onChange={(e) => setReceiverDestination(e.target.value)}
-              placeholder="receiver-id"
             />
           </label>
         </div>
