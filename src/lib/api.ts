@@ -17,7 +17,10 @@ function isAppConfiguration(value: unknown): value is AppConfiguration {
 }
 
 export async function fetchConfiguration(): Promise<AppConfiguration> {
-  const response = await fetch("/api/get_configuration", { method: "POST" });
+  const response = await fetch("/api/get_configuration", {
+    method: "GET",
+    cache: "force-cache",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch configuration");
   }

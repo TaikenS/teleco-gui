@@ -2,6 +2,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const ALLOWED_KEYS = new Set([
   "NEXT_PUBLIC_TELECO_IP_ADDRESS",
   "NEXT_PUBLIC_TELECO_PORT",

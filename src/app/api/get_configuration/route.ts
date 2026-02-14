@@ -5,10 +5,21 @@ export type AppConfiguration = {
   features: string[];
 };
 
-export async function POST() {
+export const dynamic = "force-static";
+
+function buildConfiguration() {
   const configuration: AppConfiguration = {
     version: "0.1",
     features: ["devicePicker", "preview", "logging"],
   };
-  return NextResponse.json(configuration);
+  return configuration;
+}
+
+export async function GET() {
+  return NextResponse.json(buildConfiguration());
+}
+
+// Backward compatible endpoint for existing callers.
+export async function POST() {
+  return NextResponse.json(buildConfiguration());
 }
