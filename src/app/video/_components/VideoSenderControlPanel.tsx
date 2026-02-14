@@ -96,7 +96,12 @@ export default function VideoSenderControlPanel(props: Props) {
                 : "is-off"
           }`}
         >
-          Stream {rtcState === "connected" ? "LIVE" : rtcBusy || rtcState === "connecting" ? "STARTING" : "IDLE"}
+          Stream{" "}
+          {rtcState === "connected"
+            ? "LIVE"
+            : rtcBusy || rtcState === "connecting"
+              ? "STARTING"
+              : "IDLE"}
         </span>
       </div>
 
@@ -137,7 +142,9 @@ export default function VideoSenderControlPanel(props: Props) {
       </div>
       <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
         <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-        <div className="mt-1 text-slate-500">Base: {signalingBaseUrlForDisplay}</div>
+        <div className="mt-1 text-slate-500">
+          Base: {signalingBaseUrlForDisplay}
+        </div>
       </div>
 
       <div className="space-y-1">
@@ -160,7 +167,10 @@ export default function VideoSenderControlPanel(props: Props) {
             )}
           </select>
 
-          <button onClick={onRefreshCameras} className="rounded-xl bg-slate-100 px-3 py-2 text-sm">
+          <button
+            onClick={onRefreshCameras}
+            className="rounded-xl bg-slate-100 px-3 py-2 text-sm"
+          >
             カメラ再読み込み
           </button>
         </div>
@@ -182,7 +192,9 @@ export default function VideoSenderControlPanel(props: Props) {
           >
             {cameraBusy ? "カメラ起動中..." : "カメラ起動"}
           </button>
-          <p className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}>
+          <p
+            className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}
+          >
             {startCameraReason}
           </p>
         </div>
@@ -197,7 +209,9 @@ export default function VideoSenderControlPanel(props: Props) {
           >
             {wsBusy ? "接続中..." : "シグナリング接続"}
           </button>
-          <p className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}>
+          <p
+            className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
+          >
             {connectReason}
           </p>
         </div>
@@ -212,7 +226,9 @@ export default function VideoSenderControlPanel(props: Props) {
           >
             {rtcBusy ? "開始中..." : "viewer へ映像送信開始"}
           </button>
-          <p className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}>
+          <p
+            className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}
+          >
             {startStreamingReason}
           </p>
         </div>
@@ -225,7 +241,9 @@ export default function VideoSenderControlPanel(props: Props) {
           >
             接続停止
           </button>
-          <p className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}>
+          <p
+            className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}
+          >
             {stopReason}
           </p>
         </div>

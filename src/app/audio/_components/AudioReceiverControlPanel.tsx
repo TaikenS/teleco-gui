@@ -42,10 +42,14 @@ export default function AudioReceiverControlPanel(props: Props) {
   return (
     <div className="space-y-3 rounded-2xl border bg-white p-4">
       <div className="status-chip-row">
-        <span className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}>
+        <span
+          className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}
+        >
           Signal {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
         </span>
-        <span className={`status-chip ${hasAudioTrack ? "is-on" : connected ? "is-busy" : "is-off"}`}>
+        <span
+          className={`status-chip ${hasAudioTrack ? "is-on" : connected ? "is-busy" : "is-off"}`}
+        >
           Audio {hasAudioTrack ? "PLAYING" : connected ? "WAITING" : "IDLE"}
         </span>
       </div>
@@ -93,7 +97,9 @@ export default function AudioReceiverControlPanel(props: Props) {
       </div>
       <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
         <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-        <div className="mt-1 text-slate-500">Base: {signalingBaseUrlForDisplay}</div>
+        <div className="mt-1 text-slate-500">
+          Base: {signalingBaseUrlForDisplay}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 text-sm">
@@ -107,8 +113,12 @@ export default function AudioReceiverControlPanel(props: Props) {
           >
             {wsBusy ? "接続中..." : "接続"}
           </button>
-          <p className={`button-reason ${canConnect ? "is-ready" : "is-disabled"}`}>
-            {!roomId.trim() || !signalingIpAddress.trim() || !signalingPort.trim()
+          <p
+            className={`button-reason ${canConnect ? "is-ready" : "is-disabled"}`}
+          >
+            {!roomId.trim() ||
+            !signalingIpAddress.trim() ||
+            !signalingPort.trim()
               ? "Room ID / IP Address / Port を入力してください"
               : connected
                 ? "すでに接続中です"
@@ -126,13 +136,19 @@ export default function AudioReceiverControlPanel(props: Props) {
           >
             切断
           </button>
-          <p className={`button-reason ${canDisconnect ? "is-ready" : "is-disabled"}`}>
+          <p
+            className={`button-reason ${canDisconnect ? "is-ready" : "is-disabled"}`}
+          >
             {canDisconnect ? "接続を停止できます" : "現在は未接続です"}
           </p>
         </div>
 
         <div className="action-button-wrap">
-          <button onClick={onOpenWsDebug} className="action-button bg-slate-100" type="button">
+          <button
+            onClick={onOpenWsDebug}
+            className="action-button bg-slate-100"
+            type="button"
+          >
             /ws を開く（デバッグ）
           </button>
           <p className="button-reason is-ready">接続確認用に別タブで開けます</p>

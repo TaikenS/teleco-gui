@@ -1,4 +1,7 @@
-import { getDefaultSignalingIpAddress, getDefaultSignalingPort } from "@/lib/signaling";
+import {
+  getDefaultSignalingIpAddress,
+  getDefaultSignalingPort,
+} from "@/lib/signaling";
 
 export const TELECO_ARROW_EVENT = "teleco:arrow";
 
@@ -29,7 +32,8 @@ const AUDIO_SEND_SIGNALING_PORT_ENV_KEYS = [
   "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_PORT",
 ];
 
-export const DEFAULT_AUDIO_ROOM = process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+export const DEFAULT_AUDIO_ROOM =
+  process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
 
 export const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress({
   envKeys: AUDIO_SEND_SIGNALING_IP_ENV_KEYS,
@@ -42,4 +46,5 @@ export const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort({
 export const DEFAULT_TELECO_IP_ADDRESS =
   process.env.NEXT_PUBLIC_TELECO_IP_ADDRESS || "localhost";
 
-export const DEFAULT_TELECO_PORT = process.env.NEXT_PUBLIC_TELECO_PORT || "11920";
+export const DEFAULT_TELECO_PORT =
+  process.env.NEXT_PUBLIC_TELECO_PORT || "11920";

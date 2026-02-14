@@ -134,7 +134,9 @@ export default function GuiPage() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-600">
               Teleco GUI
             </p>
-            <span className="font-semibold tracking-tight">Teleco Operator</span>
+            <span className="font-semibold tracking-tight">
+              Teleco Operator
+            </span>
           </div>
           <p className="hidden text-xs text-slate-500 md:block">
             左: Device/Teleco設定 | 右: Video/Sender/Receiver

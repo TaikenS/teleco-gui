@@ -1,7 +1,10 @@
 import { useRef, useState } from "react";
 import { clamp01 } from "@/app/gui/_components/audio/sender/controller/helpers";
 import { VowelEstimator } from "@/app/gui/_components/audio/sender/vowelEstimator";
-import type { MouthMode, Vowel } from "@/app/gui/_components/audio/sender/controller/types";
+import type {
+  MouthMode,
+  Vowel,
+} from "@/app/gui/_components/audio/sender/controller/types";
 
 export function useMouthAnalyzer(params: {
   autoMouthEnabled: boolean;
@@ -11,7 +14,14 @@ export function useMouthAnalyzer(params: {
   onError: (message: string) => void;
   sendMouthVowel: (vowel: Vowel) => void;
 }) {
-  const { autoMouthEnabled, monitorVolume, noiseFloor, gain, onError, sendMouthVowel } = params;
+  const {
+    autoMouthEnabled,
+    monitorVolume,
+    noiseFloor,
+    gain,
+    onError,
+    sendMouthVowel,
+  } = params;
 
   const mouthModeRef = useRef<MouthMode | null>(null);
   const mouthCtxRef = useRef<AudioContext | null>(null);
@@ -81,7 +91,8 @@ export function useMouthAnalyzer(params: {
 
     const AudioContextCtor =
       window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
 
     if (!AudioContextCtor) {
       onError("AudioContext が利用できません（ブラウザ非対応）。");
