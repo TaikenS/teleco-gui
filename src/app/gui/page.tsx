@@ -118,35 +118,8 @@ export default function GuiPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl items-center px-4 py-2">
           <span className="font-semibold tracking-tight">Teleco Operator</span>
-
-          <nav className="ml-auto flex flex-wrap items-center gap-2">
-            <Link
-              href="/video"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800"
-            >
-              Video Senderへ
-            </Link>
-            <Link
-              href="/audio"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800"
-            >
-              Audio Receiverへ
-            </Link>
-            <Link
-              href="/audio/sender"
-              className="rounded-xl bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800"
-            >
-              Audio Senderへ
-            </Link>
-            <Link
-              href="/"
-              className="px-1 text-sm text-slate-600 hover:text-slate-900"
-            >
-              Home
-            </Link>
-          </nav>
         </div>
       </header>
 
