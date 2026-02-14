@@ -29,7 +29,7 @@ type Props = {
   onClearCommandLog: () => void;
 };
 
-export default function AudioSenderTelecoPanel({
+export default function TelecoControlPanel({
   telecoIpAddress,
   telecoPort,
   telecoDebugUrlForDisplay,

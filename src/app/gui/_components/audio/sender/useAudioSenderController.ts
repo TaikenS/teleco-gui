@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDeviceSignalController } from "@/app/gui/_components/audio/sender/useDeviceSignalController";
 import { useMicAnalyzerController } from "@/app/gui/_components/audio/sender/useMicAnalyzerController";
-import { useTelecoCommandController } from "@/app/gui/_components/audio/sender/useTelecoCommandController";
 import { VowelEstimator } from "@/app/gui/_components/audio/sender/vowelEstimator";
+import { useTelecoCommandController } from "@/app/gui/_components/teleco/useTelecoCommandController";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingUrl,
