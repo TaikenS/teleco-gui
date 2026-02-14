@@ -94,7 +94,11 @@ export default function AudioSenderTelecoPanel({
 
         <button
           onClick={() =>
-            window.open(telecoDebugUrlForDisplay, "_blank", "noopener,noreferrer")
+            window.open(
+              telecoDebugUrlForDisplay,
+              "_blank",
+              "noopener,noreferrer",
+            )
           }
           className="rounded-xl bg-slate-100 px-3 py-2 text-sm hover:bg-slate-200"
         >
@@ -213,11 +217,15 @@ export default function AudioSenderTelecoPanel({
           </div>
         </div>
 
-        <div className="text-xs text-slate-600">Command WS: {commandWsStatus}</div>
+        <div className="text-xs text-slate-600">
+          Command WS: {commandWsStatus}
+        </div>
 
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm font-semibold">詳細パネル表示</div>
-          <div className="text-[11px] text-slate-500">表示/非表示を切り替え</div>
+          <div className="text-[11px] text-slate-500">
+            表示/非表示を切り替え
+          </div>
         </div>
 
         <p className="action-state-hint" role="status" aria-live="polite">
@@ -247,7 +255,9 @@ export default function AudioSenderTelecoPanel({
 
       {showMouthPresetPanel && (
         <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">口パク手動プリセット（faceCommand）</div>
+          <div className="text-sm font-semibold">
+            口パク手動プリセット（faceCommand）
+          </div>
           <p className="action-state-hint" role="status" aria-live="polite">
             {commandConnected
               ? "Command WS接続済み: 手動プリセットを送信できます"
@@ -272,7 +282,9 @@ export default function AudioSenderTelecoPanel({
 
       {showRawCommandPanel && (
         <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">任意コマンド送信（/command）</div>
+          <div className="text-sm font-semibold">
+            任意コマンド送信（/command）
+          </div>
 
           <p className="action-state-hint" role="status" aria-live="polite">
             {commandConnected
@@ -329,4 +341,3 @@ export default function AudioSenderTelecoPanel({
     </>
   );
 }
-

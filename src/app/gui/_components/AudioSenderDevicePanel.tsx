@@ -274,9 +274,7 @@ export default function AudioSenderDevicePanel({
             <p
               className={`button-reason ${canStopSending ? "is-ready" : "is-disabled"}`}
             >
-              {canStopSending
-                ? "送信を停止できます"
-                : "現在は送信していません"}
+              {canStopSending ? "送信を停止できます" : "現在は送信していません"}
             </p>
           </div>
         </div>
@@ -294,7 +292,9 @@ export default function AudioSenderDevicePanel({
         </div>
 
         <div className="status-chip-row">
-          <span className={`status-chip ${micTestRunning ? "is-on" : "is-off"}`}>
+          <span
+            className={`status-chip ${micTestRunning ? "is-on" : "is-off"}`}
+          >
             Mic Test {micTestRunning ? "RUNNING" : "STOPPED"}
           </span>
           <span
@@ -437,4 +437,3 @@ export default function AudioSenderDevicePanel({
     </>
   );
 }
-
