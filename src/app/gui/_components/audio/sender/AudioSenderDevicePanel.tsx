@@ -185,7 +185,7 @@ export default function AudioSenderDevicePanel({
           </select>
         </label>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="action-button-wrap">
             <button
               onClick={onRefreshDevices}
@@ -312,7 +312,7 @@ export default function AudioSenderDevicePanel({
               : "現在: マイクテスト動作中です"}
         </p>
 
-        <div className="flex flex-wrap gap-3 items-center">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="action-button-wrap">
             <button
               onClick={onStartMicTest}

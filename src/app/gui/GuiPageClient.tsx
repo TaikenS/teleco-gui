@@ -129,13 +129,21 @@ export default function GuiPage() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center px-4 py-2">
-          <span className="font-semibold tracking-tight">Teleco Operator</span>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-600">
+              Teleco GUI
+            </p>
+            <span className="font-semibold tracking-tight">Teleco Operator</span>
+          </div>
+          <p className="hidden text-xs text-slate-500 md:block">
+            左: Device/Teleco設定 | 右: Video/Sender/Receiver
+          </p>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-4 p-4 lg:grid-cols-12">
-        <section className="space-y-4 lg:col-span-5">
+      <main className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-12 lg:items-start">
+        <section className="space-y-4 lg:col-span-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-104px)] lg:overflow-y-auto lg:pr-1">
           <Card title="Device Setting" subtitle="音声送信・マイク確認">
             <AudioSender panel="device" />
           </Card>
@@ -147,7 +155,7 @@ export default function GuiPage() {
           </Card>
         </section>
 
-        <section className="space-y-4 lg:col-span-7">
+        <section className="space-y-4 lg:col-span-8">
           <Card title="Video Receiver" subtitle={subtitleForMode(mode)}>
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-slate-500">映像ソース</span>
@@ -229,9 +237,6 @@ export default function GuiPage() {
               ))}
             </ul>
           </Card>
-        </section>
-
-        <section className="space-y-4 lg:col-span-12">
           <Card
             title="1タブ統合パネル"
             subtitle="/video と /audio をこのページ内に埋め込みます"

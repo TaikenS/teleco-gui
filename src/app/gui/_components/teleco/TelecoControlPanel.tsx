@@ -124,7 +124,7 @@ export default function TelecoControlPanel({
             : "次の操作: ① Command WS接続（/command）"}
         </p>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="action-button-wrap">
             <button
               onClick={onConnectCommand}
@@ -232,7 +232,7 @@ export default function TelecoControlPanel({
           下の2パネルはチェックで表示/非表示を切り替えできます。
         </p>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-2 sm:grid-cols-2">
           <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
             <input
               type="checkbox"
