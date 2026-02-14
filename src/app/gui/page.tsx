@@ -163,7 +163,13 @@ export default function GuiPage() {
       <main className="mx-auto grid max-w-6xl gap-4 p-4 lg:grid-cols-12">
         <section className="space-y-4 lg:col-span-5">
           <Card title="Device Setting" subtitle="音声送信・マイク確認">
-            <AudioSender />
+            <AudioSender panel="device" />
+          </Card>
+          <Card
+            title="Teleco Setting"
+            subtitle="teleco接続 / 口パク手動プリセット / 任意コマンド送信"
+          >
+            <AudioSender panel="teleco" />
           </Card>
         </section>
 
