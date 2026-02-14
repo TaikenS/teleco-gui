@@ -111,6 +111,56 @@ body {
   background: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
+.teleco-gui-shell {
+  position: relative;
+}
+
+.teleco-gui-shell::before {
+  content: "";
+  position: fixed;
+  inset: -20vh -20vw auto;
+  height: 48vh;
+  background:
+    radial-gradient(
+      42rem 26rem at 8% 16%,
+      color-mix(in srgb, var(--accent) 22%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      56rem 28rem at 88% 6%,
+      color-mix(in srgb, #14b8a6 18%, transparent),
+      transparent 74%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.teleco-gui-header {
+  border-color: color-mix(in srgb, var(--border) 92%, transparent) !important;
+  background: color-mix(in srgb, var(--surface) 84%, transparent) !important;
+  box-shadow: 0 8px 26px rgba(15, 23, 42, 0.08);
+}
+
+.teleco-card {
+  border-color: color-mix(in srgb, var(--border) 90%, transparent) !important;
+  background:
+    linear-gradient(
+      150deg,
+      color-mix(in srgb, var(--surface) 92%, white 8%),
+      color-mix(in srgb, var(--surface) 84%, #f8fafc 16%)
+    ) !important;
+  box-shadow: var(--shadow-md);
+}
+
+.teleco-badge {
+  border: 1px solid color-mix(in srgb, var(--border-strong) 78%, white 22%);
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+  color: color-mix(in srgb, var(--foreground) 80%, white 20%);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  font-weight: 700;
+}
+
 /* ---------- Layout polish ---------- */
 .min-h-screen.bg-slate-50 {
   background: transparent !important;
@@ -562,5 +612,11 @@ details {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .teleco-gui-header {
+    position: static !important;
   }
 }

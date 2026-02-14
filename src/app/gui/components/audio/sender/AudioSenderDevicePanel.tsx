@@ -124,17 +124,17 @@ export default function AudioSenderDevicePanel({
 
         <p className="action-state-hint" role="status" aria-live="polite">
           {!signalConnected
-            ? "次の操作: ① Signal WS接続"
+            ? "次の操作: ① Signal WS に接続"
             : !hasMic
               ? "次の操作: ② マイクを選択"
               : !callActive
-                ? "次の操作: ③ Receiver送信開始"
+                ? "次の操作: ③ Receiver への送信を開始"
                 : "現在: 送信中"}
         </p>
 
         <div className="grid gap-2 md:grid-cols-3">
           <label className="text-sm text-slate-700">
-            Signaling IP Address
+            シグナリング IPアドレス
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={signalingIpAddress}
@@ -144,7 +144,7 @@ export default function AudioSenderDevicePanel({
           </label>
 
           <label className="text-sm text-slate-700">
-            Signaling Port
+            シグナリング ポート
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={signalingPort}
@@ -154,7 +154,7 @@ export default function AudioSenderDevicePanel({
           </label>
 
           <label className="text-sm text-slate-700">
-            Room ID
+            ルームID
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={roomHint}
@@ -164,14 +164,14 @@ export default function AudioSenderDevicePanel({
           </label>
         </div>
         <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-          Signaling WS URL（確認用）: {signalingWsUrlForDisplay}
+          確認用 Signal WS URL: {signalingWsUrlForDisplay}
         </p>
         <p className="text-[11px] text-slate-500">
-          Base: {signalingBaseUrlForDisplay}
+          確認用ベースURL: {signalingBaseUrlForDisplay}
         </p>
 
         <label className="text-sm text-slate-700">
-          Microphone
+          マイク
           <select
             className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
             value={selectedMicId}
@@ -216,7 +216,7 @@ export default function AudioSenderDevicePanel({
                 : signalBusy
                   ? "Signal WS接続処理中です"
                   : !hasSignalingTarget
-                    ? "IP Address / Port / Room ID を入力してください"
+                    ? "IPアドレス / ポート / ルームIDを入力してください"
                     : "Signal WSへ接続できます"}
             </p>
           </div>
@@ -248,7 +248,7 @@ export default function AudioSenderDevicePanel({
             >
               {callStatus === "offer送信中"
                 ? "送信開始中..."
-                : "Receiver送信開始"}
+                : "Receiver送信を開始"}
             </button>
             <p
               className={`button-reason ${canStartSending ? "is-ready" : "is-disabled"}`}
@@ -259,7 +259,7 @@ export default function AudioSenderDevicePanel({
                   ? "先にマイクを選択してください"
                   : callActive
                     ? "すでに送信中です"
-                    : "Receiverへ送信を開始できます"}
+                    : "Receiverへ送信できます"}
             </p>
           </div>
 
@@ -281,8 +281,8 @@ export default function AudioSenderDevicePanel({
 
         <div className="text-xs text-slate-600 space-y-1">
           <div>Signal WS: {signalWsStatus}</div>
-          <div>Audio Send: {callStatus}</div>
-          <div>Last Vowel: {lastVowel}</div>
+          <div>音声送信: {callStatus}</div>
+          <div>最終母音: {lastVowel}</div>
         </div>
       </div>
 
@@ -308,7 +308,7 @@ export default function AudioSenderDevicePanel({
           {!hasMic
             ? "次の操作: マイクを選択してください"
             : !micTestRunning
-              ? "次の操作: Mic Test Start"
+              ? "次の操作: マイクテストを開始"
               : "現在: マイクテスト動作中です"}
         </p>
 
@@ -319,7 +319,7 @@ export default function AudioSenderDevicePanel({
               disabled={!canStartMicTest}
               className="action-button bg-blue-600 text-white text-sm"
             >
-              Mic Test Start
+              マイクテスト開始
             </button>
             <p
               className={`button-reason ${canStartMicTest ? "is-ready" : "is-disabled"}`}
@@ -338,7 +338,7 @@ export default function AudioSenderDevicePanel({
               disabled={!canStopMicTest}
               className="action-button bg-slate-100 text-sm"
             >
-              Mic Test Stop
+              マイクテスト停止
             </button>
             <p
               className={`button-reason ${canStopMicTest ? "is-ready" : "is-disabled"}`}
@@ -370,7 +370,7 @@ export default function AudioSenderDevicePanel({
 
         <div className="grid gap-2 md:grid-cols-3">
           <label className="text-xs text-slate-700">
-            Monitor Volume（ハウリング注意）
+            モニター音量（ハウリング注意）
             <input
               className="mt-1 w-full"
               type="range"
@@ -386,7 +386,7 @@ export default function AudioSenderDevicePanel({
           </label>
 
           <label className="text-xs text-slate-700">
-            Noise Floor（レベルメータ用）
+            ノイズしきい値（レベルメーター用）
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               type="number"
@@ -397,7 +397,7 @@ export default function AudioSenderDevicePanel({
           </label>
 
           <label className="text-xs text-slate-700">
-            Gain（レベルメータ用）
+            ゲイン（レベルメーター用）
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               type="number"
@@ -408,7 +408,7 @@ export default function AudioSenderDevicePanel({
           </label>
 
           <label className="text-xs text-slate-700">
-            Mouth Send FPS（送信頻度制限）
+            口パク送信FPS（送信頻度制限）
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               type="number"
@@ -419,7 +419,7 @@ export default function AudioSenderDevicePanel({
           </label>
 
           <div className="md:col-span-2">
-            <div className="text-xs text-slate-700">Mic Level</div>
+            <div className="text-xs text-slate-700">マイク入力レベル</div>
             <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
               <div
                 className="h-3 bg-emerald-500"
@@ -427,7 +427,7 @@ export default function AudioSenderDevicePanel({
               />
             </div>
             <div className="text-[11px] text-slate-500">
-              level={micLevel.toFixed(3)}
+              レベル: {micLevel.toFixed(3)}
             </div>
           </div>
         </div>

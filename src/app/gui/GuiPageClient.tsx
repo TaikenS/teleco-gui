@@ -91,7 +91,6 @@ export default function GuiPage() {
     });
   }, [videoSignalingIpAddress, videoSignalingPort]);
 
-  // 1タブ統合パネルの表示状態
   const [showVideoSenderPanel, setShowVideoSenderPanel] =
     usePersistentState<boolean>(EMBED_VIDEO_SENDER_KEY, false, {
       deserialize: parseBinaryFlag,
@@ -127,57 +126,65 @@ export default function GuiPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-10 border-b bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
+    <div className="teleco-gui-shell min-h-screen text-slate-900">
+      <header className="teleco-gui-header sticky top-0 z-20 border-b backdrop-blur">
+        <div className="mx-auto flex max-w-[1680px] flex-wrap items-center justify-between gap-3 px-4 py-3 md:px-6">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-600">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cyan-500">
               Teleco GUI
             </p>
-            <span className="font-semibold tracking-tight">
-              Teleco Operator
-            </span>
+            <h1 className="text-xl font-semibold tracking-tight text-slate-950">
+              Teleco Operator Console
+            </h1>
+            <p className="text-xs text-slate-500">
+              左: 音声・Teleco制御 / 右: 映像受信・統合プレビュー
+            </p>
           </div>
-          <p className="hidden text-xs text-slate-500 md:block">
-            左: Device/Teleco設定 | 右: Video/Sender/Receiver
-          </p>
+
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="teleco-badge">映像ソース: {modeLabel(mode)}</span>
+            <span className="teleco-badge">映像Room: {videoRoomId || "(未設定)"}</span>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1600px] gap-4 p-4 lg:h-[calc(100vh-84px)] lg:grid-cols-12 lg:overflow-hidden lg:items-start">
-        <section className="space-y-4 lg:col-span-4 lg:h-full lg:overflow-y-auto lg:pr-1">
-          <Card title="Device Setting" subtitle="音声送信・マイク確認">
+      <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-4 md:px-6 lg:grid-cols-12 lg:items-start lg:pb-6">
+        <section className="space-y-4 lg:col-span-4 lg:sticky lg:top-[92px] lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
+          <Card title="デバイス設定" subtitle="音声送信とマイク状態を確認します">
             <AudioSender panel="device" />
           </Card>
+
           <Card
-            title="Teleco Setting"
-            subtitle="teleco接続 / 口パク手動プリセット / 任意コマンド送信"
+            title="Teleco制御"
+            subtitle="Teleco接続、口パク手動プリセット、任意コマンド送信"
           >
             <AudioSender panel="teleco" />
           </Card>
         </section>
 
-        <section className="space-y-4 lg:col-span-8 lg:h-full lg:overflow-y-auto lg:pr-1">
-          <Card title="Video Receiver" subtitle={subtitleForMode(mode)}>
-            <div className="mb-3 flex items-center gap-2">
-              <span className="text-xs text-slate-500">映像ソース</span>
+        <section className="space-y-4 lg:col-span-8 lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
+          <Card title="映像受信" subtitle={subtitleForMode(mode)}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-slate-500">映像ソース</span>
               <select
-                className="rounded-xl border bg-white px-2 py-1 text-xs"
+                className="rounded-xl border bg-white px-3 py-1.5 text-xs"
                 value={mode}
                 onChange={(e) => setMode(e.target.value as VideoSourceMode)}
               >
-                <option value="webSender">WebRTC sender (/video)</option>
-                <option value="local">このPCのカメラ</option>
+                <option value="webSender">/video 送信映像（WebRTC）</option>
+                <option value="local">このPCのローカルカメラ</option>
               </select>
             </div>
+
             {mode === "local" && (
               <LocalCameraStream videoDeviceId={selectedVideoId} />
             )}
+
             {mode === "webSender" && (
               <div className="space-y-3">
                 <div className="grid gap-2 md:grid-cols-2">
                   <label className="text-sm text-slate-700">
-                    Video Room ID
+                    映像 Room ID
                     <input
                       className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                       value={videoRoomId}
@@ -187,7 +194,7 @@ export default function GuiPage() {
                   </label>
 
                   <label className="text-sm text-slate-700">
-                    Signaling IP Address
+                    シグナリング IPアドレス
                     <input
                       className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                       value={videoSignalingIpAddress}
@@ -198,8 +205,8 @@ export default function GuiPage() {
                     />
                   </label>
 
-                  <label className="text-sm text-slate-700">
-                    Signaling Port
+                  <label className="text-sm text-slate-700 md:col-span-2 lg:max-w-[280px]">
+                    シグナリング ポート
                     <input
                       className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                       value={videoSignalingPort}
@@ -210,13 +217,12 @@ export default function GuiPage() {
                 </div>
 
                 <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-                  Signaling WS URL（確認用）: {videoSignalingWsUrl}
+                  確認用WS URL: {videoSignalingWsUrl}
                 </p>
 
                 <p className="text-[11px] text-slate-500">
-                  1インスタンス運用向け:
-                  ここで受信先Signal/Roomを切り替えできます。Sender側のRoom
-                  IDと合わせてください。
+                  単一インスタンス運用向け: ここで受信先のSignal / Roomを切り替えできます。
+                  Sender側のRoom IDと一致させてください。
                 </p>
 
                 <WebRtcVideoReceiver
@@ -227,11 +233,11 @@ export default function GuiPage() {
             )}
           </Card>
 
-          <Card title="Logs" subtitle="GUI status">
+          <Card title="運用メモ" subtitle="GUIの動作ポイント">
             <ul className="space-y-2 text-sm">
               {[
-                "AudioSender は常時マウントされるため、映像ソース切替でWSは切断されません。",
-                "口パク送信は Command WS 接続時に有効です。",
+                "AudioSenderは常時マウントされるため、映像ソースを切り替えてもWSは切断されません。",
+                "口パク送信は Command WS 接続時のみ有効です。",
               ].map((line, idx) => (
                 <li key={idx} className="rounded-xl bg-slate-100 px-3 py-2">
                   {line}
@@ -239,13 +245,14 @@ export default function GuiPage() {
               ))}
             </ul>
           </Card>
+
           <Card
-            title="1タブ統合パネル"
+            title="統合プレビュー"
             subtitle="/video と /audio をこのページ内に埋め込みます"
           >
             <div className="mb-3">
               <div className="mb-2 text-xs text-slate-500">
-                表示パネルを切り替え
+                表示するパネルを選択
               </div>
               <div className="toggle-pill-group">
                 <button
@@ -280,7 +287,7 @@ export default function GuiPage() {
                       prefetch={false}
                       className="text-xs text-slate-600 hover:text-slate-900"
                     >
-                      別タブで開く
+                      新しいタブで開く
                     </Link>
                   </div>
 
@@ -305,7 +312,7 @@ export default function GuiPage() {
                       prefetch={false}
                       className="text-xs text-slate-600 hover:text-slate-900"
                     >
-                      別タブで開く
+                      新しいタブで開く
                     </Link>
                   </div>
 
@@ -321,7 +328,7 @@ export default function GuiPage() {
 
             {!showVideoSenderPanel && !showAudioReceiverPanel && (
               <p className="text-sm text-slate-500">
-                パネルはデフォルトで非表示です。上のトグルから表示できます。
+                パネルは初期状態で非表示です。上のトグルから表示してください。
               </p>
             )}
           </Card>
@@ -337,13 +344,13 @@ function Card(props: {
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border bg-white p-4 shadow-sm">
+    <section className="teleco-card rounded-2xl border bg-white p-4 shadow-sm md:p-5">
       <div className="mb-3">
-        <h2 className="text-lg font-semibold leading-none tracking-tight">
+        <h2 className="text-lg font-semibold leading-none tracking-tight text-slate-900">
           {props.title}
         </h2>
         {props.subtitle && (
-          <p className="mt-0.5 text-sm text-slate-500">{props.subtitle}</p>
+          <p className="mt-1 text-sm text-slate-500">{props.subtitle}</p>
         )}
       </div>
       {props.children}
@@ -354,8 +361,12 @@ function Card(props: {
 function subtitleForMode(mode: VideoSourceMode): string {
   switch (mode) {
     case "local":
-      return "このPCのカメラ映像 (getUserMedia)";
+      return "このPCのカメラ映像を表示します（getUserMedia）。";
     case "webSender":
-      return "別PCの /video からの映像(WebRTC+WS)";
+      return "別PCの /video から映像を受信します（WebRTC + WS）。";
   }
+}
+
+function modeLabel(mode: VideoSourceMode): string {
+  return mode === "local" ? "ローカルカメラ" : "WebRTC sender";
 }

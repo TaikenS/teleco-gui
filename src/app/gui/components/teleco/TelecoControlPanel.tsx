@@ -62,11 +62,11 @@ export default function TelecoControlPanel({
   return (
     <>
       <div className="rounded-xl border bg-white p-3 space-y-2">
-        <div className="text-sm font-semibold">teleco setting</div>
+        <div className="text-sm font-semibold">Teleco接続設定</div>
 
         <div className="grid gap-2 md:grid-cols-2">
           <label className="text-sm text-slate-700">
-            teleco IP Address
+            Teleco IPアドレス
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={telecoIpAddress}
@@ -76,7 +76,7 @@ export default function TelecoControlPanel({
           </label>
 
           <label className="text-sm text-slate-700">
-            teleco Port
+            Teleco ポート
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={telecoPort}
@@ -86,10 +86,10 @@ export default function TelecoControlPanel({
           </label>
         </div>
         <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-          teleco Debug URL（確認用）: {telecoDebugUrlForDisplay}
+          確認用デバッグURL: {telecoDebugUrlForDisplay}
         </p>
         <p className="text-[11px] text-slate-500">
-          Command WS URL（確認用）: {commandWsUrlForDisplay}
+          確認用 Command WS URL: {commandWsUrlForDisplay}
         </p>
 
         <button
@@ -102,7 +102,7 @@ export default function TelecoControlPanel({
           }
           className="rounded-xl bg-slate-100 px-3 py-2 text-sm hover:bg-slate-200"
         >
-          デバッグ開く（teleco）
+          Telecoデバッグ画面を開く
         </button>
 
         <div className="status-chip-row">
@@ -143,7 +143,7 @@ export default function TelecoControlPanel({
                 : commandBusy
                   ? "Command WS接続処理中です"
                   : !hasTelecoTarget
-                    ? "teleco の IP Address / Port を入力してください"
+                    ? "Teleco の IPアドレス / ポートを入力してください"
                     : "Command WSへ接続できます"}
             </p>
           </div>
@@ -224,7 +224,7 @@ export default function TelecoControlPanel({
         <div className="flex items-center justify-between gap-2">
           <div className="text-sm font-semibold">詳細パネル表示</div>
           <div className="text-[11px] text-slate-500">
-            表示/非表示を切り替え
+            表示を切り替え
           </div>
         </div>
 
@@ -294,7 +294,7 @@ export default function TelecoControlPanel({
 
           <div className="text-xs text-slate-600">
             move_multi でハンド等を試す場合はここから送ってください（口は
-            faceCommand で口パク）。
+            faceCommand を使用）。
           </div>
 
           <textarea
@@ -311,7 +311,7 @@ export default function TelecoControlPanel({
                 disabled={!commandConnected}
                 className="action-button bg-blue-600 text-white text-sm"
               >
-                Send Command
+                コマンド送信
               </button>
               <p
                 className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}
@@ -327,14 +327,14 @@ export default function TelecoControlPanel({
                 onClick={onClearCommandLog}
                 className="action-button bg-slate-100 text-sm"
               >
-                Clear Log
+                ログをクリア
               </button>
               <p className="button-reason is-ready">ログ表示をクリアします</p>
             </div>
           </div>
 
           <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
-            {commandLog || "(no logs)"}
+            {commandLog || "ログはまだありません"}
           </pre>
         </div>
       )}
