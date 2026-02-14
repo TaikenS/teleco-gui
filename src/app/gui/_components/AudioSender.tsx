@@ -875,97 +875,95 @@ export default function AudioSender({
   }, [isDevicePanel]);
 
   useEffect(() => {
-    if (isDevicePanel) {
-      const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomId);
-      if (savedRoomHint) setRoomHint(savedRoomHint);
+    if (!isDevicePanel) return;
 
-      const savedSignalIpAddress = window.localStorage.getItem(
-        STORAGE_KEYS.signalingIpAddress,
-      );
-      if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
+    const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomId);
+    if (savedRoomHint) setRoomHint(savedRoomHint);
 
-      const savedSignalPort = window.localStorage.getItem(
-        STORAGE_KEYS.signalingPort,
-      );
-      if (savedSignalPort) setSignalingPort(savedSignalPort);
+    const savedSignalIpAddress = window.localStorage.getItem(
+      STORAGE_KEYS.signalingIpAddress,
+    );
+    if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
 
-      const legacySignalUrl = window.localStorage.getItem(
-        STORAGE_KEYS.signalingWsUrlLegacy,
-      );
-      if (legacySignalUrl) {
-        const parsed = parseSignalingUrl(legacySignalUrl);
-        if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
-        if (parsed?.port) setSignalingPort(parsed.port);
-        if (parsed?.roomId) setRoomHint(parsed.roomId);
-      }
+    const savedSignalPort = window.localStorage.getItem(
+      STORAGE_KEYS.signalingPort,
+    );
+    if (savedSignalPort) setSignalingPort(savedSignalPort);
 
-      const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
-      if (savedMicId) setSelectedMicId(savedMicId);
+    const legacySignalUrl = window.localStorage.getItem(
+      STORAGE_KEYS.signalingWsUrlLegacy,
+    );
+    if (legacySignalUrl) {
+      const parsed = parseSignalingUrl(legacySignalUrl);
+      if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
+      if (parsed?.port) setSignalingPort(parsed.port);
+      if (parsed?.roomId) setRoomHint(parsed.roomId);
     }
 
-    if (isTelecoPanel) {
-      const savedTelecoIpAddress = window.localStorage.getItem(
-        STORAGE_KEYS.telecoIpAddress,
-      );
-      if (savedTelecoIpAddress) setTelecoIpAddress(savedTelecoIpAddress);
-
-      const savedTelecoPort = window.localStorage.getItem(
-        STORAGE_KEYS.telecoPort,
-      );
-      if (savedTelecoPort) setTelecoPort(savedTelecoPort);
-
-      const legacyCommandWsUrl = window.localStorage.getItem(
-        STORAGE_KEYS.commandWsUrlLegacy,
-      );
-      if (legacyCommandWsUrl) {
-        const parsed = parseHostPortFromUrl(legacyCommandWsUrl);
-        if (parsed?.ipAddress) setTelecoIpAddress(parsed.ipAddress);
-        if (parsed?.port) setTelecoPort(parsed.port);
-      }
-
-      const legacyDebugUrl = window.localStorage.getItem(
-        STORAGE_KEYS.telecoDebugUrlLegacy,
-      );
-      if (legacyDebugUrl) {
-        const parsed = parseHostPortFromUrl(legacyDebugUrl);
-        if (parsed?.ipAddress) setTelecoIpAddress(parsed.ipAddress);
-        if (parsed?.port) setTelecoPort(parsed.port);
-      }
-
-      const savedShowMouthPresetPanel = window.localStorage.getItem(
-        STORAGE_KEYS.showMouthPresetPanel,
-      );
-      if (savedShowMouthPresetPanel != null)
-        setShowMouthPresetPanel(savedShowMouthPresetPanel === "1");
-
-      const savedShowRawCommandPanel = window.localStorage.getItem(
-        STORAGE_KEYS.showRawCommandPanel,
-      );
-      if (savedShowRawCommandPanel != null)
-        setShowRawCommandPanel(savedShowRawCommandPanel === "1");
-    }
+    const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
+    if (savedMicId) setSelectedMicId(savedMicId);
 
     shouldAutoSignalRef.current =
-      isDevicePanel &&
       window.localStorage.getItem(STORAGE_KEYS.signalAutoConnect) === "1";
-    shouldAutoCommandRef.current =
-      isTelecoPanel &&
-      window.localStorage.getItem(STORAGE_KEYS.commandAutoConnect) === "1";
     shouldAutoSendingRef.current =
-      isDevicePanel &&
       window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
 
     if (shouldAutoSignalRef.current) {
       manualSignalDisconnectRef.current = false;
       window.setTimeout(() => connectSignalWs(false), 0);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDevicePanel]);
 
+  useEffect(() => {
+    if (!isTelecoPanel) return;
+
+    const savedTelecoIpAddress = window.localStorage.getItem(
+      STORAGE_KEYS.telecoIpAddress,
+    );
+    if (savedTelecoIpAddress) setTelecoIpAddress(savedTelecoIpAddress);
+
+    const savedTelecoPort = window.localStorage.getItem(STORAGE_KEYS.telecoPort);
+    if (savedTelecoPort) setTelecoPort(savedTelecoPort);
+
+    const legacyCommandWsUrl = window.localStorage.getItem(
+      STORAGE_KEYS.commandWsUrlLegacy,
+    );
+    if (legacyCommandWsUrl) {
+      const parsed = parseHostPortFromUrl(legacyCommandWsUrl);
+      if (parsed?.ipAddress) setTelecoIpAddress(parsed.ipAddress);
+      if (parsed?.port) setTelecoPort(parsed.port);
+    }
+
+    const legacyDebugUrl = window.localStorage.getItem(
+      STORAGE_KEYS.telecoDebugUrlLegacy,
+    );
+    if (legacyDebugUrl) {
+      const parsed = parseHostPortFromUrl(legacyDebugUrl);
+      if (parsed?.ipAddress) setTelecoIpAddress(parsed.ipAddress);
+      if (parsed?.port) setTelecoPort(parsed.port);
+    }
+
+    const savedShowMouthPresetPanel = window.localStorage.getItem(
+      STORAGE_KEYS.showMouthPresetPanel,
+    );
+    if (savedShowMouthPresetPanel != null)
+      setShowMouthPresetPanel(savedShowMouthPresetPanel === "1");
+
+    const savedShowRawCommandPanel = window.localStorage.getItem(
+      STORAGE_KEYS.showRawCommandPanel,
+    );
+    if (savedShowRawCommandPanel != null)
+      setShowRawCommandPanel(savedShowRawCommandPanel === "1");
+
+    shouldAutoCommandRef.current =
+      window.localStorage.getItem(STORAGE_KEYS.commandAutoConnect) === "1";
     if (shouldAutoCommandRef.current) {
       manualCommandDisconnectRef.current = false;
       window.setTimeout(() => connectCommandWs(false), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDevicePanel, isTelecoPanel]);
+  }, [isTelecoPanel]);
 
   useEffect(() => {
     if (!isDevicePanel) return;
@@ -1394,12 +1392,9 @@ export default function AudioSender({
   }, [isTelecoPanel]);
 
   useEffect(() => {
+    if (!isDevicePanel) return;
     const recoverIfNeeded = () => {
-      if (
-        isDevicePanel &&
-        !manualSignalDisconnectRef.current &&
-        shouldAutoSignalRef.current
-      ) {
+      if (!manualSignalDisconnectRef.current && shouldAutoSignalRef.current) {
         const ws = signalWsRef.current;
         if (!ws || ws.readyState === WebSocket.CLOSED) {
           connectSignalWs(true);
@@ -1407,18 +1402,6 @@ export default function AudioSender({
       }
 
       if (
-        isTelecoPanel &&
-        !manualCommandDisconnectRef.current &&
-        shouldAutoCommandRef.current
-      ) {
-        const ws = commandWsRef.current;
-        if (!ws || ws.readyState === WebSocket.CLOSED) {
-          connectCommandWs(true);
-        }
-      }
-
-      if (
-        isDevicePanel &&
         shouldAutoSendingRef.current &&
         !callIdRef.current &&
         signalWsRef.current?.readyState === WebSocket.OPEN
@@ -1443,34 +1426,62 @@ export default function AudioSender({
       document.removeEventListener("visibilitychange", onVisible);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDevicePanel, isTelecoPanel]);
+  }, [isDevicePanel]);
 
-  // cleanup
   useEffect(() => {
-    return () => {
-      // 念のため共有Streamも止める
-      usingForWebrtcRef.current = false;
-      usingForMicTestRef.current = false;
-      if (isDevicePanel) {
-        stopSharedStreamIfUnused();
-        stopMicTest();
-        stopSending();
-      }
-
-      manualSignalDisconnectRef.current = true;
-      manualCommandDisconnectRef.current = true;
-      if (isDevicePanel) {
-        clearSignalReconnectTimer();
-        clearSignalKeepalive();
-        disconnectSignalWs();
-      }
-      if (isTelecoPanel) {
-        clearCommandReconnectTimer();
-        disconnectCommandWs();
+    if (!isTelecoPanel) return;
+    const recoverIfNeeded = () => {
+      if (!manualCommandDisconnectRef.current && shouldAutoCommandRef.current) {
+        const ws = commandWsRef.current;
+        if (!ws || ws.readyState === WebSocket.CLOSED) {
+          connectCommandWs(true);
+        }
       }
     };
+
+    const onOnline = () => recoverIfNeeded();
+    const onPageShow = () => recoverIfNeeded();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") recoverIfNeeded();
+    };
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDevicePanel, isTelecoPanel]);
+  }, [isTelecoPanel]);
+
+  useEffect(() => {
+    if (!isDevicePanel) return;
+    return () => {
+      usingForWebrtcRef.current = false;
+      usingForMicTestRef.current = false;
+      stopSharedStreamIfUnused();
+      stopMicTest();
+      stopSending();
+      manualSignalDisconnectRef.current = true;
+      clearSignalReconnectTimer();
+      clearSignalKeepalive();
+      disconnectSignalWs();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDevicePanel]);
+
+  useEffect(() => {
+    if (!isTelecoPanel) return;
+    return () => {
+      manualCommandDisconnectRef.current = true;
+      clearCommandReconnectTimer();
+      disconnectCommandWs();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTelecoPanel]);
 
   const signalConnected = signalWsStatus === "接続済み";
   const signalBusy = signalWsStatus === "接続中";
