@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,
   buildSignalingUrl,
@@ -49,6 +50,13 @@ export default function SenderPage() {
   const [signalingPort, setSignalingPort] = useState<string>(
     getDefaultSignalingPort({ envKeys: VIDEO_SEND_SIGNALING_PORT_ENV_KEYS }),
   );
+
+  useEffect(() => {
+    scheduleEnvLocalSync({
+      NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS: signalingIpAddress,
+      NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT: signalingPort,
+    });
+  }, [signalingIpAddress, signalingPort]);
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);

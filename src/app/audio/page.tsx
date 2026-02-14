@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,
   buildSignalingUrl,
@@ -45,6 +46,13 @@ export default function AudioReceiverPage() {
   const [signalingPort, setSignalingPort] = useState<string>(
     getDefaultSignalingPort({ envKeys: AUDIO_SIGNALING_PORT_ENV_KEYS }),
   );
+
+  useEffect(() => {
+    scheduleEnvLocalSync({
+      NEXT_PUBLIC_AUDIO_SIGNALING_IP_ADDRESS: signalingIpAddress,
+      NEXT_PUBLIC_AUDIO_SIGNALING_PORT: signalingPort,
+    });
+  }, [signalingIpAddress, signalingPort]);
 
   const [connected, setConnected] = useState<boolean>(false);
   const [wsBusy, setWsBusy] = useState<boolean>(false);

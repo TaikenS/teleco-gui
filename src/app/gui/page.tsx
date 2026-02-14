@@ -5,6 +5,7 @@ import Link from "next/link";
 import AudioSender from "@/app/gui/_components/AudioSender";
 import RemoteVideo from "@/app/gui/_components/RemoteVideo";
 import VideoPreview from "@/app/gui/_components/VideoPreview";
+import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingUrl,
   getDefaultSignalingIpAddress,
@@ -71,6 +72,13 @@ export default function GuiPage() {
       VIDEO_SIGNAL_PORT_STORAGE_KEY,
       DEFAULT_SIGNALING_PORT,
     );
+
+  React.useEffect(() => {
+    scheduleEnvLocalSync({
+      NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS: videoSignalingIpAddress,
+      NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT: videoSignalingPort,
+    });
+  }, [videoSignalingIpAddress, videoSignalingPort]);
 
   // 1タブ統合パネルの表示状態
   const [showVideoSenderPanel, setShowVideoSenderPanel] =

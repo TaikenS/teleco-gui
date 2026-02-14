@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,
   buildSignalingUrl,
@@ -49,6 +50,13 @@ export default function AudioSenderPage() {
   const [signalingPort, setSignalingPort] = useState<string>(
     getDefaultSignalingPort({ envKeys: AUDIO_SEND_SIGNALING_PORT_ENV_KEYS }),
   );
+
+  useEffect(() => {
+    scheduleEnvLocalSync({
+      NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS: signalingIpAddress,
+      NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT: signalingPort,
+    });
+  }, [signalingIpAddress, signalingPort]);
   const [connected, setConnected] = useState(false);
   const [micReady, setMicReady] = useState(false);
   const [sendEnabled, setSendEnabled] = useState(false);

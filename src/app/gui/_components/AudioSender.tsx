@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,
   buildSignalingUrl,
@@ -464,6 +465,15 @@ export default function AudioSender() {
     DEFAULT_TELECO_IP_ADDRESS,
   );
   const [telecoPort, setTelecoPort] = useState<string>(DEFAULT_TELECO_PORT);
+
+  useEffect(() => {
+    scheduleEnvLocalSync({
+      NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS: signalingIpAddress,
+      NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT: signalingPort,
+      NEXT_PUBLIC_TELECO_IP_ADDRESS: telecoIpAddress,
+      NEXT_PUBLIC_TELECO_PORT: telecoPort,
+    });
+  }, [signalingIpAddress, signalingPort, telecoIpAddress, telecoPort]);
 
   const [mics, setMics] = useState<MicOption[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string>("");
