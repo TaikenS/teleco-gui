@@ -36,8 +36,20 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
-const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress();
-const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort();
+const AUDIO_SEND_SIGNALING_IP_ENV_KEYS = [
+  "NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS",
+  "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_IP_ADDRESS",
+];
+const AUDIO_SEND_SIGNALING_PORT_ENV_KEYS = [
+  "NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT",
+  "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_PORT",
+];
+const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress({
+  envKeys: AUDIO_SEND_SIGNALING_IP_ENV_KEYS,
+});
+const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort({
+  envKeys: AUDIO_SEND_SIGNALING_PORT_ENV_KEYS,
+});
 const DEFAULT_TELECO_IP_ADDRESS =
   process.env.NEXT_PUBLIC_TELECO_IP_ADDRESS || "localhost";
 const DEFAULT_TELECO_PORT = process.env.NEXT_PUBLIC_TELECO_PORT || "11920";
@@ -451,9 +463,7 @@ export default function AudioSender() {
   const [telecoIpAddress, setTelecoIpAddress] = useState<string>(
     DEFAULT_TELECO_IP_ADDRESS,
   );
-  const [telecoPort, setTelecoPort] = useState<string>(
-    DEFAULT_TELECO_PORT,
-  );
+  const [telecoPort, setTelecoPort] = useState<string>(DEFAULT_TELECO_PORT);
 
   const [mics, setMics] = useState<MicOption[]>([]);
   const [selectedMicId, setSelectedMicId] = useState<string>("");
@@ -861,7 +871,9 @@ export default function AudioSender() {
     );
     if (savedTelecoIpAddress) setTelecoIpAddress(savedTelecoIpAddress);
 
-    const savedTelecoPort = window.localStorage.getItem(STORAGE_KEYS.telecoPort);
+    const savedTelecoPort = window.localStorage.getItem(
+      STORAGE_KEYS.telecoPort,
+    );
     if (savedTelecoPort) setTelecoPort(savedTelecoPort);
 
     const legacyCommandWsUrl = window.localStorage.getItem(
@@ -1822,7 +1834,11 @@ export default function AudioSender() {
 
         <button
           onClick={() =>
-            window.open(telecoDebugUrlForDisplay, "_blank", "noopener,noreferrer")
+            window.open(
+              telecoDebugUrlForDisplay,
+              "_blank",
+              "noopener,noreferrer",
+            )
           }
           className="rounded-xl bg-slate-100 px-3 py-2 text-sm hover:bg-slate-200"
         >

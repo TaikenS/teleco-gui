@@ -30,6 +30,8 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+const AUDIO_SIGNALING_IP_ENV_KEYS = ["NEXT_PUBLIC_AUDIO_SIGNALING_IP_ADDRESS"];
+const AUDIO_SIGNALING_PORT_ENV_KEYS = ["NEXT_PUBLIC_AUDIO_SIGNALING_PORT"];
 
 function nowTime() {
   return new Date().toLocaleTimeString();
@@ -38,10 +40,10 @@ function nowTime() {
 export default function AudioReceiverPage() {
   const [roomId, setRoomId] = useState<string>(DEFAULT_AUDIO_ROOM);
   const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
-    getDefaultSignalingIpAddress(),
+    getDefaultSignalingIpAddress({ envKeys: AUDIO_SIGNALING_IP_ENV_KEYS }),
   );
   const [signalingPort, setSignalingPort] = useState<string>(
-    getDefaultSignalingPort(),
+    getDefaultSignalingPort({ envKeys: AUDIO_SIGNALING_PORT_ENV_KEYS }),
   );
 
   const [connected, setConnected] = useState<boolean>(false);

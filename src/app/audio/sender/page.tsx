@@ -32,14 +32,22 @@ const STORAGE_KEYS = {
 const WS_KEEPALIVE_MS = 10_000;
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+const AUDIO_SEND_SIGNALING_IP_ENV_KEYS = [
+  "NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS",
+  "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_IP_ADDRESS",
+];
+const AUDIO_SEND_SIGNALING_PORT_ENV_KEYS = [
+  "NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT",
+  "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_PORT",
+];
 
 export default function AudioSenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_AUDIO_ROOM);
   const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
-    getDefaultSignalingIpAddress(),
+    getDefaultSignalingIpAddress({ envKeys: AUDIO_SEND_SIGNALING_IP_ENV_KEYS }),
   );
   const [signalingPort, setSignalingPort] = useState<string>(
-    getDefaultSignalingPort(),
+    getDefaultSignalingPort({ envKeys: AUDIO_SEND_SIGNALING_PORT_ENV_KEYS }),
   );
   const [connected, setConnected] = useState(false);
   const [micReady, setMicReady] = useState(false);

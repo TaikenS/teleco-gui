@@ -23,8 +23,20 @@ const EMBED_AUDIO_RECEIVER_KEY = "teleco.gui.embed.audioReceiver";
 
 const DEFAULT_VIDEO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
-const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress();
-const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort();
+const VIDEO_SEND_SIGNALING_IP_ENV_KEYS = [
+  "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS",
+  "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_IP_ADDRESS",
+];
+const VIDEO_SEND_SIGNALING_PORT_ENV_KEYS = [
+  "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT",
+  "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_PORT",
+];
+const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress({
+  envKeys: VIDEO_SEND_SIGNALING_IP_ENV_KEYS,
+});
+const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort({
+  envKeys: VIDEO_SEND_SIGNALING_PORT_ENV_KEYS,
+});
 
 function parseVideoMode(raw: string): VideoSourceMode {
   return raw === "webSender" ? "webSender" : "local";
@@ -142,10 +154,7 @@ export default function GuiPage() {
 
       <main className="mx-auto grid max-w-6xl gap-4 p-4 lg:grid-cols-12">
         <section className="space-y-4 lg:col-span-5">
-          <Card
-            title="Device Setting"
-            subtitle="音声送信・マイク確認"
-          >
+          <Card title="Device Setting" subtitle="音声送信・マイク確認">
             <AudioSender />
           </Card>
         </section>

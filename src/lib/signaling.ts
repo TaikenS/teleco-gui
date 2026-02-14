@@ -4,6 +4,18 @@ export type SignalingTarget = {
   roomId?: string;
 };
 
+type SignalingDefaultOptions = {
+  envKeys?: string[];
+};
+
+function firstEnvValue(keys: string[]): string | null {
+  for (const key of keys) {
+    const value = process.env[key];
+    if (value?.trim()) return value.trim();
+  }
+  return null;
+}
+
 function normalizeSignalingUrl(raw: string): string {
   try {
     const u = new URL(raw);
@@ -29,9 +41,12 @@ function appendRoomIfNeeded(url: string, roomId?: string): string {
   }
 }
 
-function resolveDefaultIpAddress(): string {
-  const envIpAddress = process.env.NEXT_PUBLIC_SIGNALING_IP_ADDRESS;
-  if (envIpAddress?.trim()) return envIpAddress.trim();
+function resolveDefaultIpAddress(options?: SignalingDefaultOptions): string {
+  const envIpAddress = firstEnvValue([
+    ...(options?.envKeys || []),
+    "NEXT_PUBLIC_SIGNALING_IP_ADDRESS",
+  ]);
+  if (envIpAddress) return envIpAddress;
 
   if (typeof window !== "undefined") {
     return window.location.hostname;
@@ -40,31 +55,38 @@ function resolveDefaultIpAddress(): string {
   return "localhost";
 }
 
-function resolveDefaultPort(): string {
-  const explicitPort = process.env.NEXT_PUBLIC_SIGNALING_PORT;
-  if (explicitPort?.trim()) return explicitPort.trim();
+function resolveDefaultPort(options?: SignalingDefaultOptions): string {
+  const explicitPort = firstEnvValue([
+    ...(options?.envKeys || []),
+    "NEXT_PUBLIC_SIGNALING_PORT",
+  ]);
+  if (explicitPort) return explicitPort;
 
   const serverPort = process.env.SIGNAL_PORT || process.env.PORT || "3000";
   return String(serverPort);
 }
 
-function resolveDefaultOrigin(): string {
-  const port = resolveDefaultPort();
+function resolveDefaultOrigin(options?: SignalingDefaultOptions): string {
+  const port = resolveDefaultPort(options);
 
   if (typeof window !== "undefined") {
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    return `${proto}://${resolveDefaultIpAddress()}:${port}`;
+    return `${proto}://${resolveDefaultIpAddress(options)}:${port}`;
   }
 
-  return `ws://${resolveDefaultIpAddress()}:${port}`;
+  return `ws://${resolveDefaultIpAddress(options)}:${port}`;
 }
 
-export function getDefaultSignalingIpAddress(): string {
-  return resolveDefaultIpAddress();
+export function getDefaultSignalingIpAddress(
+  options?: SignalingDefaultOptions,
+): string {
+  return resolveDefaultIpAddress(options);
 }
 
-export function getDefaultSignalingPort(): string {
-  return resolveDefaultPort();
+export function getDefaultSignalingPort(
+  options?: SignalingDefaultOptions,
+): string {
+  return resolveDefaultPort(options);
 }
 
 function normalizePort(rawPort: string): string {
