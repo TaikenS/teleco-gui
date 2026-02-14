@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getSignalingUrl } from "@/lib/signaling";
+import {
+  buildSignalingBaseUrl,
+  buildSignalingUrl,
+  getDefaultSignalingIpAddress,
+  getDefaultSignalingPort,
+  parseSignalingUrl,
+} from "@/lib/signaling";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
@@ -12,8 +18,10 @@ type TelecoArrowDirection = "left" | "right";
 const TELECO_ARROW_EVENT = "teleco:arrow";
 
 const STORAGE_KEYS = {
-  roomHint: "teleco.gui.audio.roomHint",
-  signalWsUrl: "teleco.gui.audio.signalWsUrl",
+  roomId: "teleco.gui.audio.roomId",
+  signalingIpAddress: "teleco.gui.audio.signalingIpAddress",
+  signalingPort: "teleco.gui.audio.signalingPort",
+  signalingWsUrlLegacy: "teleco.gui.audio.signalWsUrl",
   commandWsUrl: "teleco.gui.audio.commandWsUrl",
   telecoDebugUrl: "teleco.gui.audio.telecoDebugUrl",
   selectedMicId: "teleco.gui.audio.selectedMicId",
@@ -27,6 +35,8 @@ const STORAGE_KEYS = {
 
 const DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress();
+const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort();
 const DEFAULT_TELECO_COMMAND_WS_URL =
   process.env.NEXT_PUBLIC_TELECO_COMMAND_WS_URL ||
   "ws://localhost:11920/command";
@@ -376,46 +386,6 @@ function getVowelLabel(v: number) {
 }
 
 /**
- * =================== URL補正 ===================
- * - server.mjs は /ws で upgrade を受ける
- * - ws://host:port/?room=xx のように /ws が抜けても補正する
- */
-function normalizeSignalingWsUrl(input: string, fallbackRoom: string) {
-  let s = input.trim();
-  if (!s) return s;
-
-  // http(s) を ws(s) に寄せる（貼り付け事故対策）
-  if (s.startsWith("http://")) s = "ws://" + s.slice("http://".length);
-  if (s.startsWith("https://")) s = "wss://" + s.slice("https://".length);
-
-  // ws(s) でなければそのまま（UIでエラー表示する）
-  if (!s.startsWith("ws://") && !s.startsWith("wss://")) return s;
-
-  try {
-    const u = new URL(s);
-
-    // /ws が無ければ /ws を付ける
-    if (u.pathname === "/" || u.pathname === "") {
-      // ユーザが ?room=... だけ付けてるケースを救済
-      u.pathname = "/ws";
-    } else if (!u.pathname.startsWith("/ws")) {
-      // /signal とか入れてしまった場合は、明示的に /ws に寄せる
-      // （必要ならここは「そのまま」にしてもいいが、今回の事故はここで救える）
-      u.pathname = "/ws";
-    }
-
-    // room は常に roomHint 側を優先（UIとズレないようにする）
-    if (fallbackRoom) {
-      u.searchParams.set("room", fallbackRoom);
-    }
-
-    return u.toString();
-  } catch {
-    return s;
-  }
-}
-
-/**
  * =================== コンポーネント ===================
  */
 export default function AudioSender() {
@@ -447,9 +417,11 @@ export default function AudioSender() {
 
   // UI state
   const [roomHint, setRoomHint] = useState<string>(DEFAULT_AUDIO_ROOM);
-
-  const [signalWsUrl, setSignalWsUrl] = useState<string>(() =>
-    getSignalingUrl(DEFAULT_AUDIO_ROOM),
+  const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
+    DEFAULT_SIGNALING_IP_ADDRESS,
+  );
+  const [signalingPort, setSignalingPort] = useState<string>(
+    DEFAULT_SIGNALING_PORT,
   );
 
   const [commandWsUrl, setCommandWsUrl] = useState<string>(
@@ -838,13 +810,28 @@ export default function AudioSender() {
   }, []);
 
   useEffect(() => {
-    const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomHint);
+    const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomId);
     if (savedRoomHint) setRoomHint(savedRoomHint);
 
-    const savedSignalWsUrl = window.localStorage.getItem(
-      STORAGE_KEYS.signalWsUrl,
+    const savedSignalIpAddress = window.localStorage.getItem(
+      STORAGE_KEYS.signalingIpAddress,
     );
-    if (savedSignalWsUrl) setSignalWsUrl(savedSignalWsUrl);
+    if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
+
+    const savedSignalPort = window.localStorage.getItem(
+      STORAGE_KEYS.signalingPort,
+    );
+    if (savedSignalPort) setSignalingPort(savedSignalPort);
+
+    const legacySignalUrl = window.localStorage.getItem(
+      STORAGE_KEYS.signalingWsUrlLegacy,
+    );
+    if (legacySignalUrl) {
+      const parsed = parseSignalingUrl(legacySignalUrl);
+      if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
+      if (parsed?.port) setSignalingPort(parsed.port);
+      if (parsed?.roomId) setRoomHint(parsed.roomId);
+    }
 
     const savedCommandWsUrl = window.localStorage.getItem(
       STORAGE_KEYS.commandWsUrl,
@@ -897,12 +884,19 @@ export default function AudioSender() {
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.roomHint, roomHint);
+    window.localStorage.setItem(STORAGE_KEYS.roomId, roomHint);
   }, [roomHint]);
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEYS.signalWsUrl, signalWsUrl);
-  }, [signalWsUrl]);
+    window.localStorage.setItem(
+      STORAGE_KEYS.signalingIpAddress,
+      signalingIpAddress,
+    );
+  }, [signalingIpAddress]);
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEYS.signalingPort, signalingPort);
+  }, [signalingPort]);
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.commandWsUrl, commandWsUrl);
@@ -1002,24 +996,23 @@ export default function AudioSender() {
     clearSignalReconnectTimer();
     setSignalWsStatus("接続中");
 
-    const normalized = normalizeSignalingWsUrl(signalWsUrl, roomHint);
-    setSignalWsUrl(normalized);
+    if (
+      !signalingIpAddress.trim() ||
+      !signalingPort.trim() ||
+      !roomHint.trim()
+    ) {
+      setSignalWsStatus("エラー");
+      appendError(
+        "Signaling の IP Address / Port / Room ID を入力してください。",
+      );
+      return;
+    }
 
-    if (!normalized.startsWith("ws://") && !normalized.startsWith("wss://")) {
-      setSignalWsStatus("エラー");
-      appendError(
-        "Signal WS URL は ws:// または wss:// で始まる必要があります。",
-      );
-      return;
-    }
-    if (!normalized.includes("/ws")) {
-      // normalizeで直るはずだが念のため
-      setSignalWsStatus("エラー");
-      appendError(
-        "Signal WS は /ws に接続してください（例: ws://HOST:PORT/ws?room=audio1）。",
-      );
-      return;
-    }
+    const normalized = buildSignalingUrl({
+      ipAddress: signalingIpAddress,
+      port: signalingPort,
+      roomId: roomHint,
+    });
 
     try {
       const ws = new WebSocket(normalized);
@@ -1057,7 +1050,7 @@ export default function AudioSender() {
         setSignalWsStatus("エラー");
         appendError(
           "Signal WebSocket 接続でエラーが発生しました。URL/ポート/PC(IP)を確認してください。\n" +
-            "※ 統合シグナリングの場合は /ws?room=... が必須です（/ が抜けると Upgrade Required になります）。",
+            `接続先: ${normalized}`,
         );
       };
 
@@ -1390,6 +1383,20 @@ export default function AudioSender() {
   const canRunMouthTest = commandConnected;
   const canStartMicTest = !micTestRunning && hasMic;
   const canStopMicTest = micTestRunning;
+  const signalingWsUrlForDisplay = buildSignalingUrl({
+    ipAddress: signalingIpAddress,
+    port: signalingPort,
+    roomId: roomHint,
+  });
+  const signalingBaseUrlForDisplay = buildSignalingBaseUrl({
+    ipAddress: signalingIpAddress,
+    port: signalingPort,
+  });
+  const hasSignalingTarget =
+    signalingIpAddress.trim().length > 0 &&
+    signalingPort.trim().length > 0 &&
+    roomHint.trim().length > 0;
+  const canConnectSignalNow = canConnectSignal && hasSignalingTarget;
 
   return (
     <div className="space-y-4">
@@ -1458,19 +1465,29 @@ export default function AudioSender() {
                   : "現在: 送信中（口パク・矢印操作も利用可能）"}
         </p>
 
-        <label className="text-sm text-slate-700">
-          Signal WS（統合シグナリング：必ず /ws）
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-            value={signalWsUrl}
-            onChange={(e) => setSignalWsUrl(e.target.value)}
-            placeholder="ws://<host>:<port>/ws?room=audio1"
-          />
-        </label>
-
-        <div className="grid gap-2 md:grid-cols-1">
+        <div className="grid gap-2 md:grid-cols-3">
           <label className="text-sm text-slate-700">
-            Room（見やすさ用メモ）
+            Signaling IP Address
+            <input
+              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+              value={signalingIpAddress}
+              onChange={(e) => setSignalingIpAddress(e.target.value)}
+              placeholder="192.168.1.12"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            Signaling Port
+            <input
+              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+              value={signalingPort}
+              onChange={(e) => setSignalingPort(e.target.value)}
+              placeholder="3000"
+            />
+          </label>
+
+          <label className="text-sm text-slate-700">
+            Room ID
             <input
               className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
               value={roomHint}
@@ -1479,6 +1496,12 @@ export default function AudioSender() {
             />
           </label>
         </div>
+        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+          Signaling WS URL（確認用）: {signalingWsUrlForDisplay}
+        </p>
+        <p className="text-[11px] text-slate-500">
+          Base: {signalingBaseUrlForDisplay}
+        </p>
 
         <label className="text-sm text-slate-700">
           Microphone
@@ -1519,7 +1542,7 @@ export default function AudioSender() {
                 );
                 connectSignalWs();
               }}
-              disabled={!canConnectSignal}
+              disabled={!canConnectSignalNow}
               className="action-button bg-slate-900 text-white text-sm"
               data-busy={signalBusy ? "1" : "0"}
               aria-busy={signalBusy}
@@ -1527,13 +1550,15 @@ export default function AudioSender() {
               {signalBusy ? "Signal 接続中..." : "Signal WS接続"}
             </button>
             <p
-              className={`button-reason ${canConnectSignal ? "is-ready" : "is-disabled"}`}
+              className={`button-reason ${canConnectSignalNow ? "is-ready" : "is-disabled"}`}
             >
               {signalConnected
                 ? "Signal WSはすでに接続中です"
                 : signalBusy
                   ? "Signal WS接続処理中です"
-                  : "Signal WSへ接続できます"}
+                  : !hasSignalingTarget
+                    ? "IP Address / Port / Room ID を入力してください"
+                    : "Signal WSへ接続できます"}
             </p>
           </div>
 
