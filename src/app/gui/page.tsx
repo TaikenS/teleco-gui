@@ -146,16 +146,6 @@ export default function GuiPage() {
             >
               Home
             </Link>
-
-            <span className="ml-2 text-xs text-slate-500">映像ソース</span>
-            <select
-              className="rounded-xl border bg-white px-2 py-1 text-xs"
-              value={mode}
-              onChange={(e) => setMode(e.target.value as VideoSourceMode)}
-            >
-              <option value="webSender">WebRTC sender (/video)</option>
-              <option value="local">このPCのカメラ</option>
-            </select>
           </nav>
         </div>
       </header>
@@ -175,6 +165,17 @@ export default function GuiPage() {
 
         <section className="space-y-4 lg:col-span-7">
           <Card title="Video Receiver" subtitle={subtitleForMode(mode)}>
+            <div className="mb-3 flex items-center gap-2">
+              <span className="text-xs text-slate-500">映像ソース</span>
+              <select
+                className="rounded-xl border bg-white px-2 py-1 text-xs"
+                value={mode}
+                onChange={(e) => setMode(e.target.value as VideoSourceMode)}
+              >
+                <option value="webSender">WebRTC sender (/video)</option>
+                <option value="local">このPCのカメラ</option>
+              </select>
+            </div>
             {mode === "local" && (
               <LocalCameraStream videoDeviceId={selectedVideoId} />
             )}
