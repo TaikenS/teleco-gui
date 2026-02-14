@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { clamp01 } from "@/app/gui/_components/audio/sender/controller/helpers";
-import { VowelEstimator } from "@/app/gui/_components/audio/sender/vowelEstimator";
+import { clamp01 } from "@/app/gui/components/audio/sender/controller/helpers";
+import { VowelEstimator } from "@/app/gui/components/audio/sender/vowelEstimator";
 import type {
   MouthMode,
   Vowel,
-} from "@/app/gui/_components/audio/sender/controller/types";
+} from "@/app/gui/components/audio/sender/controller/types";
 
 export function useMouthAnalyzer(params: {
   autoMouthEnabled: boolean;

@@ -1,6 +1,6 @@
 "use client";
 
-import AudioVowelProcessFormant from "./AudioVowelProcessFormant";
+import VowelFormantAnalyzer from "./VowelFormantAnalyzer";
 
 export type VowelLabel = "A" | "I" | "U" | "E" | "O" | "N";
 
@@ -29,15 +29,15 @@ export function startLipSync(
   const silent = ctx.createGain();
   silent.gain.value = 0;
 
-  const formant = new AudioVowelProcessFormant();
-  formant.get_vowel((v: string) => {
+  const formant = new VowelFormantAnalyzer();
+  formant.setVowelHandler((v: string) => {
     const upper = String(v).toUpperCase();
     const vowel = (
       ["A", "I", "U", "E", "O", "N"].includes(upper) ? upper : "N"
     ) as VowelLabel;
     cb.onVowel?.(vowel);
   });
-  formant.get_speak_status((s: string) => {
+  formant.setSpeakStatusHandler((s: string) => {
     if (s === "start" || s === "stop") {
       cb.onSpeakStatus?.(s);
     }

@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import AudioSenderControlPanel from "@/app/audio/sender/_components/AudioSenderControlPanel";
-import AudioSenderLogPanel from "@/app/audio/sender/_components/AudioSenderLogPanel";
-import AudioSenderMonitorPanel from "@/app/audio/sender/_components/AudioSenderMonitorPanel";
-import { useAudioSenderController } from "@/app/audio/sender/_controller/useAudioSenderController";
+import AudioSenderControlPanel from "@/app/audio/sender/components/AudioSenderControlPanel";
+import AudioSenderLogPanel from "@/app/audio/sender/components/AudioSenderLogPanel";
+import AudioSenderMonitorPanel from "@/app/audio/sender/components/AudioSenderMonitorPanel";
+import { useAudioSenderController } from "@/app/audio/sender/controller/useAudioSenderController";
 
 export default function AudioSenderPage() {
   const controller = useAudioSenderController();

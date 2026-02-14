@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useAudioSenderSignaling } from "@/app/audio/sender/_controller/useAudioSenderSignaling";
+import { useAudioSenderSignaling } from "@/app/audio/sender/controller/useAudioSenderSignaling";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import { buildSignalingBaseUrl, buildSignalingUrl } from "@/lib/signaling";
 

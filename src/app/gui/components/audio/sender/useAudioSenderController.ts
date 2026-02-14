@@ -9,16 +9,16 @@ import {
   DEFAULT_TELECO_PORT,
   STORAGE_KEYS,
   TELECO_ARROW_EVENT,
-} from "@/app/gui/_components/audio/sender/controller/constants";
+} from "@/app/gui/components/audio/sender/controller/constants";
 import {
   bindRecoveryListeners,
   parseHostPortFromUrl,
-} from "@/app/gui/_components/audio/sender/controller/helpers";
-import { useMouthAnalyzer } from "@/app/gui/_components/audio/sender/controller/useMouthAnalyzer";
-import { useSharedAudioStream } from "@/app/gui/_components/audio/sender/controller/useSharedAudioStream";
-import { useDeviceSignalController } from "@/app/gui/_components/audio/sender/useDeviceSignalController";
-import { useMicAnalyzerController } from "@/app/gui/_components/audio/sender/useMicAnalyzerController";
-import { useTelecoCommandController } from "@/app/gui/_components/teleco/useTelecoCommandController";
+} from "@/app/gui/components/audio/sender/controller/helpers";
+import { useMouthAnalyzer } from "@/app/gui/components/audio/sender/controller/useMouthAnalyzer";
+import { useSharedAudioStream } from "@/app/gui/components/audio/sender/controller/useSharedAudioStream";
+import { useDeviceSignalController } from "@/app/gui/components/audio/sender/useDeviceSignalController";
+import { useMicAnalyzerController } from "@/app/gui/components/audio/sender/useMicAnalyzerController";
+import { useTelecoCommandController } from "@/app/gui/components/teleco/useTelecoCommandController";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import { buildSignalingUrl, parseSignalingUrl } from "@/lib/signaling";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
@@ -26,7 +26,7 @@ import type {
   MicOption,
   TelecoArrowDirection,
   Vowel,
-} from "@/app/gui/_components/audio/sender/controller/types";
+} from "@/app/gui/components/audio/sender/controller/types";
 import type { SignalingMessage } from "@/lib/webrtc/signalingTypes";
 
 /**

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import VideoSenderControlPanel from "@/app/video/_components/VideoSenderControlPanel";
-import VideoSenderLogPanel from "@/app/video/_components/VideoSenderLogPanel";
-import VideoSenderPreviewPanel from "@/app/video/_components/VideoSenderPreviewPanel";
+import VideoSenderControlPanel from "@/app/video/components/VideoSenderControlPanel";
+import VideoSenderLogPanel from "@/app/video/components/VideoSenderLogPanel";
+import VideoSenderPreviewPanel from "@/app/video/components/VideoSenderPreviewPanel";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,

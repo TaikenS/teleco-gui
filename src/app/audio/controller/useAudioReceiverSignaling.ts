@@ -5,8 +5,8 @@ import {
   DEFAULT_SIGNALING_PORT,
   STORAGE_KEYS,
   WS_KEEPALIVE_MS,
-} from "@/app/audio/_controller/constants";
-import { ensurePeerConnection } from "@/app/audio/_controller/peer";
+} from "@/app/audio/controller/constants";
+import { ensurePeerConnection } from "@/app/audio/controller/peer";
 import { parseSignalingUrl } from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,

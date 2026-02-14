@@ -12,15 +12,15 @@ import {
 import { usePersistentState } from "@/lib/usePersistentState";
 
 const AudioSender = dynamic(
-  () => import("@/app/gui/_components/audio/sender/AudioSender"),
+  () => import("@/app/gui/components/audio/sender/AudioSender"),
   { ssr: false },
 );
 const LocalCameraStream = dynamic(
-  () => import("@/app/gui/_components/video/LocalCameraStream"),
+  () => import("@/app/gui/components/video/LocalCameraStream"),
   { ssr: false },
 );
 const WebRtcVideoReceiver = dynamic(
-  () => import("@/app/gui/_components/video/WebRtcVideoReceiver"),
+  () => import("@/app/gui/components/video/WebRtcVideoReceiver"),
   { ssr: false },
 );
 

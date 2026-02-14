@@ -4,7 +4,7 @@ export type VowelLabel = VowelLabelLower | "N";
 
 type SampleBuffer = Float32Array | number[];
 
-export default class AudioVowelProcessFormant {
+export default class VowelFormantAnalyzer {
   public LPC_ORDER = 64;
   public samplingRate = 44100;
   public bufferSize = 1024;
@@ -14,21 +14,21 @@ export default class AudioVowelProcessFormant {
   public th_volume_under = 0.000001;
 
   public VOWEL_WINDOW = 20;
-  public pre_behavior: VowelLabelLower = "n";
-  public th_isSpeaking = 0.15;
+  public preBehavior: VowelLabelLower = "n";
+  public speakingThreshold = 0.15;
 
-  public vowelhist: number[] = [];
+  public vowelHistory: number[] = [];
   public lockingBehavior = false;
 
   public vowelresult: (v: VowelLabel) => void = console.log;
   public actionstart: (a: SpeakAction) => void = console.log;
 
-  public timer_isSpeaking: ReturnType<typeof setTimeout> | null = null;
+  public speakingTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     opts?: Partial<
       Pick<
-        AudioVowelProcessFormant,
+        VowelFormantAnalyzer,
         "LPC_ORDER" | "samplingRate" | "bufferSize" | "VOWEL_WINDOW"
       >
     >,
@@ -46,14 +46,16 @@ export default class AudioVowelProcessFormant {
       this.VOWEL_WINDOW = opts.VOWEL_WINDOW;
     }
 
-    this.vowelhist = new Array(this.VOWEL_WINDOW).fill(0);
+    this.vowelHistory = new Array(this.VOWEL_WINDOW).fill(0);
   }
 
-  public get_vowel = (vowelresult: (v: VowelLabel) => void): void => {
+  public setVowelHandler = (vowelresult: (v: VowelLabel) => void): void => {
     this.vowelresult = vowelresult;
   };
 
-  public get_speak_status = (actionstart: (a: SpeakAction) => void): void => {
+  public setSpeakStatusHandler = (
+    actionstart: (a: SpeakAction) => void,
+  ): void => {
     this.actionstart = actionstart;
   };
 
@@ -69,7 +71,7 @@ export default class AudioVowelProcessFormant {
       this.th_volume =
         this.th_volume_under * 0.85 + this.th_volume_above * 0.15;
     } else {
-      const f = this.extract_formant(buffer, df);
+      const f = this.extractFormant(buffer, df);
       v = vowel(f[0], f[1]);
 
       this.th_volume_above = this.th_volume_above * 0.99 + vol * 0.01;
@@ -77,36 +79,36 @@ export default class AudioVowelProcessFormant {
         this.th_volume_under * 0.85 + this.th_volume_above * 0.15;
     }
 
-    this.vowelhist.shift();
-    this.vowelhist.push(v >= 0 ? v : -1);
+    this.vowelHistory.shift();
+    this.vowelHistory.push(v >= 0 ? v : -1);
 
-    const count = this.vowelhist.filter((x) => x >= 0).length;
-    const ave = count / this.vowelhist.length;
+    const count = this.vowelHistory.filter((x) => x >= 0).length;
+    const ave = count / this.vowelHistory.length;
 
-    if (ave > this.th_isSpeaking) {
+    if (ave > this.speakingThreshold) {
       const _v: VowelLabelLower = getVowelLabel(v);
 
       // 発話開始
-      if (!this.timer_isSpeaking) {
+      if (!this.speakingTimer) {
         this.actionstart("start");
       }
 
       // 発話停止タイマ更新
-      if (this.timer_isSpeaking) {
-        clearTimeout(this.timer_isSpeaking);
-        this.timer_isSpeaking = null;
+      if (this.speakingTimer) {
+        clearTimeout(this.speakingTimer);
+        this.speakingTimer = null;
       }
-      this.timer_isSpeaking = setTimeout(() => {
+      this.speakingTimer = setTimeout(() => {
         this.actionstart("stop");
-        this.timer_isSpeaking = null;
+        this.speakingTimer = null;
         this.vowelresult("N");
       }, 1500);
 
       // 口形の変化（過剰に変わり続けないよう200msロック）
-      if (this.pre_behavior !== _v && !this.lockingBehavior) {
+      if (this.preBehavior !== _v && !this.lockingBehavior) {
         this.vowelresult(_v);
         this.lockingBehavior = true;
-        this.pre_behavior = _v;
+        this.preBehavior = _v;
         setTimeout(() => (this.lockingBehavior = false), 200);
       }
     }
@@ -126,7 +128,7 @@ export default class AudioVowelProcessFormant {
     return ret;
   };
 
-  private extract_formant = (
+  private extractFormant = (
     data: SampleBuffer,
     df: number,
   ): [number, number] => {

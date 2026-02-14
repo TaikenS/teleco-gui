@@ -4,7 +4,7 @@ import type {
   RefObject,
   SetStateAction,
 } from "react";
-import { STUN_SERVERS } from "@/app/audio/_controller/constants";
+import { STUN_SERVERS } from "@/app/audio/controller/constants";
 
 export function ensurePeerConnection(params: {
   token: string;

@@ -1,11 +1,11 @@
 "use client";
 
-import AudioSenderDevicePanel from "@/app/gui/_components/audio/sender/AudioSenderDevicePanel";
+import AudioSenderDevicePanel from "@/app/gui/components/audio/sender/AudioSenderDevicePanel";
 import {
   type AudioSenderPanelMode,
   useAudioSenderController,
-} from "@/app/gui/_components/audio/sender/useAudioSenderController";
-import TelecoControlPanel from "@/app/gui/_components/teleco/TelecoControlPanel";
+} from "@/app/gui/components/audio/sender/useAudioSenderController";
+import TelecoControlPanel from "@/app/gui/components/teleco/TelecoControlPanel";
 
 export default function AudioSender({
   panel = "all",

@@ -6,7 +6,7 @@ import {
   STORAGE_KEYS,
   STUN_SERVERS,
   WS_KEEPALIVE_MS,
-} from "@/app/audio/sender/_controller/constants";
+} from "@/app/audio/sender/controller/constants";
 import { parseSignalingUrl } from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,

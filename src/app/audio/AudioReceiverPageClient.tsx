@@ -1,9 +1,9 @@
 "use client";
 
-import AudioReceiverControlPanel from "@/app/audio/_components/AudioReceiverControlPanel";
-import AudioReceiverLogPanel from "@/app/audio/_components/AudioReceiverLogPanel";
-import AudioReceiverPlaybackPanel from "@/app/audio/_components/AudioReceiverPlaybackPanel";
-import { useAudioReceiverController } from "@/app/audio/_controller/useAudioReceiverController";
+import AudioReceiverControlPanel from "@/app/audio/components/AudioReceiverControlPanel";
+import AudioReceiverLogPanel from "@/app/audio/components/AudioReceiverLogPanel";
+import AudioReceiverPlaybackPanel from "@/app/audio/components/AudioReceiverPlaybackPanel";
+import { useAudioReceiverController } from "@/app/audio/controller/useAudioReceiverController";
 
 export default function AudioReceiverPage() {
   const controller = useAudioReceiverController();
