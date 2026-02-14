@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import AudioSenderControlPanel from "@/app/audio/sender/_components/AudioSenderControlPanel";
+import AudioSenderLogPanel from "@/app/audio/sender/_components/AudioSenderLogPanel";
+import AudioSenderMonitorPanel from "@/app/audio/sender/_components/AudioSenderMonitorPanel";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,
@@ -532,6 +535,24 @@ export default function AudioSenderPage() {
     port: signalingPort,
   });
 
+  const handleConnectSignaling = () => {
+    manualCloseRef.current = false;
+    shouldAutoConnectRef.current = true;
+    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
+    connectSignaling(false);
+  };
+
+  const handleStopConnection = () => {
+    desiredSendingRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.sendingActive, "0");
+    shouldAutoConnectRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
+    manualCloseRef.current = true;
+    closePc();
+    closeWs();
+    setConnected(false);
+  };
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-3xl p-4 space-y-4">
@@ -555,228 +576,36 @@ export default function AudioSenderPage() {
           </div>
         </div>
 
-        <div className="space-y-2 rounded-2xl border bg-white p-4">
-          <div className="status-chip-row">
-            <span
-              className={`status-chip ${micReady ? "is-on" : micBusy ? "is-busy" : "is-off"}`}
-            >
-              Mic {micReady ? "READY" : micBusy ? "STARTING" : "OFF"}
-            </span>
-            <span
-              className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}
-            >
-              Signal{" "}
-              {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
-            </span>
-            <span
-              className={`status-chip ${rtcState === "connected" ? "is-on" : sendBusy || rtcState === "connecting" ? "is-busy" : "is-off"}`}
-            >
-              Send{" "}
-              {rtcState === "connected"
-                ? "LIVE"
-                : sendBusy || rtcState === "connecting"
-                  ? "STARTING"
-                  : "IDLE"}
-            </span>
-          </div>
+        <AudioSenderControlPanel
+          micReady={micReady}
+          micBusy={micBusy}
+          connected={connected}
+          wsBusy={wsBusy}
+          sendBusy={sendBusy}
+          rtcState={rtcState}
+          roomId={roomId}
+          signalingIpAddress={signalingIpAddress}
+          signalingPort={signalingPort}
+          signalingWsUrlForDisplay={signalingWsUrlForDisplay}
+          signalingBaseUrlForDisplay={signalingBaseUrlForDisplay}
+          sendEnabled={sendEnabled}
+          canStartMic={canStartMic}
+          canConnectSignal={canConnectSignal}
+          canStartSend={canStartSend}
+          canStopConnection={canStopConnection}
+          error={error}
+          onRoomIdChange={setRoomId}
+          onSignalingIpAddressChange={setSignalingIpAddress}
+          onSignalingPortChange={setSignalingPort}
+          onStartMic={startMic}
+          onConnectSignal={handleConnectSignaling}
+          onSendEnabledChange={setSendEnabled}
+          onStartSend={() => void startSend(false)}
+          onStopConnection={handleStopConnection}
+        />
 
-          <p className="action-state-hint" role="status" aria-live="polite">
-            {!micReady
-              ? "次の操作: ① マイク起動"
-              : !connected
-                ? "次の操作: ② シグナリング接続"
-                : !sendEnabled
-                  ? "次の操作: ③ 「送信を有効化」をON"
-                  : !sendLive
-                    ? "次の操作: ④ Receiverへ送信開始"
-                    : "現在: Receiverへ音声送信中です"}
-          </p>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-700">Room ID</label>
-            <input
-              className="rounded-xl border px-3 py-1 text-sm"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              disabled={connected || wsBusy}
-            />
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <label className="text-sm text-slate-700">
-              Signaling IP Address
-              <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                value={signalingIpAddress}
-                onChange={(e) => setSignalingIpAddress(e.target.value)}
-                disabled={connected || wsBusy}
-                placeholder="192.168.1.12"
-              />
-            </label>
-            <label className="text-sm text-slate-700">
-              Signaling Port
-              <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                value={signalingPort}
-                onChange={(e) => setSignalingPort(e.target.value)}
-                disabled={connected || wsBusy}
-                placeholder="3000"
-              />
-            </label>
-          </div>
-          <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
-            <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-            <div className="mt-1 text-slate-500">
-              Base: {signalingBaseUrlForDisplay}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-sm">
-            <div className="action-button-wrap">
-              <button
-                onClick={startMic}
-                className="action-button bg-slate-900 text-white"
-                disabled={!canStartMic}
-                data-disabled-label="利用不可"
-                data-busy={micBusy ? "1" : "0"}
-                aria-busy={micBusy}
-              >
-                {micBusy ? "マイク起動中..." : "マイク起動"}
-              </button>
-              <p
-                className={`button-reason ${canStartMic ? "is-ready" : "is-disabled"}`}
-              >
-                {micBusy
-                  ? "マイク起動処理中です"
-                  : micReady
-                    ? "マイク準備OKです"
-                    : "マイクを起動できます"}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <button
-                onClick={() => {
-                  manualCloseRef.current = false;
-                  shouldAutoConnectRef.current = true;
-                  window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
-                  connectSignaling(false);
-                }}
-                disabled={!canConnectSignal}
-                className="action-button bg-slate-100"
-                data-disabled-label="利用不可"
-                data-busy={wsBusy ? "1" : "0"}
-                aria-busy={wsBusy}
-              >
-                {wsBusy ? "接続中..." : "シグナリング接続"}
-              </button>
-              <p
-                className={`button-reason ${canConnectSignal ? "is-ready" : "is-disabled"}`}
-              >
-                {!roomId.trim() ||
-                !signalingIpAddress.trim() ||
-                !signalingPort.trim()
-                  ? "Room ID と IP Address / Port を入力してください"
-                  : connected
-                    ? "すでに接続中です"
-                    : wsBusy
-                      ? "接続処理中です"
-                      : "シグナリング接続できます"}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <label className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={sendEnabled}
-                  onChange={(e) => setSendEnabled(e.target.checked)}
-                />
-                送信を有効化
-              </label>
-              <p
-                className={`button-reason ${sendEnabled ? "is-ready" : "is-disabled"}`}
-              >
-                {sendEnabled
-                  ? "送信開始ボタンを押せます"
-                  : "ONにすると送信開始できます"}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <button
-                onClick={() => void startSend(false)}
-                disabled={!canStartSend}
-                className="action-button bg-emerald-600 text-white"
-                data-disabled-label="利用不可"
-                data-busy={sendBusy ? "1" : "0"}
-                aria-busy={sendBusy}
-              >
-                {sendBusy ? "開始中..." : "Receiverへ送信開始"}
-              </button>
-              <p
-                className={`button-reason ${canStartSend ? "is-ready" : "is-disabled"}`}
-              >
-                {!micReady
-                  ? "先にマイク起動が必要です"
-                  : !connected
-                    ? "先にシグナリング接続が必要です"
-                    : !sendEnabled
-                      ? "先に「送信を有効化」をONにしてください"
-                      : sendBusy
-                        ? "送信開始処理中です"
-                        : sendLive
-                          ? "すでに送信中です"
-                          : "Receiverへ送信できます"}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <button
-                onClick={() => {
-                  desiredSendingRef.current = false;
-                  window.localStorage.setItem(STORAGE_KEYS.sendingActive, "0");
-                  shouldAutoConnectRef.current = false;
-                  window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
-                  manualCloseRef.current = true;
-                  closePc();
-                  closeWs();
-                  setConnected(false);
-                }}
-                className="action-button bg-slate-100"
-                disabled={!canStopConnection}
-                data-disabled-label="利用不可"
-              >
-                接続停止
-              </button>
-              <p
-                className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}
-              >
-                {canStopConnection
-                  ? "接続を停止できます"
-                  : "停止対象がありません"}
-              </p>
-            </div>
-          </div>
-
-          {error && <p className="text-xs text-red-600">{error}</p>}
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4 space-y-2">
-          <p className="text-sm text-slate-700">
-            ここで自分のマイク音声を確認できます（ローカル再生）。
-          </p>
-          <audio ref={localAudioRef} controls autoPlay className="w-full" />
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4">
-          <h2 className="text-sm font-semibold mb-2">ログ</h2>
-          <div className="max-h-48 overflow-auto text-xs text-slate-700 space-y-1">
-            {log.map((l, i) => (
-              <div key={i}>{l}</div>
-            ))}
-          </div>
-        </div>
+        <AudioSenderMonitorPanel localAudioRef={localAudioRef} />
+        <AudioSenderLogPanel log={log} />
       </div>
     </main>
   );

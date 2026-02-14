@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import VideoSenderControlPanel from "@/app/video/_components/VideoSenderControlPanel";
+import VideoSenderLogPanel from "@/app/video/_components/VideoSenderLogPanel";
+import VideoSenderPreviewPanel from "@/app/video/_components/VideoSenderPreviewPanel";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingBaseUrl,
@@ -695,232 +698,78 @@ export default function VideoSenderPage() {
         ? "次の操作: ③ viewerへ映像送信開始"
         : "現在: viewerへ映像送信中です";
 
+  const handleCameraChange = (nextId: string) => {
+    setSelectedCameraId(nextId);
+    window.localStorage.setItem(STORAGE.cameraDeviceId, nextId);
+
+    if (streamRef.current) {
+      void startCamera(nextId);
+    }
+  };
+
+  const handleConnectSignaling = () => {
+    manualCloseRef.current = false;
+    shouldAutoConnectRef.current = true;
+    window.localStorage.setItem(STORAGE.autoConnect, "1");
+    connectSignaling();
+  };
+
+  const handleStopConnection = () => {
+    shouldAutoConnectRef.current = false;
+    desiredStreamingRef.current = false;
+    window.localStorage.setItem(STORAGE.autoConnect, "0");
+    window.localStorage.setItem(STORAGE.streamingActive, "0");
+    manualCloseRef.current = true;
+    closeWs();
+    closePc();
+    setRtcBusy(false);
+  };
+
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-3xl space-y-4 p-4">
         <h1 className="text-xl font-semibold">Sender (別PC用)</h1>
-
-        <div className="space-y-2 rounded-2xl border bg-white p-4">
-          <div className="status-chip-row">
-            <span
-              className={`status-chip ${hasCameraStream ? "is-on" : "is-off"}`}
-            >
-              Camera {hasCameraStream ? "ON" : "OFF"}
-            </span>
-            <span
-              className={`status-chip ${wsConnected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}
-            >
-              Signal{" "}
-              {wsConnected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
-            </span>
-            <span
-              className={`status-chip ${rtcState === "connected" ? "is-on" : rtcBusy || rtcState === "connecting" ? "is-busy" : "is-off"}`}
-            >
-              Stream{" "}
-              {rtcState === "connected"
-                ? "LIVE"
-                : rtcBusy || rtcState === "connecting"
-                  ? "STARTING"
-                  : "IDLE"}
-            </span>
-          </div>
-
-          <p className="action-state-hint" role="status" aria-live="polite">
-            {nextActionHint}
-          </p>
-
-          <div className="flex items-center gap-2">
-            <label className="text-sm text-slate-700">Room ID</label>
-            <input
-              className="rounded-xl border px-3 py-1 text-sm"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-            />
-          </div>
-
-          <div className="grid gap-2 md:grid-cols-2">
-            <label className="text-sm text-slate-700">
-              Signaling IP Address
-              <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                value={signalingIpAddress}
-                onChange={(e) => setSignalingIpAddress(e.target.value)}
-                placeholder="192.168.1.12"
-                disabled={connected}
-              />
-            </label>
-            <label className="text-sm text-slate-700">
-              Signaling Port
-              <input
-                className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                value={signalingPort}
-                onChange={(e) => setSignalingPort(e.target.value)}
-                placeholder="3000"
-                disabled={connected}
-              />
-            </label>
-          </div>
-          <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
-            <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-            <div className="mt-1 text-slate-500">
-              Base: {signalingBaseUrlForDisplay}
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-sm text-slate-700">カメラ</label>
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                className="min-w-[240px] rounded-xl border px-3 py-2 text-sm"
-                value={selectedCameraId}
-                onChange={(e) => {
-                  const nextId = e.target.value;
-                  setSelectedCameraId(nextId);
-                  window.localStorage.setItem(STORAGE.cameraDeviceId, nextId);
-
-                  if (streamRef.current) {
-                    // 配信中の切替もできるよう、選択後すぐ再起動
-                    void startCamera(nextId);
-                  }
-                }}
-                disabled={videoInputs.length === 0}
-              >
-                {videoInputs.length === 0 ? (
-                  <option value="">カメラが見つかりません</option>
-                ) : (
-                  videoInputs.map((d, i) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.label?.trim() || `カメラ ${i + 1}`}
-                    </option>
-                  ))
-                )}
-              </select>
-
-              <button
-                onClick={() => void enumerateVideoInputs()}
-                className="rounded-xl bg-slate-100 px-3 py-2 text-sm"
-              >
-                カメラ再読み込み
-              </button>
-            </div>
-            <p className="text-[11px] text-slate-500">
-              {videoInputs.length > 0
-                ? "カメラを変更したあと「カメラ起動」を押すか、配信中なら自動でそのカメラに切り替わります。"
-                : "カメラデバイスが未検出です。接続後に再読み込みしてください。"}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-sm">
-            <div className="action-button-wrap">
-              <button
-                onClick={() => void startCamera()}
-                className="action-button bg-slate-900 text-white"
-                disabled={!canStartCamera}
-                data-busy={cameraBusy ? "1" : "0"}
-                aria-busy={cameraBusy}
-              >
-                {cameraBusy ? "カメラ起動中..." : "カメラ起動"}
-              </button>
-              <p
-                className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}
-              >
-                {startCameraReason}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <button
-                onClick={() => {
-                  manualCloseRef.current = false;
-                  shouldAutoConnectRef.current = true;
-                  window.localStorage.setItem(STORAGE.autoConnect, "1");
-                  connectSignaling();
-                }}
-                className="action-button bg-slate-100"
-                disabled={!canConnectSignaling}
-                data-busy={wsBusy ? "1" : "0"}
-                aria-busy={wsBusy}
-              >
-                {wsBusy ? "接続中..." : "シグナリング接続"}
-              </button>
-              <p
-                className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
-              >
-                {connectReason}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <button
-                onClick={() => void startWebRTC(false)}
-                className="action-button bg-emerald-600 text-white"
-                disabled={!canStartStreaming}
-                data-busy={rtcBusy ? "1" : "0"}
-                aria-busy={rtcBusy}
-              >
-                {rtcBusy ? "開始中..." : "viewer へ映像送信開始"}
-              </button>
-              <p
-                className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}
-              >
-                {startStreamingReason}
-              </p>
-            </div>
-
-            <div className="action-button-wrap">
-              <button
-                onClick={() => {
-                  shouldAutoConnectRef.current = false;
-                  desiredStreamingRef.current = false;
-                  window.localStorage.setItem(STORAGE.autoConnect, "0");
-                  window.localStorage.setItem(STORAGE.streamingActive, "0");
-                  manualCloseRef.current = true;
-                  closeWs();
-                  closePc();
-                  setRtcBusy(false);
-                }}
-                className="action-button bg-slate-100"
-                disabled={!canStopConnection}
-              >
-                接続停止
-              </button>
-              <p
-                className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}
-              >
-                {stopReason}
-              </p>
-            </div>
-          </div>
-
-          {wsError && <p className="text-xs text-red-600">{wsError}</p>}
-        </div>
-
-        <div className="space-y-2 rounded-2xl border bg-white p-4">
-          <div className="aspect-video w-full overflow-hidden rounded-xl bg-slate-200">
-            <video
-              ref={localVideoRef}
-              className="h-full w-full object-cover"
-              muted
-              playsInline
-            />
-          </div>
-          <p className="text-xs text-slate-500">
-            これは「送信側PCのローカルプレビュー」です。
-          </p>
-          <p className="text-xs text-slate-500">
-            Signal: {connected ? "接続中" : "未接続"}
-          </p>
-          <p className="text-xs text-slate-500">Camera: {activeCameraLabel}</p>
-        </div>
-
-        <div className="rounded-2xl border bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold">ログ</h2>
-          <div className="max-h-48 space-y-1 overflow-auto text-xs text-slate-700">
-            {log.map((l, i) => (
-              <div key={i}>{l}</div>
-            ))}
-          </div>
-        </div>
+        <VideoSenderControlPanel
+          hasCameraStream={hasCameraStream}
+          wsConnected={wsConnected}
+          wsBusy={wsBusy}
+          rtcBusy={rtcBusy}
+          rtcState={rtcState}
+          nextActionHint={nextActionHint}
+          roomId={roomId}
+          signalingIpAddress={signalingIpAddress}
+          signalingPort={signalingPort}
+          connected={connected}
+          signalingWsUrlForDisplay={signalingWsUrlForDisplay}
+          signalingBaseUrlForDisplay={signalingBaseUrlForDisplay}
+          selectedCameraId={selectedCameraId}
+          videoInputs={videoInputs}
+          canStartCamera={canStartCamera}
+          cameraBusy={cameraBusy}
+          startCameraReason={startCameraReason}
+          canConnectSignaling={canConnectSignaling}
+          connectReason={connectReason}
+          canStartStreaming={canStartStreaming}
+          startStreamingReason={startStreamingReason}
+          canStopConnection={canStopConnection}
+          stopReason={stopReason}
+          wsError={wsError}
+          onRoomIdChange={setRoomId}
+          onSignalingIpAddressChange={setSignalingIpAddress}
+          onSignalingPortChange={setSignalingPort}
+          onCameraChange={handleCameraChange}
+          onRefreshCameras={() => void enumerateVideoInputs()}
+          onStartCamera={() => void startCamera()}
+          onConnectSignaling={handleConnectSignaling}
+          onStartStreaming={() => void startWebRTC(false)}
+          onStopConnection={handleStopConnection}
+        />
+        <VideoSenderPreviewPanel
+          localVideoRef={localVideoRef}
+          connected={connected}
+          activeCameraLabel={activeCameraLabel}
+        />
+        <VideoSenderLogPanel log={log} />
       </div>
     </main>
   );
