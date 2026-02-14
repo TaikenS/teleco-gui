@@ -144,7 +144,7 @@ export default function GuiPage() {
         <section className="space-y-4 lg:col-span-5">
           <Card
             title="Device Setting"
-            subtitle="Audio Sender / Mouth / Command"
+            subtitle="音声送信・マイク確認"
           >
             <AudioSender />
           </Card>
