@@ -517,10 +517,6 @@ export default function VideoSenderPage() {
     const savedRoom = getStoredValue("roomId");
     if (savedRoom) setRoomId(savedRoom);
 
-    if (HAS_DEFAULT_VIDEO_ROOM_ENV) {
-      setRoomId(DEFAULT_VIDEO_ROOM);
-    }
-
     const savedSignalIpAddress = getStoredValue("signalingIpAddress");
     if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
 
@@ -533,6 +529,10 @@ export default function VideoSenderPage() {
       if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
       if (parsed?.port) setSignalingPort(parsed.port);
       if (parsed?.roomId) setRoomId(parsed.roomId);
+    }
+
+    if (HAS_DEFAULT_VIDEO_ROOM_ENV) {
+      setRoomId(DEFAULT_VIDEO_ROOM);
     }
 
     const savedCameraDeviceId = getStoredValue("cameraDeviceId") || "";

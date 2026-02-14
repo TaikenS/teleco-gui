@@ -337,10 +337,6 @@ export function useAudioSenderController({
     const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomId);
     if (savedRoomHint) setRoomHint(savedRoomHint);
 
-    if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
-      setRoomHint(DEFAULT_AUDIO_ROOM);
-    }
-
     const savedSignalIpAddress = window.localStorage.getItem(
       STORAGE_KEYS.signalingIpAddress,
     );
@@ -359,6 +355,10 @@ export function useAudioSenderController({
       if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
       if (parsed?.port) setSignalingPort(parsed.port);
       if (parsed?.roomId) setRoomHint(parsed.roomId);
+    }
+
+    if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
+      setRoomHint(DEFAULT_AUDIO_ROOM);
     }
 
     const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
