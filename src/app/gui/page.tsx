@@ -72,6 +72,23 @@ export default function GuiPage() {
       serialize: serializeBinaryFlag,
     });
 
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const hasLegacyIp = window.localStorage.getItem(
+      VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY,
+    );
+    const hasLegacyPort = window.localStorage.getItem(
+      VIDEO_SIGNAL_PORT_STORAGE_KEY,
+    );
+    if (hasLegacyIp == null && hasLegacyPort == null) return;
+
+    window.localStorage.removeItem(VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY);
+    window.localStorage.removeItem(VIDEO_SIGNAL_PORT_STORAGE_KEY);
+    setVideoSignalingIpAddress(DEFAULT_SIGNALING_IP_ADDRESS);
+    setVideoSignalingPort(DEFAULT_SIGNALING_PORT);
+  }, [setVideoSignalingIpAddress, setVideoSignalingPort]);
+
   const videoSignalingWsUrl = buildSignalingUrl({
     ipAddress: videoSignalingIpAddress,
     port: videoSignalingPort,
