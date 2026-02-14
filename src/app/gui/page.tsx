@@ -2,9 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
-import AudioSender from "@/app/gui/_components/AudioSender";
-import RemoteVideo from "@/app/gui/_components/RemoteVideo";
-import VideoPreview from "@/app/gui/_components/VideoPreview";
+import AudioSender from "@/app/gui/_components/audio/sender/AudioSender";
+import LocalCameraStream from "@/app/gui/_components/video/LocalCameraStream";
+import WebRtcVideoReceiver from "@/app/gui/_components/video/WebRtcVideoReceiver";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingUrl,
@@ -174,9 +174,9 @@ export default function GuiPage() {
         </section>
 
         <section className="space-y-4 lg:col-span-7">
-          <Card title="Preview" subtitle={subtitleForMode(mode)}>
+          <Card title="Video Receiver" subtitle={subtitleForMode(mode)}>
             {mode === "local" && (
-              <VideoPreview videoDeviceId={selectedVideoId} />
+              <LocalCameraStream videoDeviceId={selectedVideoId} />
             )}
             {mode === "webSender" && (
               <div className="space-y-3">
@@ -224,7 +224,7 @@ export default function GuiPage() {
                   IDと合わせてください。
                 </p>
 
-                <RemoteVideo
+                <WebRtcVideoReceiver
                   roomId={videoRoomId || DEFAULT_VIDEO_ROOM}
                   signalingWsUrl={videoSignalingWsUrl}
                 />

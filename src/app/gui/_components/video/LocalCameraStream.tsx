@@ -6,7 +6,7 @@ type Props = {
   videoDeviceId?: string;
 };
 
-export default function VideoPreview({ videoDeviceId }: Props) {
+export default function LocalCameraStream({ videoDeviceId }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [error, setError] = useState<string | null>(null);

@@ -46,7 +46,7 @@ function withRoomQuery(wsUrl: string, roomId: string) {
   }
 }
 
-export default function RemoteVideo({
+export default function WebRtcVideoReceiver({
   roomId,
   signalingWsUrl,
 }: {
