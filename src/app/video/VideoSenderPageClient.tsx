@@ -51,8 +51,12 @@ function getStoredValue(key: keyof typeof STORAGE): string | null {
 
 const WS_KEEPALIVE_MS = 10_000;
 
-const DEFAULT_VIDEO_ROOM =
-  process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
+const RAW_DEFAULT_VIDEO_ROOM =
+  process.env.NEXT_PUBLIC_VIDEO_SENDER_ROOM_ID?.trim() ||
+  process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM?.trim() ||
+  "";
+const HAS_DEFAULT_VIDEO_ROOM_ENV = RAW_DEFAULT_VIDEO_ROOM.length > 0;
+const DEFAULT_VIDEO_ROOM = RAW_DEFAULT_VIDEO_ROOM || "room1";
 const VIDEO_SEND_SIGNALING_IP_ENV_KEYS = [
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS",
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_IP_ADDRESS",
@@ -512,6 +516,10 @@ export default function VideoSenderPage() {
   useEffect(() => {
     const savedRoom = getStoredValue("roomId");
     if (savedRoom) setRoomId(savedRoom);
+
+    if (HAS_DEFAULT_VIDEO_ROOM_ENV) {
+      setRoomId(DEFAULT_VIDEO_ROOM);
+    }
 
     const savedSignalIpAddress = getStoredValue("signalingIpAddress");
     if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);

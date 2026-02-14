@@ -32,8 +32,13 @@ const AUDIO_SEND_SIGNALING_PORT_ENV_KEYS = [
   "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_PORT",
 ];
 
-export const DEFAULT_AUDIO_ROOM =
-  process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM || "audio1";
+const RAW_DEFAULT_AUDIO_ROOM =
+  process.env.NEXT_PUBLIC_GUI_AUDIO_ROOM_ID?.trim() ||
+  process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM?.trim() ||
+  "";
+
+export const HAS_DEFAULT_AUDIO_ROOM_ENV = RAW_DEFAULT_AUDIO_ROOM.length > 0;
+export const DEFAULT_AUDIO_ROOM = RAW_DEFAULT_AUDIO_ROOM || "audio1";
 
 export const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress({
   envKeys: AUDIO_SEND_SIGNALING_IP_ENV_KEYS,

@@ -33,8 +33,12 @@ const VIDEO_SIGNAL_PORT_STORAGE_KEY = "teleco.gui.video.signalingPort";
 const EMBED_VIDEO_SENDER_KEY = "teleco.gui.embed.videoSender";
 const EMBED_AUDIO_RECEIVER_KEY = "teleco.gui.embed.audioReceiver";
 
-const DEFAULT_VIDEO_ROOM =
-  process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM || "room1";
+const RAW_DEFAULT_VIDEO_ROOM =
+  process.env.NEXT_PUBLIC_VIDEO_SENDER_ROOM_ID?.trim() ||
+  process.env.NEXT_PUBLIC_DEFAULT_VIDEO_ROOM?.trim() ||
+  "";
+const HAS_DEFAULT_VIDEO_ROOM_ENV = RAW_DEFAULT_VIDEO_ROOM.length > 0;
+const DEFAULT_VIDEO_ROOM = RAW_DEFAULT_VIDEO_ROOM || "room1";
 const VIDEO_SEND_SIGNALING_IP_ENV_KEYS = [
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS",
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_IP_ADDRESS",
@@ -118,6 +122,11 @@ export default function GuiPage() {
     setVideoSignalingIpAddress(DEFAULT_SIGNALING_IP_ADDRESS);
     setVideoSignalingPort(DEFAULT_SIGNALING_PORT);
   }, [setVideoSignalingIpAddress, setVideoSignalingPort]);
+
+  React.useEffect(() => {
+    if (!HAS_DEFAULT_VIDEO_ROOM_ENV) return;
+    setVideoRoomId(DEFAULT_VIDEO_ROOM);
+  }, [setVideoRoomId]);
 
   const videoSignalingWsUrl = buildSignalingUrl({
     ipAddress: videoSignalingIpAddress,

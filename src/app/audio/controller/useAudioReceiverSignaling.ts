@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   DEFAULT_AUDIO_ROOM,
+  HAS_DEFAULT_AUDIO_ROOM_ENV,
   DEFAULT_SIGNALING_IP_ADDRESS,
   DEFAULT_SIGNALING_PORT,
   STORAGE_KEYS,
@@ -384,6 +385,10 @@ export function useAudioReceiverSignaling() {
       if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
       if (parsed?.port) setSignalingPort(parsed.port);
       if (parsed?.roomId) setRoomId(parsed.roomId);
+    }
+
+    if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
+      setRoomId(DEFAULT_AUDIO_ROOM);
     }
 
     shouldAutoConnectRef.current =

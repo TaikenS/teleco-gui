@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_AUDIO_ROOM,
+  HAS_DEFAULT_AUDIO_ROOM_ENV,
   DEFAULT_SIGNALING_IP_ADDRESS,
   DEFAULT_SIGNALING_PORT,
   DEFAULT_TELECO_IP_ADDRESS,
@@ -335,6 +336,10 @@ export function useAudioSenderController({
 
     const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomId);
     if (savedRoomHint) setRoomHint(savedRoomHint);
+
+    if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
+      setRoomHint(DEFAULT_AUDIO_ROOM);
+    }
 
     const savedSignalIpAddress = window.localStorage.getItem(
       STORAGE_KEYS.signalingIpAddress,
