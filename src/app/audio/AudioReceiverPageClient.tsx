@@ -37,7 +37,14 @@ export default function AudioReceiverPage() {
           onOpenWsDebug={() => window.open("/ws", "_blank")}
         />
 
-        <AudioReceiverPlaybackPanel audioRef={controller.audioRef} />
+        <AudioReceiverPlaybackPanel
+          audioRef={controller.audioRef}
+          audioOutputOptions={controller.audioOutputOptions}
+          selectedAudioOutputId={controller.selectedAudioOutputId}
+          sinkSelectionSupported={controller.sinkSelectionSupported}
+          onAudioOutputChange={controller.handleAudioOutputChange}
+          onRefreshAudioOutputs={controller.refreshAudioOutputs}
+        />
         <AudioReceiverLogPanel log={controller.log} />
       </div>
     </main>

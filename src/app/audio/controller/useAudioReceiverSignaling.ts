@@ -21,6 +21,17 @@ function nowTime() {
   return new Date().toLocaleTimeString();
 }
 
+type AudioOutputOption = {
+  deviceId: string;
+  label: string;
+};
+
+function canSetSinkId(audio: HTMLAudioElement | null): audio is HTMLAudioElement & {
+  setSinkId: (sinkId: string) => Promise<void>;
+} {
+  return !!audio && "setSinkId" in audio;
+}
+
 export function useAudioReceiverSignaling() {
   const [roomId, setRoomId] = useState<string>(DEFAULT_AUDIO_ROOM);
   const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
@@ -35,6 +46,11 @@ export function useAudioReceiverSignaling() {
   const [hasAudioTrack, setHasAudioTrack] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [log, setLog] = useState<string[]>([]);
+  const [audioOutputOptions, setAudioOutputOptions] = useState<
+    AudioOutputOption[]
+  >([]);
+  const [selectedAudioOutputId, setSelectedAudioOutputId] =
+    useState<string>("default");
 
   const wsRef = useRef<WebSocket | null>(null);
   const keepaliveTimerRef = useRef<number | null>(null);
@@ -48,9 +64,53 @@ export function useAudioReceiverSignaling() {
   const streamsRef = useRef<Map<string, MediaStream>>(new Map());
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sinkSelectionSupported =
+    typeof HTMLMediaElement !== "undefined" &&
+    "setSinkId" in HTMLMediaElement.prototype;
 
   const logLine = (line: string) =>
     setLog((prev) => [...prev, `[${nowTime()}] ${line}`]);
+
+  const applyAudioOutput = async (deviceId: string) => {
+    const audio = audioRef.current;
+    if (!canSetSinkId(audio)) return;
+
+    try {
+      await audio.setSinkId(deviceId);
+      logLine(`出力デバイス切替: ${deviceId}`);
+    } catch (e) {
+      setError(`出力デバイスの切替に失敗しました: ${String(e)}`);
+      logLine(`setSinkId failed: ${String(e)}`);
+    }
+  };
+
+  const refreshAudioOutputs = async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return;
+
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const outputs = devices.filter((d) => d.kind === "audiooutput");
+      const options = outputs.map((d, index) => ({
+        deviceId: d.deviceId,
+        label: d.label || `Audio Output ${index + 1}`,
+      }));
+
+      setAudioOutputOptions(options);
+
+      if (!options.some((d) => d.deviceId === selectedAudioOutputId)) {
+        const fallbackId = options[0]?.deviceId || "default";
+        setSelectedAudioOutputId(fallbackId);
+      }
+    } catch (e) {
+      logLine(`enumerateDevices(audiooutput) failed: ${String(e)}`);
+    }
+  };
+
+  const handleAudioOutputChange = (deviceId: string) => {
+    setSelectedAudioOutputId(deviceId);
+    window.localStorage.setItem(STORAGE_KEYS.outputDeviceId, deviceId);
+    void applyAudioOutput(deviceId);
+  };
 
   const clearReconnectTimer = () => {
     if (reconnectTimerRef.current != null) {
@@ -328,6 +388,16 @@ export function useAudioReceiverSignaling() {
 
     shouldAutoConnectRef.current =
       window.localStorage.getItem(STORAGE_KEYS.autoConnect) === "1";
+
+    const savedOutputDeviceId = window.localStorage.getItem(
+      STORAGE_KEYS.outputDeviceId,
+    );
+    if (savedOutputDeviceId) {
+      setSelectedAudioOutputId(savedOutputDeviceId);
+    }
+
+    void refreshAudioOutputs();
+
     if (shouldAutoConnectRef.current) {
       manualDisconnectRef.current = false;
       connect(false);
@@ -349,6 +419,29 @@ export function useAudioReceiverSignaling() {
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEYS.signalingPort, signalingPort);
   }, [signalingPort]);
+
+  useEffect(() => {
+    if (!sinkSelectionSupported) return;
+    void applyAudioOutput(selectedAudioOutputId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAudioOutputId, sinkSelectionSupported]);
+
+  useEffect(() => {
+    if (!navigator.mediaDevices?.addEventListener) return;
+
+    const onDeviceChange = () => {
+      void refreshAudioOutputs();
+    };
+    navigator.mediaDevices.addEventListener("devicechange", onDeviceChange);
+
+    return () => {
+      navigator.mediaDevices.removeEventListener(
+        "devicechange",
+        onDeviceChange,
+      );
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     const recoverIfNeeded = () => {
@@ -397,12 +490,17 @@ export function useAudioReceiverSignaling() {
     error,
     log,
     audioRef,
+    audioOutputOptions,
+    selectedAudioOutputId,
+    sinkSelectionSupported,
     roomId,
     signalingIpAddress,
     signalingPort,
     setRoomId,
     setSignalingIpAddress,
     setSignalingPort,
+    refreshAudioOutputs,
+    handleAudioOutputChange,
     handleConnect,
     disconnect,
   };

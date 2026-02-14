@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   signalingPort: "teleco.audio.signalingPort",
   signalingWsUrlLegacy: "teleco.audio.signalingWsUrl",
   autoConnect: "teleco.audio.autoConnect",
+  outputDeviceId: "teleco.audio.outputDeviceId",
 } as const;
 
 const AUDIO_SIGNALING_IP_ENV_KEYS = ["NEXT_PUBLIC_AUDIO_SIGNALING_IP_ADDRESS"];
