@@ -13,7 +13,7 @@ npm run start
 ### 主要ページ
 
 - `/gui` : オペレーターGUI
-- `/sender` : Video Sender
+- `/video` : Video Sender
 - `/audio` : Audio Receiver
 - `/audio/sender` : Audio Sender
 
@@ -47,7 +47,7 @@ NEXT_PUBLIC_AUDIO_SIGNALING_PORT=3000
 # Audio Sender (/audio/sender, /gui 音声送信)
 NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS=localhost
 NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT=3000
-# Video Sender (/sender, /gui webSender)
+# Video Sender (/video, /gui webSender)
 NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS=localhost
 NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT=3000
 
@@ -71,5 +71,5 @@ NEXT_PUBLIC_TELECO_PORT=11920
 
 ### Signaling設定UIについて
 
-`/gui` `/sender` `/audio` `/audio/sender` は、`Signaling WS URL` の直入力ではなく、`IP Address` / `Port` / `Room ID` 入力から URL を組み立てる方式です。  
+`/gui` `/video` `/audio` `/audio/sender` は、`Signaling WS URL` の直入力ではなく、`IP Address` / `Port` / `Room ID` 入力から URL を組み立てる方式です。  
 画面上の `Signaling WS URL` は確認用表示です。

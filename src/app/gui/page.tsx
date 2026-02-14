@@ -123,7 +123,7 @@ export default function GuiPage() {
 
           <nav className="ml-auto flex flex-wrap items-center gap-2">
             <Link
-              href="/sender"
+              href="/video"
               className="rounded-xl bg-slate-900 px-3 py-2 text-xs text-white hover:bg-slate-800"
             >
               Video Senderへ
@@ -153,7 +153,7 @@ export default function GuiPage() {
               value={mode}
               onChange={(e) => setMode(e.target.value as VideoSourceMode)}
             >
-              <option value="webSender">WebRTC sender (/sender)</option>
+              <option value="webSender">WebRTC sender (/video)</option>
               <option value="local">このPCのカメラ</option>
             </select>
           </nav>
@@ -249,7 +249,7 @@ export default function GuiPage() {
         <section className="space-y-4 lg:col-span-12">
           <Card
             title="1タブ統合パネル"
-            subtitle="/sender と /audio をこのページ内に埋め込みます"
+            subtitle="/video と /audio をこのページ内に埋め込みます"
           >
             <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
               <label className="inline-flex items-center gap-2">
@@ -276,10 +276,10 @@ export default function GuiPage() {
                 <section className="rounded-xl border bg-slate-50 p-2">
                   <div className="mb-2 flex items-center justify-between px-1">
                     <h3 className="text-sm font-semibold">
-                      Video Sender (/sender)
+                      Video Sender (/video)
                     </h3>
                     <Link
-                      href="/sender"
+                      href="/video"
                       target="_blank"
                       className="text-xs text-slate-600 hover:text-slate-900"
                     >
@@ -288,7 +288,7 @@ export default function GuiPage() {
                   </div>
 
                   <iframe
-                    src="/sender"
+                    src="/video"
                     title="Video Sender"
                     className="h-[760px] w-full rounded-lg border bg-white"
                     allow="camera; microphone; autoplay"
@@ -358,6 +358,6 @@ function subtitleForMode(mode: VideoSourceMode): string {
     case "local":
       return "このPCのカメラ映像 (getUserMedia)";
     case "webSender":
-      return "別PCの /sender からの映像(WebRTC+WS)";
+      return "別PCの /video からの映像(WebRTC+WS)";
   }
 }

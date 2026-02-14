@@ -19,6 +19,16 @@ import {
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 const STORAGE = {
+  roomId: "teleco.video.roomId",
+  signalingIpAddress: "teleco.video.signalingIpAddress",
+  signalingPort: "teleco.video.signalingPort",
+  signalingWsUrlLegacy: "teleco.video.signalingWsUrl",
+  autoConnect: "teleco.video.autoConnect",
+  cameraActive: "teleco.video.cameraActive",
+  streamingActive: "teleco.video.streamingActive",
+  cameraDeviceId: "teleco.video.cameraDeviceId",
+};
+const LEGACY_STORAGE = {
   roomId: "teleco.sender.roomId",
   signalingIpAddress: "teleco.sender.signalingIpAddress",
   signalingPort: "teleco.sender.signalingPort",
@@ -28,6 +38,13 @@ const STORAGE = {
   streamingActive: "teleco.sender.streamingActive",
   cameraDeviceId: "teleco.sender.cameraDeviceId",
 };
+
+function getStoredValue(key: keyof typeof STORAGE): string | null {
+  if (typeof window === "undefined") return null;
+  const next = window.localStorage.getItem(STORAGE[key]);
+  if (next != null) return next;
+  return window.localStorage.getItem(LEGACY_STORAGE[key]);
+}
 
 const WS_KEEPALIVE_MS = 10_000;
 
@@ -42,7 +59,7 @@ const VIDEO_SEND_SIGNALING_PORT_ENV_KEYS = [
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_PORT",
 ];
 
-export default function SenderPage() {
+export default function VideoSenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
   const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
     getDefaultSignalingIpAddress({ envKeys: VIDEO_SEND_SIGNALING_IP_ENV_KEYS }),
@@ -110,7 +127,7 @@ export default function SenderPage() {
       setSelectedCameraId((prev) => {
         if (prev && cameras.some((c) => c.deviceId === prev)) return prev;
 
-        const saved = window.localStorage.getItem(STORAGE.cameraDeviceId) || "";
+        const saved = getStoredValue("cameraDeviceId") || "";
         if (saved && cameras.some((c) => c.deviceId === saved)) return saved;
 
         return cameras[0].deviceId;
@@ -490,20 +507,16 @@ export default function SenderPage() {
   }, [stream]);
 
   useEffect(() => {
-    const savedRoom = window.localStorage.getItem(STORAGE.roomId);
+    const savedRoom = getStoredValue("roomId");
     if (savedRoom) setRoomId(savedRoom);
 
-    const savedSignalIpAddress = window.localStorage.getItem(
-      STORAGE.signalingIpAddress,
-    );
+    const savedSignalIpAddress = getStoredValue("signalingIpAddress");
     if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
 
-    const savedSignalPort = window.localStorage.getItem(STORAGE.signalingPort);
+    const savedSignalPort = getStoredValue("signalingPort");
     if (savedSignalPort) setSignalingPort(savedSignalPort);
 
-    const legacySignalUrl = window.localStorage.getItem(
-      STORAGE.signalingWsUrlLegacy,
-    );
+    const legacySignalUrl = getStoredValue("signalingWsUrlLegacy");
     if (legacySignalUrl) {
       const parsed = parseSignalingUrl(legacySignalUrl);
       if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
@@ -511,16 +524,12 @@ export default function SenderPage() {
       if (parsed?.roomId) setRoomId(parsed.roomId);
     }
 
-    const savedCameraDeviceId =
-      window.localStorage.getItem(STORAGE.cameraDeviceId) || "";
+    const savedCameraDeviceId = getStoredValue("cameraDeviceId") || "";
     if (savedCameraDeviceId) setSelectedCameraId(savedCameraDeviceId);
 
-    shouldAutoConnectRef.current =
-      window.localStorage.getItem(STORAGE.autoConnect) === "1";
-    shouldAutoStartCameraRef.current =
-      window.localStorage.getItem(STORAGE.cameraActive) === "1";
-    desiredStreamingRef.current =
-      window.localStorage.getItem(STORAGE.streamingActive) === "1";
+    shouldAutoConnectRef.current = getStoredValue("autoConnect") === "1";
+    shouldAutoStartCameraRef.current = getStoredValue("cameraActive") === "1";
+    desiredStreamingRef.current = getStoredValue("streamingActive") === "1";
 
     void enumerateVideoInputs();
 
