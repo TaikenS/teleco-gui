@@ -229,27 +229,27 @@ export default function TelecoControlPanel({
         </div>
 
         <p className="action-state-hint" role="status" aria-live="polite">
-          下の2パネルはチェックで表示/非表示を切り替えできます。
+          下の2パネルはトグルで表示/非表示を切り替えできます。
         </p>
 
-        <div className="grid gap-2 sm:grid-cols-2">
-          <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
-            <input
-              type="checkbox"
-              checked={showMouthPresetPanel}
-              onChange={(e) => onSetShowMouthPresetPanel(e.target.checked)}
-            />
+        <div className="toggle-pill-group">
+          <button
+            type="button"
+            className={`toggle-pill ${showMouthPresetPanel ? "is-active" : ""}`}
+            aria-pressed={showMouthPresetPanel}
+            onClick={() => onSetShowMouthPresetPanel(!showMouthPresetPanel)}
+          >
             口パク手動プリセット
-          </label>
+          </button>
 
-          <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
-            <input
-              type="checkbox"
-              checked={showRawCommandPanel}
-              onChange={(e) => onSetShowRawCommandPanel(e.target.checked)}
-            />
+          <button
+            type="button"
+            className={`toggle-pill ${showRawCommandPanel ? "is-active" : ""}`}
+            aria-pressed={showRawCommandPanel}
+            onClick={() => onSetShowRawCommandPanel(!showRawCommandPanel)}
+          >
             任意コマンド送信
-          </label>
+          </button>
         </div>
       </div>
 

@@ -93,12 +93,12 @@ export default function GuiPage() {
 
   // 1タブ統合パネルの表示状態
   const [showVideoSenderPanel, setShowVideoSenderPanel] =
-    usePersistentState<boolean>(EMBED_VIDEO_SENDER_KEY, true, {
+    usePersistentState<boolean>(EMBED_VIDEO_SENDER_KEY, false, {
       deserialize: parseBinaryFlag,
       serialize: serializeBinaryFlag,
     });
   const [showAudioReceiverPanel, setShowAudioReceiverPanel] =
-    usePersistentState<boolean>(EMBED_AUDIO_RECEIVER_KEY, true, {
+    usePersistentState<boolean>(EMBED_AUDIO_RECEIVER_KEY, false, {
       deserialize: parseBinaryFlag,
       serialize: serializeBinaryFlag,
     });
@@ -142,8 +142,8 @@ export default function GuiPage() {
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-7xl gap-4 p-4 lg:grid-cols-12 lg:items-start">
-        <section className="space-y-4 lg:col-span-4 lg:sticky lg:top-[88px] lg:max-h-[calc(100vh-104px)] lg:overflow-y-auto lg:pr-1">
+      <main className="mx-auto grid max-w-[1600px] gap-4 p-4 lg:h-[calc(100vh-84px)] lg:grid-cols-12 lg:overflow-hidden lg:items-start">
+        <section className="space-y-4 lg:col-span-4 lg:h-full lg:overflow-y-auto lg:pr-1">
           <Card title="Device Setting" subtitle="音声送信・マイク確認">
             <AudioSender panel="device" />
           </Card>
@@ -155,7 +155,7 @@ export default function GuiPage() {
           </Card>
         </section>
 
-        <section className="space-y-4 lg:col-span-8">
+        <section className="space-y-4 lg:col-span-8 lg:h-full lg:overflow-y-auto lg:pr-1">
           <Card title="Video Receiver" subtitle={subtitleForMode(mode)}>
             <div className="mb-3 flex items-center gap-2">
               <span className="text-xs text-slate-500">映像ソース</span>
@@ -241,24 +241,28 @@ export default function GuiPage() {
             title="1タブ統合パネル"
             subtitle="/video と /audio をこのページ内に埋め込みます"
           >
-            <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={showVideoSenderPanel}
-                  onChange={(e) => setShowVideoSenderPanel(e.target.checked)}
-                />
-                Video Sender パネルを表示
-              </label>
-
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={showAudioReceiverPanel}
-                  onChange={(e) => setShowAudioReceiverPanel(e.target.checked)}
-                />
-                Audio Receiver パネルを表示
-              </label>
+            <div className="mb-3">
+              <div className="mb-2 text-xs text-slate-500">
+                表示パネルを切り替え
+              </div>
+              <div className="toggle-pill-group">
+                <button
+                  type="button"
+                  className={`toggle-pill ${showVideoSenderPanel ? "is-active" : ""}`}
+                  aria-pressed={showVideoSenderPanel}
+                  onClick={() => setShowVideoSenderPanel((v) => !v)}
+                >
+                  Video Sender
+                </button>
+                <button
+                  type="button"
+                  className={`toggle-pill ${showAudioReceiverPanel ? "is-active" : ""}`}
+                  aria-pressed={showAudioReceiverPanel}
+                  onClick={() => setShowAudioReceiverPanel((v) => !v)}
+                >
+                  Audio Receiver
+                </button>
+              </div>
             </div>
 
             <div className="grid gap-4 xl:grid-cols-2">
@@ -315,7 +319,7 @@ export default function GuiPage() {
 
             {!showVideoSenderPanel && !showAudioReceiverPanel && (
               <p className="text-sm text-slate-500">
-                パネルが非表示です。必要なものにチェックを入れてください。
+                パネルはデフォルトで非表示です。上のトグルから表示できます。
               </p>
             )}
           </Card>

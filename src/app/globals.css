@@ -367,12 +367,14 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
+  min-width: 0;
 }
 
 .action-button {
   position: relative;
   isolation: isolate;
-  min-width: 11.4rem;
+  width: 100%;
+  min-width: 0;
   border-radius: 0.75rem;
   padding: 0.5rem 1rem;
   font-weight: 700;
@@ -423,8 +425,8 @@ button:disabled {
 .action-button:disabled::after {
   content: attr(data-disabled-label);
   position: absolute;
-  right: -0.34rem;
-  top: -0.52rem;
+  right: 0.35rem;
+  top: 0.35rem;
   border-radius: 999px;
   background: color-mix(in srgb, var(--surface) 84%, var(--surface-muted));
   border: 1px solid color-mix(in srgb, var(--border-strong) 82%, white 18%);
@@ -450,6 +452,34 @@ button:disabled {
 
 .button-reason.is-disabled {
   color: color-mix(in srgb, #b45309 72%, var(--foreground));
+}
+
+.toggle-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.toggle-pill {
+  border: 1px solid color-mix(in srgb, var(--border) 86%, white 14%);
+  background: color-mix(in srgb, var(--surface-muted) 80%, white 20%);
+  color: color-mix(in srgb, var(--foreground) 72%, white 28%);
+  border-radius: 999px;
+  padding: 0.42rem 0.8rem;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle-pill.is-active {
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--accent) 18%, var(--surface)),
+    color-mix(in srgb, var(--accent-2) 14%, var(--surface))
+  );
+  color: color-mix(in srgb, var(--foreground) 86%, white 14%);
 }
 
 @keyframes spin {

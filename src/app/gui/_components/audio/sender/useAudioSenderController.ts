@@ -485,8 +485,8 @@ export function useAudioSenderController({
   const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
   const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
 
-  const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(true);
-  const [showRawCommandPanel, setShowRawCommandPanel] = useState(true);
+  const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(false);
+  const [showRawCommandPanel, setShowRawCommandPanel] = useState(false);
 
   // レベルメータ用（RMS）
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
