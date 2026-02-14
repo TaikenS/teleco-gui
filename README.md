@@ -1,11 +1,35 @@
 ## teleco-gui
 
-### 起動
+teleco の GUI / Audio / Video をブラウザで操作するためのアプリです。
+
+### まず使う人向け（Windows）
+
+1. Node.js LTS をインストール（https://nodejs.org/）
+2. このフォルダで `start.bat` をダブルクリック
+3. 起動完了後、ブラウザが自動で開きます（例: `http://localhost:3000`）
+
+`start.bat` が自動で行うこと:
+
+- `node` / `npm` の存在チェック
+- `node_modules` が無い場合の `npm install`
+- `.env.local` / `.env` の `PORT` を読んで待機先URLを決定
+- サーバー起動後にブラウザを自動オープン
+
+停止する場合:
+
+- サーバー用に開いた黒いウィンドウを閉じる
+- またはそのウィンドウで `Ctrl + C`
+
+### 手動起動（開発者向け）
 
 ```bash
 npm install
 npm run dev
-# または
+```
+
+本番モードで動作確認する場合:
+
+```bash
 npm run build
 npm run start
 ```
@@ -77,3 +101,12 @@ NEXT_PUBLIC_TELECO_PORT=11920
 
 `/gui` `/video` `/audio` `/audio/sender` は、`Signaling WS URL` の直入力ではなく、`IP Address` / `Port` / `Room ID` 入力から URL を組み立てる方式です。  
 画面上の `Signaling WS URL` は確認用表示です。
+
+## トラブルシュート
+
+- ブラウザが開かない:
+  サーバーウィンドウにエラーが出ていないか確認し、`http://localhost:3000`（または `PORT` で指定した値）へ直接アクセスしてください。
+- `Node.js is not installed` が出る:
+  Node.js LTS をインストール後、新しいターミナル/Explorerで再実行してください。
+- 起動待機がタイムアウトする:
+  使用ポートが他アプリと競合している可能性があります。`.env.local` で `PORT=3001` のように変更して再実行してください。
