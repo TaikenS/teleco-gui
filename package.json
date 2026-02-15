@@ -8,15 +8,18 @@
     "start": "cross-env NODE_ENV=production node server.mjs",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier . --write"
+    "format": "prettier . --write",
+    "deps:check": "npm outdated",
+    "deps:update": "npm update",
+    "deps:major": "npx npm-check-updates -u && npm install",
+    "deps:refresh": "cmd /c \"if exist package-lock.json del /f /q package-lock.json && if exist node_modules rmdir /s /q node_modules\" && npm install",
+    "deps:verify": "npm run lint && npm run build"
   },
   "dependencies": {
     "eslint-plugin-prettier": "^5.5.5",
     "next": "16.1.6",
-    "npm-check-updates": "^19.3.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "typescript-eslint": "^8.55.0",
     "ws": "^8.19.0"
   },
   "devDependencies": {
@@ -25,16 +28,15 @@
     "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.55.0",
-    "@typescript-eslint/parser": "^8.55.0",
     "babel-plugin-react-compiler": "1.0.0",
     "baseline-browser-mapping": "^2.9.19",
     "cross-env": "^10.1.0",
-    "eslint": "^10",
+    "eslint": "^9.0.0",
     "eslint-config-next": "^16.1.6",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-unused-imports": "^4.4.1",
+    "npm-check-updates": "^19.3.2",
     "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "typescript": "^5"

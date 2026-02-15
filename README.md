@@ -34,6 +34,44 @@ npm run build
 npm run start
 ```
 
+### 依存関係のアップデート手順
+
+1. 更新候補を確認
+
+```bash
+npm run deps:check
+```
+
+2. まずは安全更新（パッチ/マイナー）
+
+```bash
+npm run deps:update
+```
+
+3. 動作確認
+
+```bash
+npm run deps:verify
+```
+
+4. メジャー更新も行う場合
+
+```bash
+npm run deps:major
+npm run deps:verify
+```
+
+依存関係の解決エラー（`ERESOLVE`）が出た場合は、ロックファイルと `node_modules` を再生成してください。
+
+```bash
+npm run deps:refresh
+npm run deps:verify
+```
+
+補足:
+
+- ESLint関連は `peerDependencies` の影響を受けやすいため、単体ではなく関連パッケージをまとめて更新するのが安全です。
+
 ### 主要ページ
 
 - `/gui` : オペレーターGUI
