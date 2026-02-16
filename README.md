@@ -2,7 +2,7 @@
 
 teleco の GUI / Audio / Video をブラウザで操作するためのアプリです。
 
-### まず使う人向け（Windows）
+### まず使う人向け（Windows / 本番起動）
 
 1. Node.js LTS をインストール（https://nodejs.org/）
 2. このフォルダで `start.bat` をダブルクリック
@@ -13,6 +13,8 @@ teleco の GUI / Audio / Video をブラウザで操作するためのアプリ�
 - `node` / `npm` の存在チェック
 - `node_modules` が無い場合の `npm install`
 - `.env.local` / `.env` の `PORT` を読んで待機先URLを決定
+- `npm run build`（本番ビルド）
+- `npm run start`（本番モード起動）
 - サーバー起動後にブラウザを自動オープン
 
 停止する場合:
@@ -27,7 +29,7 @@ npm install
 npm run dev
 ```
 
-本番モードで動作確認する場合:
+本番モードで手動起動する場合:
 
 ```bash
 npm run build

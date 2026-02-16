@@ -33,8 +33,16 @@ for /f "delims=" %%P in ('powershell -NoProfile -Command "$port='3000'; foreach(
 
 if not defined APP_PORT set "APP_PORT=3000"
 
+echo Running production build...
+call npm run build
+if errorlevel 1 (
+  echo [ERROR] npm run build failed.
+  pause
+  exit /b 1
+)
+
 REM サーバー起動（別ウィンドウで実行して残す）
-start "teleco-gui dev server" cmd /k "npm run dev"
+start "teleco-gui prod server" cmd /k "npm run start"
 
 echo Waiting for http://localhost:%APP_PORT% ...
 set "WAIT_COUNT=0"
