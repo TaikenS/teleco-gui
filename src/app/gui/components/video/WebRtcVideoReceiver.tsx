@@ -66,6 +66,7 @@ export default function WebRtcVideoReceiver({
 
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [playRetryNeeded, setPlayRetryNeeded] = useState(false);
   const [fps, setFps] = useState<number | null>(null);
   const [resolution, setResolution] = useState<{
     width: number;
@@ -76,6 +77,21 @@ export default function WebRtcVideoReceiver({
 
   const logLine = (line: string) =>
     setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+
+  const tryPlayRemoteVideo = async () => {
+    const video = remoteVideoRef.current;
+    if (!video) return;
+
+    try {
+      await video.play();
+      setPlayRetryNeeded(false);
+      logLine("リモート映像再生開始");
+    } catch (e) {
+      console.error(e);
+      setPlayRetryNeeded(true);
+      logLine(`映像再生待機: ${String(e)}`);
+    }
+  };
 
   const stopKeepalive = () => {
     if (keepaliveTimerRef.current != null) {
@@ -147,12 +163,7 @@ export default function WebRtcVideoReceiver({
       const video = remoteVideoRef.current;
       if (video) {
         video.srcObject = remoteStream;
-        video
-          .play()
-          .then(() => logLine("リモート映像再生開始"))
-          .catch((e) => {
-            console.error(e);
-          });
+        void tryPlayRemoteVideo();
       }
     };
 
@@ -390,44 +401,76 @@ export default function WebRtcVideoReceiver({
 
   // FPS / 解像度計測
   useEffect(() => {
-    let animationId: number;
+    let animationId: number | null = null;
+    let frameRequestId: number | null = null;
+    let cancelled = false;
 
-    const loop = (time: number) => {
-      const video = remoteVideoRef.current;
-      if (video && video.readyState >= 2) {
-        const w = video.videoWidth;
-        const h = video.videoHeight;
-        if (w && h) {
-          setResolution((prev) =>
-            !prev || prev.width !== w || prev.height !== h
-              ? { width: w, height: h }
-              : prev,
-          );
-        }
+    const updateResolution = (video: HTMLVideoElement) => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (!w || !h) return;
 
-        if (lastTimeRef.current == null) {
-          lastTimeRef.current = time;
-          frameCountRef.current = 0;
-        } else {
-          frameCountRef.current += 1;
-          const delta = time - lastTimeRef.current;
-          if (delta >= 1000) {
-            const currentFps = Math.round(
-              (frameCountRef.current * 1000) / delta,
-            );
-            setFps(currentFps);
-            frameCountRef.current = 0;
-            lastTimeRef.current = time;
-          }
-        }
-      }
-      animationId = requestAnimationFrame(loop);
+      setResolution((prev) =>
+        !prev || prev.width !== w || prev.height !== h
+          ? { width: w, height: h }
+          : prev,
+      );
     };
 
-    animationId = requestAnimationFrame(loop);
+    const updateFps = (timestamp: number) => {
+      if (lastTimeRef.current == null) {
+        lastTimeRef.current = timestamp;
+        frameCountRef.current = 0;
+        return;
+      }
+
+      frameCountRef.current += 1;
+      const delta = timestamp - lastTimeRef.current;
+      if (delta < 1000) return;
+
+      const currentFps = Math.round((frameCountRef.current * 1000) / delta);
+      setFps(currentFps);
+      frameCountRef.current = 0;
+      lastTimeRef.current = timestamp;
+    };
+
+    const video = remoteVideoRef.current;
+    const supportsVideoFrameCallback =
+      !!video && typeof video.requestVideoFrameCallback === "function";
+
+    if (video && supportsVideoFrameCallback) {
+      const onVideoFrame = (_now: number, metadata: VideoFrameCallbackMetadata) => {
+        if (cancelled) return;
+
+        updateResolution(video);
+        updateFps(metadata.expectedDisplayTime || performance.now());
+        frameRequestId = video.requestVideoFrameCallback(onVideoFrame);
+      };
+
+      frameRequestId = video.requestVideoFrameCallback(onVideoFrame);
+    } else {
+      const rafLoop = (time: number) => {
+        if (cancelled) return;
+        const currentVideo = remoteVideoRef.current;
+        if (currentVideo && currentVideo.readyState >= 2) {
+          updateResolution(currentVideo);
+          updateFps(time);
+        }
+        animationId = requestAnimationFrame(rafLoop);
+      };
+
+      animationId = requestAnimationFrame(rafLoop);
+    }
 
     return () => {
-      cancelAnimationFrame(animationId);
+      cancelled = true;
+      if (animationId != null) {
+        cancelAnimationFrame(animationId);
+      }
+      if (frameRequestId != null) {
+        const currentVideo = remoteVideoRef.current;
+        currentVideo?.cancelVideoFrameCallback(frameRequestId);
+      }
     };
   }, []);
 
@@ -452,7 +495,21 @@ export default function WebRtcVideoReceiver({
           className="h-full w-full object-contain"
           playsInline
           autoPlay
+          muted
         />
+        {playRetryNeeded && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45">
+            <button
+              type="button"
+              className="pointer-events-auto rounded-lg bg-white px-3 py-2 text-xs text-slate-900"
+              onClick={() => {
+                void tryPlayRemoteVideo();
+              }}
+            >
+              映像再生を再試行
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-4 text-xs text-slate-500">

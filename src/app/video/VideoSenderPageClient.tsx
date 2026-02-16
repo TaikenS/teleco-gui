@@ -226,7 +226,7 @@ export default function VideoSenderPage() {
     if (!streamRef.current) return;
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
-    void startWebRTC(true);
+    void startWebRTC({ isAuto: true });
   };
 
   // カメラ起動
@@ -239,36 +239,86 @@ export default function VideoSenderPage() {
     if (cameraBusy) return;
     setCameraBusy(true);
 
-    const open = (deviceId?: string) =>
-      navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
-        },
-        audio: false,
-      });
-
     const targetDeviceId = preferredDeviceId ?? selectedCameraId;
 
     try {
-      let media: MediaStream;
-      try {
-        media = await open(targetDeviceId || undefined);
-      } catch (err) {
-        const name = err instanceof DOMException ? err.name : "";
-        // 保存済みdeviceIdが無効になった場合などはデフォルトカメラへフォールバック
-        if (
-          targetDeviceId &&
-          (name === "OverconstrainedError" || name === "NotFoundError")
-        ) {
-          logLine(
-            "選択中カメラが見つからないため、利用可能なカメラで再試行します",
-          );
-          media = await open(undefined);
-        } else {
-          throw err;
+      const buildVideoConstraints = (
+        deviceId?: string,
+        withIdealSize = true,
+      ): MediaTrackConstraints => ({
+        ...(withIdealSize
+          ? {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            }
+          : {}),
+        ...(deviceId ? { deviceId: { exact: deviceId } } : {}),
+      });
+
+      const attempts: Array<{
+        label: string;
+        constraints: MediaStreamConstraints;
+      }> = [];
+
+      if (targetDeviceId) {
+        attempts.push({
+          label: "選択カメラ + 1280x720",
+          constraints: {
+            video: buildVideoConstraints(targetDeviceId, true),
+            audio: false,
+          },
+        });
+        attempts.push({
+          label: "選択カメラ（解像度指定なし）",
+          constraints: {
+            video: buildVideoConstraints(targetDeviceId, false),
+            audio: false,
+          },
+        });
+        attempts.push({
+          label: "既定カメラ + 1280x720",
+          constraints: {
+            video: buildVideoConstraints(undefined, true),
+            audio: false,
+          },
+        });
+      } else {
+        attempts.push({
+          label: "既定カメラ + 1280x720",
+          constraints: {
+            video: buildVideoConstraints(undefined, true),
+            audio: false,
+          },
+        });
+      }
+
+      attempts.push({
+        label: "既定カメラ（video:true）",
+        constraints: { video: true, audio: false },
+      });
+
+      let media: MediaStream | null = null;
+      let lastError: unknown = null;
+
+      for (let i = 0; i < attempts.length; i++) {
+        const attempt = attempts[i];
+        try {
+          media = await navigator.mediaDevices.getUserMedia(attempt.constraints);
+          if (i > 0) {
+            logLine(`カメラ起動フォールバック成功: ${attempt.label}`);
+          }
+          break;
+        } catch (err) {
+          lastError = err;
+          const errName = err instanceof DOMException ? err.name : "UnknownError";
+          if (i < attempts.length - 1) {
+            logLine(`カメラ起動リトライ: ${attempt.label} -> ${errName}`);
+          }
         }
+      }
+
+      if (!media) {
+        throw lastError ?? new Error("No camera stream acquired");
       }
 
       if (streamRef.current) {
@@ -298,6 +348,11 @@ export default function VideoSenderPage() {
         window.localStorage.setItem(STORAGE.cameraDeviceId, activeDeviceId);
       }
 
+      const settings = activeTrack?.getSettings?.();
+      if (settings?.width && settings?.height) {
+        logLine(`カメラ設定: ${settings.width}x${settings.height}`);
+      }
+
       window.localStorage.setItem(STORAGE.cameraActive, "1");
       logLine(
         `カメラ起動${activeDeviceId ? `: ${cameraLabelById(activeDeviceId)}` : ""}`,
@@ -309,7 +364,10 @@ export default function VideoSenderPage() {
       maybeAutoStartWebRTC();
     } catch (e) {
       console.error(e);
-      logLine("カメラ起動に失敗");
+      const errName = e instanceof DOMException ? e.name : "UnknownError";
+      const errMessage =
+        e instanceof Error ? e.message : typeof e === "string" ? e : "";
+      logLine(`カメラ起動に失敗: ${errName}${errMessage ? ` (${errMessage})` : ""}`);
     } finally {
       setCameraBusy(false);
     }
@@ -390,10 +448,23 @@ export default function VideoSenderPage() {
         return;
       }
 
-      const pc = pcRef.current;
-      if (!pc) return;
+      if (typeof msg === "object" && msg !== null) {
+        const msgObj = msg as Record<string, unknown>;
+        if (
+          msgObj.type === "peer-joined" &&
+          msgObj.role === "viewer" &&
+          desiredStreamingRef.current &&
+          streamRef.current
+        ) {
+          logLine("viewer 参加通知を受信。offer を再送します");
+          void startWebRTC({ isAuto: true, forceRestart: true });
+          return;
+        }
+      }
 
       if (isWsAnswerMessage(msg)) {
+        const pc = pcRef.current;
+        if (!pc) return;
         try {
           const desc = new RTCSessionDescription(msg.payload);
           await pc.setRemoteDescription(desc);
@@ -403,6 +474,8 @@ export default function VideoSenderPage() {
           logLine(`answer処理失敗: ${String(e)}`);
         }
       } else if (isWsIceCandidateMessage(msg)) {
+        const pc = pcRef.current;
+        if (!pc) return;
         try {
           await pc.addIceCandidate(msg.payload);
         } catch (e) {
@@ -413,7 +486,13 @@ export default function VideoSenderPage() {
   };
 
   // WebRTC 接続開始
-  const startWebRTC = async (isAuto = false) => {
+  const startWebRTC = async (options?: {
+    isAuto?: boolean;
+    forceRestart?: boolean;
+  }) => {
+    const isAuto = options?.isAuto ?? false;
+    const forceRestart = options?.forceRestart ?? false;
+
     if (rtcBusy) return;
 
     const currentStream = streamRef.current;
@@ -429,6 +508,7 @@ export default function VideoSenderPage() {
 
     const existingPc = pcRef.current;
     if (
+      !forceRestart &&
       existingPc &&
       (existingPc.connectionState === "connected" ||
         existingPc.connectionState === "connecting")
@@ -438,6 +518,10 @@ export default function VideoSenderPage() {
       window.localStorage.setItem(STORAGE.streamingActive, "1");
       setRtcState(existingPc.connectionState);
       return;
+    }
+
+    if (forceRestart && existingPc) {
+      logLine("viewer参加を検知したため WebRTC を再ネゴシエーションします");
     }
 
     setRtcBusy(true);
@@ -769,7 +853,7 @@ export default function VideoSenderPage() {
           onRefreshCameras={() => void enumerateVideoInputs()}
           onStartCamera={() => void startCamera()}
           onConnectSignaling={handleConnectSignaling}
-          onStartStreaming={() => void startWebRTC(false)}
+          onStartStreaming={() => void startWebRTC()}
           onStopConnection={handleStopConnection}
         />
         <VideoSenderPreviewPanel

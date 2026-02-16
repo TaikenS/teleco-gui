@@ -178,6 +178,25 @@ wss.on("connection", (ws, req) => {
         leaveRoom(ws);
       }
       joinRoom(ws, parsed.roomId);
+
+      const peers = rooms.get(parsed.roomId);
+      if (peers) {
+        const notice = JSON.stringify({
+          type: "peer-joined",
+          roomId: parsed.roomId,
+          role: parsed.role === "sender" ? "sender" : "viewer",
+        });
+
+        for (const peer of peers) {
+          if (peer !== ws && peer.readyState === peer.OPEN) {
+            try {
+              peer.send(notice);
+            } catch {
+              // noop
+            }
+          }
+        }
+      }
       return;
     }
 
