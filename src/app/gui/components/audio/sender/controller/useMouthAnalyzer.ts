@@ -11,6 +11,7 @@ export function useMouthAnalyzer(params: {
   monitorVolume: number;
   noiseFloor: number;
   gain: number;
+  speakingThreshold: number;
   onError: (message: string) => void;
   sendMouthVowel: (vowel: Vowel) => void;
 }) {
@@ -19,6 +20,7 @@ export function useMouthAnalyzer(params: {
     monitorVolume,
     noiseFloor,
     gain,
+    speakingThreshold,
     onError,
     sendMouthVowel,
   } = params;
@@ -126,6 +128,7 @@ export function useMouthAnalyzer(params: {
 
       const estimator = new VowelEstimator();
       estimator.bufferSize = 1024;
+      estimator.th_isSpeaking = Math.max(0, Math.min(1, speakingThreshold));
       estimator.setSampleRate(ctx.sampleRate);
       estimator.setCallbacks(
         (v) => {

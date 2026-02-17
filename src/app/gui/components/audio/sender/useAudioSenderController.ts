@@ -251,6 +251,8 @@ export function useAudioSenderController({
   // レベルメータ用（RMS）
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
   const [gain, setGain] = useState<number>(20);
+  const [mouthSpeakingThreshold, setMouthSpeakingThreshold] =
+    useState<number>(0.1);
   const {
     micTestAudioRef,
     micTestRunning,
@@ -262,6 +264,7 @@ export function useAudioSenderController({
     monitorVolume,
     noiseFloor,
     gain,
+    speakingThreshold: mouthSpeakingThreshold,
     onError: appendError,
     sendMouthVowel,
   });
@@ -419,6 +422,16 @@ export function useAudioSenderController({
     if (savedShowRawCommandPanel != null)
       setShowRawCommandPanel(savedShowRawCommandPanel === "1");
 
+    const savedMouthSpeakingThreshold = window.localStorage.getItem(
+      STORAGE_KEYS.mouthSpeakingThreshold,
+    );
+    if (savedMouthSpeakingThreshold != null) {
+      const parsed = Number(savedMouthSpeakingThreshold);
+      if (Number.isFinite(parsed)) {
+        setMouthSpeakingThreshold(Math.max(0, Math.min(1, parsed)));
+      }
+    }
+
     shouldAutoCommandRef.current =
       window.localStorage.getItem(STORAGE_KEYS.commandAutoConnect) === "1";
     if (shouldAutoCommandRef.current) {
@@ -477,6 +490,14 @@ export function useAudioSenderController({
       showRawCommandPanel ? "1" : "0",
     );
   }, [isTelecoPanel, showRawCommandPanel]);
+
+  useEffect(() => {
+    if (!isDevicePanel) return;
+    window.localStorage.setItem(
+      STORAGE_KEYS.mouthSpeakingThreshold,
+      String(mouthSpeakingThreshold),
+    );
+  }, [isDevicePanel, mouthSpeakingThreshold]);
 
   const clearSignalReconnectTimer = () => {
     if (signalReconnectTimerRef.current != null) {
@@ -936,6 +957,7 @@ export function useAudioSenderController({
     monitorVolume,
     noiseFloor,
     gain,
+    mouthSpeakingThreshold,
     mouthSendFps,
     micLevel,
     mics,
@@ -950,6 +972,7 @@ export function useAudioSenderController({
     onSetMonitorVolume: setMonitorVolume,
     onSetNoiseFloor: setNoiseFloor,
     onSetGain: setGain,
+    onSetMouthSpeakingThreshold: setMouthSpeakingThreshold,
     onSetMouthSendFps: setMouthSendFps,
     onRefreshDevices: refreshDevices,
     onStartMicTest: () => void startMicTest(),
@@ -980,6 +1003,7 @@ export function useAudioSenderController({
       monitorVolume: micAnalyzer.monitorVolume,
       noiseFloor: micAnalyzer.noiseFloor,
       gain: micAnalyzer.gain,
+      mouthSpeakingThreshold: micAnalyzer.mouthSpeakingThreshold,
       mouthSendFps: micAnalyzer.mouthSendFps,
       micLevel: micAnalyzer.micLevel,
       canConnectSignalNow: deviceSignal.canConnectSignalNow,
@@ -998,6 +1022,7 @@ export function useAudioSenderController({
       onSetMonitorVolume: micAnalyzer.onSetMonitorVolume,
       onSetNoiseFloor: micAnalyzer.onSetNoiseFloor,
       onSetGain: micAnalyzer.onSetGain,
+      onSetMouthSpeakingThreshold: micAnalyzer.onSetMouthSpeakingThreshold,
       onSetMouthSendFps: micAnalyzer.onSetMouthSendFps,
       onRefreshDevices: micAnalyzer.onRefreshDevices,
       onConnectSignal: () => {

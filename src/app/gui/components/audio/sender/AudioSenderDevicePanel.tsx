@@ -22,6 +22,7 @@ type Props = {
   monitorVolume: number;
   noiseFloor: number;
   gain: number;
+  mouthSpeakingThreshold: number;
   mouthSendFps: number;
   micLevel: number;
   canConnectSignalNow: boolean;
@@ -40,6 +41,7 @@ type Props = {
   onSetMonitorVolume: (v: number) => void;
   onSetNoiseFloor: (v: number) => void;
   onSetGain: (v: number) => void;
+  onSetMouthSpeakingThreshold: (v: number) => void;
   onSetMouthSendFps: (v: number) => void;
   onRefreshDevices: () => void;
   onConnectSignal: () => void;
@@ -70,6 +72,7 @@ export default function AudioSenderDevicePanel({
   monitorVolume,
   noiseFloor,
   gain,
+  mouthSpeakingThreshold,
   mouthSendFps,
   micLevel,
   canConnectSignalNow,
@@ -88,6 +91,7 @@ export default function AudioSenderDevicePanel({
   onSetMonitorVolume,
   onSetNoiseFloor,
   onSetGain,
+  onSetMouthSpeakingThreshold,
   onSetMouthSendFps,
   onRefreshDevices,
   onConnectSignal,
@@ -404,6 +408,21 @@ export default function AudioSenderDevicePanel({
               step="1"
               value={gain}
               onChange={(e) => onSetGain(Number(e.target.value))}
+            />
+          </label>
+
+          <label className="text-xs text-slate-700">
+            口パクしきい値（小さいほど反応しやすい）
+            <input
+              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+              type="number"
+              min={0}
+              max={1}
+              step="0.01"
+              value={mouthSpeakingThreshold}
+              onChange={(e) =>
+                onSetMouthSpeakingThreshold(Number(e.target.value))
+              }
             />
           </label>
 

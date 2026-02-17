@@ -9,6 +9,7 @@ export function useMicAnalyzerController(params: {
   monitorVolume: number;
   noiseFloor: number;
   gain: number;
+  mouthSpeakingThreshold: number;
   mouthSendFps: number;
   micLevel: number;
   mics: MicOption[];
@@ -23,6 +24,7 @@ export function useMicAnalyzerController(params: {
   onSetMonitorVolume: (v: number) => void;
   onSetNoiseFloor: (v: number) => void;
   onSetGain: (v: number) => void;
+  onSetMouthSpeakingThreshold: (v: number) => void;
   onSetMouthSendFps: (v: number) => void;
   onRefreshDevices: () => void;
   onStartMicTest: () => void;
@@ -35,6 +37,7 @@ export function useMicAnalyzerController(params: {
     monitorVolume: params.monitorVolume,
     noiseFloor: params.noiseFloor,
     gain: params.gain,
+    mouthSpeakingThreshold: params.mouthSpeakingThreshold,
     mouthSendFps: params.mouthSendFps,
     micLevel: params.micLevel,
     mics: params.mics,
@@ -49,6 +52,7 @@ export function useMicAnalyzerController(params: {
     onSetMonitorVolume: params.onSetMonitorVolume,
     onSetNoiseFloor: params.onSetNoiseFloor,
     onSetGain: params.onSetGain,
+    onSetMouthSpeakingThreshold: params.onSetMouthSpeakingThreshold,
     onSetMouthSendFps: params.onSetMouthSendFps,
     onRefreshDevices: params.onRefreshDevices,
     onStartMicTest: params.onStartMicTest,

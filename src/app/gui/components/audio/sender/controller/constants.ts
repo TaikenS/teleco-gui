@@ -20,6 +20,7 @@ export const STORAGE_KEYS = {
   sendingActive: "teleco.gui.audio.sendingActive",
   showMouthPresetPanel: "teleco.gui.audio.showMouthPresetPanel",
   showRawCommandPanel: "teleco.gui.audio.showRawCommandPanel",
+  mouthSpeakingThreshold: "teleco.gui.audio.mouthSpeakingThreshold",
 } as const;
 
 const AUDIO_SEND_SIGNALING_IP_ENV_KEYS = [
