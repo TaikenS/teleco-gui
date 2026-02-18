@@ -21,6 +21,7 @@ type Props = {
   onMouthTestA: () => void;
   onArrowLeft: () => void;
   onArrowRight: () => void;
+  onInitializePose: () => void;
   onSetShowMouthPresetPanel: (v: boolean) => void;
   onSetShowRawCommandPanel: (v: boolean) => void;
   onSendMouthVowel: (v: "a" | "i" | "u" | "e" | "o" | "xn") => void;
@@ -52,6 +53,7 @@ export default function TelecoControlPanel({
   onMouthTestA,
   onArrowLeft,
   onArrowRight,
+  onInitializePose,
   onSetShowMouthPresetPanel,
   onSetShowRawCommandPanel,
   onSendMouthVowel,
@@ -212,6 +214,23 @@ export default function TelecoControlPanel({
             >
               {commandConnected
                 ? "首を右へ動かせます"
+                : "Command WS未接続のため送信できません"}
+            </p>
+          </div>
+
+          <div className="action-button-wrap">
+            <button
+              onClick={onInitializePose}
+              disabled={!commandConnected}
+              className="action-button bg-amber-600 text-white text-sm"
+            >
+              初期化
+            </button>
+            <p
+              className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}
+            >
+              {commandConnected
+                ? "初期姿勢コマンドを送信します"
                 : "Command WS未接続のため送信できません"}
             </p>
           </div>

@@ -242,6 +242,16 @@ export function useAudioSenderController({
     });
   }
 
+  function sendInitializePose() {
+    sendCommand({
+      label: "move_multi",
+      joints: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      angles: [0, 0, -90, 7, -90, -7, 0, 0, 0, 0, 0, 0, 0],
+      speeds: [100, 100, 100, 100, 100, 100, 100, 100, 100, 1, 1, 1, 1],
+      dontsendback: true,
+    });
+  }
+
   const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
   const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
 
@@ -1065,6 +1075,7 @@ export function useAudioSenderController({
       onMouthTestA: () => sendMouthVowel("a"),
       onArrowLeft: () => sendArrowMove("left"),
       onArrowRight: () => sendArrowMove("right"),
+      onInitializePose: sendInitializePose,
       onSetShowMouthPresetPanel: setShowMouthPresetPanel,
       onSetShowRawCommandPanel: setShowRawCommandPanel,
       onSendMouthVowel: sendMouthVowel,
