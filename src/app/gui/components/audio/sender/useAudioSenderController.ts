@@ -258,7 +258,7 @@ export function useAudioSenderController({
   }
 
   function sendArrowMove(direction: TelecoArrowDirection) {
-    const angle = direction === "left" ? -13 : 13;
+    const angle = direction === "left" ? -20 : 20;
     sendCommand({
       label: "move_multi",
       joints: [8],
