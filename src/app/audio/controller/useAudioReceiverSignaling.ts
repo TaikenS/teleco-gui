@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  AUDIO_RECEIVE_SIGNALING_IP_ENV_KEYS,
+  AUDIO_RECEIVE_SIGNALING_PORT_ENV_KEYS,
   DEFAULT_AUDIO_ROOM,
   HAS_DEFAULT_AUDIO_ROOM_ENV,
   DEFAULT_SIGNALING_IP_ADDRESS,
@@ -33,7 +35,27 @@ function canSetSinkId(audio: HTMLAudioElement | null): audio is HTMLAudioElement
   return !!audio && "setSinkId" in audio;
 }
 
+function getFirstValue(
+  values: Record<string, string>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = values[key];
+    if (value?.trim()) return value.trim();
+  }
+  return null;
+}
+
 export function useAudioReceiverSignaling() {
+  const HAS_AUDIO_RECEIVE_SIGNALING_IP_ENV =
+    AUDIO_RECEIVE_SIGNALING_IP_ENV_KEYS.some(
+      (key) => !!process.env[key]?.trim(),
+    );
+  const HAS_AUDIO_RECEIVE_SIGNALING_PORT_ENV =
+    AUDIO_RECEIVE_SIGNALING_PORT_ENV_KEYS.some(
+      (key) => !!process.env[key]?.trim(),
+    );
+
   const [roomId, setRoomId] = useState<string>(DEFAULT_AUDIO_ROOM);
   const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
     DEFAULT_SIGNALING_IP_ADDRESS,
@@ -197,7 +219,10 @@ export function useAudioReceiverSignaling() {
     logLine(`join送信 roomId=${roomId} role=viewer`);
   };
 
-  const connect = (isReconnect = false) => {
+  const connect = (
+    isReconnect = false,
+    target?: { ipAddress?: string; port?: string; roomId?: string },
+  ) => {
     if (
       wsRef.current?.readyState === WebSocket.OPEN ||
       wsRef.current?.readyState === WebSocket.CONNECTING
@@ -210,8 +235,12 @@ export function useAudioReceiverSignaling() {
     setError(null);
     setWsBusy(true);
 
-    const url = new URL(`ws://${signalingIpAddress}:${signalingPort}/ws`);
-    url.searchParams.set("room", roomId);
+    const ipAddress = (target?.ipAddress ?? signalingIpAddress).trim();
+    const port = (target?.port ?? signalingPort).trim();
+    const room = (target?.roomId ?? roomId).trim();
+
+    const url = new URL(`ws://${ipAddress}:${port}/ws`);
+    url.searchParams.set("room", room);
 
     const wsUrl = url.toString();
     logLine(`Signaling接続開始: ${wsUrl}`);
@@ -364,49 +393,107 @@ export function useAudioReceiverSignaling() {
   };
 
   useEffect(() => {
-    const savedRoomId = window.localStorage.getItem(STORAGE_KEYS.roomId);
-    if (savedRoomId) setRoomId(savedRoomId);
+    void (async () => {
+      let nextRoomId = roomId;
+      let nextSignalingIpAddress = signalingIpAddress;
+      let nextSignalingPort = signalingPort;
 
-    const savedSignalIpAddress = window.localStorage.getItem(
-      STORAGE_KEYS.signalingIpAddress,
-    );
-    if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
+      const savedRoomId = window.localStorage.getItem(STORAGE_KEYS.roomId);
+      if (savedRoomId) {
+        nextRoomId = savedRoomId;
+        setRoomId(savedRoomId);
+      }
 
-    const savedSignalPort = window.localStorage.getItem(
-      STORAGE_KEYS.signalingPort,
-    );
-    if (savedSignalPort) setSignalingPort(savedSignalPort);
+      const savedSignalIpAddress = window.localStorage.getItem(
+        STORAGE_KEYS.signalingIpAddress,
+      );
+      if (!HAS_AUDIO_RECEIVE_SIGNALING_IP_ENV && savedSignalIpAddress) {
+        nextSignalingIpAddress = savedSignalIpAddress;
+        setSignalingIpAddress(savedSignalIpAddress);
+      }
 
-    const legacySignalUrl = window.localStorage.getItem(
-      STORAGE_KEYS.signalingWsUrlLegacy,
-    );
-    if (legacySignalUrl) {
-      const parsed = parseSignalingUrl(legacySignalUrl);
-      if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
-      if (parsed?.port) setSignalingPort(parsed.port);
-      if (parsed?.roomId) setRoomId(parsed.roomId);
-    }
+      const savedSignalPort = window.localStorage.getItem(
+        STORAGE_KEYS.signalingPort,
+      );
+      if (!HAS_AUDIO_RECEIVE_SIGNALING_PORT_ENV && savedSignalPort) {
+        nextSignalingPort = savedSignalPort;
+        setSignalingPort(savedSignalPort);
+      }
 
-    if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
-      setRoomId(DEFAULT_AUDIO_ROOM);
-    }
+      const legacySignalUrl = window.localStorage.getItem(
+        STORAGE_KEYS.signalingWsUrlLegacy,
+      );
+      if (legacySignalUrl) {
+        const parsed = parseSignalingUrl(legacySignalUrl);
+        if (!HAS_AUDIO_RECEIVE_SIGNALING_IP_ENV && parsed?.ipAddress) {
+          nextSignalingIpAddress = parsed.ipAddress;
+          setSignalingIpAddress(parsed.ipAddress);
+        }
+        if (!HAS_AUDIO_RECEIVE_SIGNALING_PORT_ENV && parsed?.port) {
+          nextSignalingPort = parsed.port;
+          setSignalingPort(parsed.port);
+        }
+        if (parsed?.roomId) {
+          nextRoomId = parsed.roomId;
+          setRoomId(parsed.roomId);
+        }
+      }
 
-    shouldAutoConnectRef.current =
-      window.localStorage.getItem(STORAGE_KEYS.autoConnect) === "1";
+      if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
+        nextRoomId = DEFAULT_AUDIO_ROOM;
+        setRoomId(DEFAULT_AUDIO_ROOM);
+      }
 
-    const savedOutputDeviceId = window.localStorage.getItem(
-      STORAGE_KEYS.outputDeviceId,
-    );
-    if (savedOutputDeviceId) {
-      setSelectedAudioOutputId(savedOutputDeviceId);
-    }
+      try {
+        const res = await fetch("/api/env-local", { cache: "no-store" });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          values?: Record<string, string>;
+        };
+        const values = data?.values;
+        if (values) {
+          const envIpAddress = getFirstValue(
+            values,
+            AUDIO_RECEIVE_SIGNALING_IP_ENV_KEYS,
+          );
+          const envPort = getFirstValue(
+            values,
+            AUDIO_RECEIVE_SIGNALING_PORT_ENV_KEYS,
+          );
+          if (envIpAddress) {
+            nextSignalingIpAddress = envIpAddress;
+            setSignalingIpAddress(envIpAddress);
+          }
+          if (envPort) {
+            nextSignalingPort = envPort;
+            setSignalingPort(envPort);
+          }
+        }
+      } catch {
+        // noop
+      }
 
-    void refreshAudioOutputs();
+      shouldAutoConnectRef.current =
+        window.localStorage.getItem(STORAGE_KEYS.autoConnect) === "1";
 
-    if (shouldAutoConnectRef.current) {
-      manualDisconnectRef.current = false;
-      connect(false);
-    }
+      const savedOutputDeviceId = window.localStorage.getItem(
+        STORAGE_KEYS.outputDeviceId,
+      );
+      if (savedOutputDeviceId) {
+        setSelectedAudioOutputId(savedOutputDeviceId);
+      }
+
+      void refreshAudioOutputs();
+
+      if (shouldAutoConnectRef.current) {
+        manualDisconnectRef.current = false;
+        connect(false, {
+          ipAddress: nextSignalingIpAddress,
+          port: nextSignalingPort,
+          roomId: nextRoomId,
+        });
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
