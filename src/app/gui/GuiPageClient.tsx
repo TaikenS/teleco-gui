@@ -39,25 +39,27 @@ const RAW_DEFAULT_VIDEO_ROOM =
   "";
 const HAS_DEFAULT_VIDEO_ROOM_ENV = RAW_DEFAULT_VIDEO_ROOM.length > 0;
 const DEFAULT_VIDEO_ROOM = RAW_DEFAULT_VIDEO_ROOM || "room1";
-const VIDEO_SEND_SIGNALING_IP_ENV_KEYS = [
+const VIDEO_RECEIVE_SIGNALING_IP_ENV_KEYS = [
+  "NEXT_PUBLIC_VIDEO_RECEIVE_SIGNALING_IP_ADDRESS",
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS",
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_IP_ADDRESS",
 ];
-const VIDEO_SEND_SIGNALING_PORT_ENV_KEYS = [
+const VIDEO_RECEIVE_SIGNALING_PORT_ENV_KEYS = [
+  "NEXT_PUBLIC_VIDEO_RECEIVE_SIGNALING_PORT",
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT",
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_PORT",
 ];
-const HAS_VIDEO_SIGNALING_IP_ENV = VIDEO_SEND_SIGNALING_IP_ENV_KEYS.some(
+const HAS_VIDEO_SIGNALING_IP_ENV = VIDEO_RECEIVE_SIGNALING_IP_ENV_KEYS.some(
   (key) => !!process.env[key]?.trim(),
 );
-const HAS_VIDEO_SIGNALING_PORT_ENV = VIDEO_SEND_SIGNALING_PORT_ENV_KEYS.some(
+const HAS_VIDEO_SIGNALING_PORT_ENV = VIDEO_RECEIVE_SIGNALING_PORT_ENV_KEYS.some(
   (key) => !!process.env[key]?.trim(),
 );
 const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress({
-  envKeys: VIDEO_SEND_SIGNALING_IP_ENV_KEYS,
+  envKeys: VIDEO_RECEIVE_SIGNALING_IP_ENV_KEYS,
 });
 const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort({
-  envKeys: VIDEO_SEND_SIGNALING_PORT_ENV_KEYS,
+  envKeys: VIDEO_RECEIVE_SIGNALING_PORT_ENV_KEYS,
 });
 
 function getFirstValue(
@@ -112,8 +114,8 @@ export default function GuiPage() {
     if (!didInitSettingsRef.current) return;
     if (!didEditSignalSettingsRef.current) return;
     scheduleEnvLocalSync({
-      NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS: videoSignalingIpAddress,
-      NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT: videoSignalingPort,
+      NEXT_PUBLIC_VIDEO_RECEIVE_SIGNALING_IP_ADDRESS: videoSignalingIpAddress,
+      NEXT_PUBLIC_VIDEO_RECEIVE_SIGNALING_PORT: videoSignalingPort,
     });
   }, [videoSignalingIpAddress, videoSignalingPort]);
 
@@ -148,10 +150,13 @@ export default function GuiPage() {
         if (!values) return;
 
         if (!didEditSignalSettingsRef.current) {
-          const envIp = getFirstValue(values, VIDEO_SEND_SIGNALING_IP_ENV_KEYS);
+          const envIp = getFirstValue(
+            values,
+            VIDEO_RECEIVE_SIGNALING_IP_ENV_KEYS,
+          );
           const envPort = getFirstValue(
             values,
-            VIDEO_SEND_SIGNALING_PORT_ENV_KEYS,
+            VIDEO_RECEIVE_SIGNALING_PORT_ENV_KEYS,
           );
           if (envIp) setVideoSignalingIpAddress(envIp);
           if (envPort) setVideoSignalingPort(envPort);
