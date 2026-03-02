@@ -16,6 +16,11 @@ const ALLOWED_KEYS = new Set([
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT",
 ]);
 
+const REMOVED_KEYS = new Set([
+  "NEXT_PUBLIC_TELECO_HTTP_URL",
+  "NEXT_PUBLIC_TELECO_COMMAND_WS_URL",
+]);
+
 type EnvPayload = {
   values?: Record<string, string>;
 };
@@ -28,7 +33,16 @@ function updateEnvContent(
   original: string,
   values: Record<string, string>,
 ): string {
-  const lines = original.length > 0 ? original.split(/\r?\n/) : [];
+  const lines =
+    original.length > 0
+      ? original
+          .split(/\r?\n/)
+          .filter((line) => {
+            const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=/);
+            if (!m) return true;
+            return !REMOVED_KEYS.has(m[1]);
+          })
+      : [];
   const indexByKey = new Map<string, number>();
 
   for (let i = 0; i < lines.length; i++) {

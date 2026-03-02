@@ -6,14 +6,13 @@ import {
   HAS_DEFAULT_AUDIO_ROOM_ENV,
   DEFAULT_SIGNALING_IP_ADDRESS,
   DEFAULT_SIGNALING_PORT,
-  DEFAULT_TELECO_IP_ADDRESS,
   DEFAULT_TELECO_PORT,
+  resolveDefaultTelecoIpAddress,
   STORAGE_KEYS,
   TELECO_ARROW_EVENT,
 } from "@/app/gui/components/audio/sender/controller/constants";
 import {
   bindRecoveryListeners,
-  parseHostPortFromUrl,
 } from "@/app/gui/components/audio/sender/controller/helpers";
 import { useMouthAnalyzer } from "@/app/gui/components/audio/sender/controller/useMouthAnalyzer";
 import { useSharedAudioStream } from "@/app/gui/components/audio/sender/controller/useSharedAudioStream";
@@ -77,8 +76,8 @@ export function useAudioSenderController({
     DEFAULT_SIGNALING_PORT,
   );
 
-  const [telecoIpAddress, setTelecoIpAddress] = useState<string>(
-    DEFAULT_TELECO_IP_ADDRESS,
+  const [telecoIpAddress, setTelecoIpAddress] = useState<string>(() =>
+    resolveDefaultTelecoIpAddress(),
   );
   const [telecoPort, setTelecoPort] = useState<string>(DEFAULT_TELECO_PORT);
 
@@ -392,34 +391,6 @@ export function useAudioSenderController({
   useEffect(() => {
     if (!isTelecoPanel) return;
 
-    const savedTelecoIpAddress = window.localStorage.getItem(
-      STORAGE_KEYS.telecoIpAddress,
-    );
-    if (savedTelecoIpAddress) setTelecoIpAddress(savedTelecoIpAddress);
-
-    const savedTelecoPort = window.localStorage.getItem(
-      STORAGE_KEYS.telecoPort,
-    );
-    if (savedTelecoPort) setTelecoPort(savedTelecoPort);
-
-    const legacyCommandWsUrl = window.localStorage.getItem(
-      STORAGE_KEYS.commandWsUrlLegacy,
-    );
-    if (legacyCommandWsUrl) {
-      const parsed = parseHostPortFromUrl(legacyCommandWsUrl);
-      if (parsed?.ipAddress) setTelecoIpAddress(parsed.ipAddress);
-      if (parsed?.port) setTelecoPort(parsed.port);
-    }
-
-    const legacyDebugUrl = window.localStorage.getItem(
-      STORAGE_KEYS.telecoDebugUrlLegacy,
-    );
-    if (legacyDebugUrl) {
-      const parsed = parseHostPortFromUrl(legacyDebugUrl);
-      if (parsed?.ipAddress) setTelecoIpAddress(parsed.ipAddress);
-      if (parsed?.port) setTelecoPort(parsed.port);
-    }
-
     const savedShowMouthPresetPanel = window.localStorage.getItem(
       STORAGE_KEYS.showMouthPresetPanel,
     );
@@ -468,16 +439,6 @@ export function useAudioSenderController({
     if (!isDevicePanel) return;
     window.localStorage.setItem(STORAGE_KEYS.signalingPort, signalingPort);
   }, [isDevicePanel, signalingPort]);
-
-  useEffect(() => {
-    if (!isTelecoPanel) return;
-    window.localStorage.setItem(STORAGE_KEYS.telecoIpAddress, telecoIpAddress);
-  }, [isTelecoPanel, telecoIpAddress]);
-
-  useEffect(() => {
-    if (!isTelecoPanel) return;
-    window.localStorage.setItem(STORAGE_KEYS.telecoPort, telecoPort);
-  }, [isTelecoPanel, telecoPort]);
 
   useEffect(() => {
     if (!isDevicePanel) return;

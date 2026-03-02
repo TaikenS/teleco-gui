@@ -49,8 +49,21 @@ export const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort({
   envKeys: AUDIO_SEND_SIGNALING_PORT_ENV_KEYS,
 });
 
-export const DEFAULT_TELECO_IP_ADDRESS =
-  process.env.NEXT_PUBLIC_TELECO_IP_ADDRESS || "localhost";
+const RAW_DEFAULT_TELECO_IP_ADDRESS =
+  process.env.NEXT_PUBLIC_TELECO_IP_ADDRESS?.trim() || "";
 
-export const DEFAULT_TELECO_PORT =
-  process.env.NEXT_PUBLIC_TELECO_PORT || "11920";
+const RAW_DEFAULT_TELECO_PORT =
+  process.env.NEXT_PUBLIC_TELECO_PORT?.trim() || "";
+
+export const DEFAULT_TELECO_PORT = RAW_DEFAULT_TELECO_PORT || "11920";
+
+export function resolveDefaultTelecoIpAddress(): string {
+  if (RAW_DEFAULT_TELECO_IP_ADDRESS) {
+    return RAW_DEFAULT_TELECO_IP_ADDRESS;
+  }
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname?.trim();
+    if (host) return host;
+  }
+  return "localhost";
+}

@@ -123,7 +123,8 @@ NEXT_PUBLIC_VIDEO_SENDER_ROOM_ID=operator1-video
 NEXT_PUBLIC_DEFAULT_VIDEO_ROOM=room1
 NEXT_PUBLIC_DEFAULT_AUDIO_ROOM=audio1
 
-# teleco-main 接続先
+# teleco-main 接続先（任意）
+# 未指定時は IP/Host=現在のページのホスト名, Port=11920
 NEXT_PUBLIC_TELECO_IP_ADDRESS=localhost
 NEXT_PUBLIC_TELECO_PORT=11920
 ```
