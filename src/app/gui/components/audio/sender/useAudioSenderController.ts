@@ -373,13 +373,8 @@ export function useAudioSenderController({
   useEffect(() => {
     if (!isDevicePanel) return;
     void (async () => {
-      let nextRoomHint = roomHint;
-      let nextSignalingIpAddress = signalingIpAddress;
-      let nextSignalingPort = signalingPort;
-
       const savedRoomHint = window.localStorage.getItem(STORAGE_KEYS.roomId);
       if (savedRoomHint) {
-        nextRoomHint = savedRoomHint;
         setRoomHint(savedRoomHint);
       }
 
@@ -387,7 +382,6 @@ export function useAudioSenderController({
         STORAGE_KEYS.signalingIpAddress,
       );
       if (!HAS_AUDIO_SEND_SIGNALING_IP_ENV && savedSignalIpAddress) {
-        nextSignalingIpAddress = savedSignalIpAddress;
         setSignalingIpAddress(savedSignalIpAddress);
       }
 
@@ -395,7 +389,6 @@ export function useAudioSenderController({
         STORAGE_KEYS.signalingPort,
       );
       if (!HAS_AUDIO_SEND_SIGNALING_PORT_ENV && savedSignalPort) {
-        nextSignalingPort = savedSignalPort;
         setSignalingPort(savedSignalPort);
       }
 
@@ -405,21 +398,17 @@ export function useAudioSenderController({
       if (legacySignalUrl) {
         const parsed = parseSignalingUrl(legacySignalUrl);
         if (!HAS_AUDIO_SEND_SIGNALING_IP_ENV && parsed?.ipAddress) {
-          nextSignalingIpAddress = parsed.ipAddress;
           setSignalingIpAddress(parsed.ipAddress);
         }
         if (!HAS_AUDIO_SEND_SIGNALING_PORT_ENV && parsed?.port) {
-          nextSignalingPort = parsed.port;
           setSignalingPort(parsed.port);
         }
         if (parsed?.roomId) {
-          nextRoomHint = parsed.roomId;
           setRoomHint(parsed.roomId);
         }
       }
 
       if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
-        nextRoomHint = DEFAULT_AUDIO_ROOM;
         setRoomHint(DEFAULT_AUDIO_ROOM);
       }
 
@@ -437,11 +426,9 @@ export function useAudioSenderController({
           );
           const envPort = getFirstValue(values, AUDIO_SEND_SIGNALING_PORT_ENV_KEYS);
           if (envIpAddress) {
-            nextSignalingIpAddress = envIpAddress;
             setSignalingIpAddress(envIpAddress);
           }
           if (envPort) {
-            nextSignalingPort = envPort;
             setSignalingPort(envPort);
           }
         }
@@ -452,23 +439,10 @@ export function useAudioSenderController({
       const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
       if (savedMicId) setSelectedMicId(savedMicId);
 
-      shouldAutoSignalRef.current =
-        window.localStorage.getItem(STORAGE_KEYS.signalAutoConnect) === "1";
+      shouldAutoSignalRef.current = false;
       shouldAutoSendingRef.current =
         window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
-
-      if (shouldAutoSignalRef.current) {
-        manualSignalDisconnectRef.current = false;
-        window.setTimeout(
-          () =>
-            connectSignalWs(false, {
-              ipAddress: nextSignalingIpAddress,
-              port: nextSignalingPort,
-              roomId: nextRoomHint,
-            }),
-          0,
-        );
-      }
+      window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "0");
       didInitDeviceSettingsRef.current = true;
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1093,8 +1067,8 @@ export function useAudioSenderController({
       onRefreshDevices: micAnalyzer.onRefreshDevices,
       onConnectSignal: () => {
         manualSignalDisconnectRef.current = false;
-        shouldAutoSignalRef.current = true;
-        window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "1");
+        shouldAutoSignalRef.current = false;
+        window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "0");
         connectSignalWs();
       },
       onDisconnectSignal: disconnectSignalWs,

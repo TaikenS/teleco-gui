@@ -379,8 +379,8 @@ export function useAudioSenderSignaling() {
 
   const handleConnectSignaling = () => {
     manualCloseRef.current = false;
-    shouldAutoConnectRef.current = true;
-    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "1");
+    shouldAutoConnectRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
     connectSignaling(false);
   };
 
@@ -397,13 +397,8 @@ export function useAudioSenderSignaling() {
 
   useEffect(() => {
     void (async () => {
-      let nextRoomId = roomId;
-      let nextSignalingIpAddress = signalingIpAddress;
-      let nextSignalingPort = signalingPort;
-
       const savedRoom = window.localStorage.getItem(STORAGE_KEYS.roomId);
       if (savedRoom) {
-        nextRoomId = savedRoom;
         setRoomId(savedRoom);
       }
 
@@ -411,7 +406,6 @@ export function useAudioSenderSignaling() {
         STORAGE_KEYS.signalingIpAddress,
       );
       if (!HAS_AUDIO_SEND_SIGNALING_IP_ENV && savedSignalIpAddress) {
-        nextSignalingIpAddress = savedSignalIpAddress;
         setSignalingIpAddress(savedSignalIpAddress);
       }
 
@@ -419,7 +413,6 @@ export function useAudioSenderSignaling() {
         STORAGE_KEYS.signalingPort,
       );
       if (!HAS_AUDIO_SEND_SIGNALING_PORT_ENV && savedSignalPort) {
-        nextSignalingPort = savedSignalPort;
         setSignalingPort(savedSignalPort);
       }
 
@@ -429,21 +422,17 @@ export function useAudioSenderSignaling() {
       if (legacySignalUrl) {
         const parsed = parseSignalingUrl(legacySignalUrl);
         if (!HAS_AUDIO_SEND_SIGNALING_IP_ENV && parsed?.ipAddress) {
-          nextSignalingIpAddress = parsed.ipAddress;
           setSignalingIpAddress(parsed.ipAddress);
         }
         if (!HAS_AUDIO_SEND_SIGNALING_PORT_ENV && parsed?.port) {
-          nextSignalingPort = parsed.port;
           setSignalingPort(parsed.port);
         }
         if (parsed?.roomId) {
-          nextRoomId = parsed.roomId;
           setRoomId(parsed.roomId);
         }
       }
 
       if (HAS_DEFAULT_AUDIO_ROOM_ENV) {
-        nextRoomId = DEFAULT_AUDIO_ROOM;
         setRoomId(DEFAULT_AUDIO_ROOM);
       }
 
@@ -461,11 +450,9 @@ export function useAudioSenderSignaling() {
           );
           const envPort = getFirstValue(values, AUDIO_SEND_SIGNALING_PORT_ENV_KEYS);
           if (envIpAddress) {
-            nextSignalingIpAddress = envIpAddress;
             setSignalingIpAddress(envIpAddress);
           }
           if (envPort) {
-            nextSignalingPort = envPort;
             setSignalingPort(envPort);
           }
         }
@@ -476,25 +463,17 @@ export function useAudioSenderSignaling() {
       const savedSend = window.localStorage.getItem(STORAGE_KEYS.sendEnabled);
       if (savedSend != null) setSendEnabled(savedSend === "1");
 
-      shouldAutoConnectRef.current =
-        window.localStorage.getItem(STORAGE_KEYS.autoConnect) === "1";
+      shouldAutoConnectRef.current = false;
       shouldAutoStartMicRef.current =
         window.localStorage.getItem(STORAGE_KEYS.micActive) === "1";
       desiredSendingRef.current =
         window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
+      window.localStorage.setItem(STORAGE_KEYS.autoConnect, "0");
 
       if (shouldAutoStartMicRef.current) {
         void startMic();
       }
 
-      if (shouldAutoConnectRef.current) {
-        manualCloseRef.current = false;
-        connectSignaling(false, {
-          ipAddress: nextSignalingIpAddress,
-          port: nextSignalingPort,
-          roomId: nextRoomId,
-        });
-      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
