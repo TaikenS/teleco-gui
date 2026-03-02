@@ -1,17 +1,25 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useAudioSenderSignaling } from "@/app/audio/sender/controller/useAudioSenderSignaling";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import { buildSignalingBaseUrl, buildSignalingUrl } from "@/lib/signaling";
 
 export function useAudioSenderController() {
   const signaling = useAudioSenderSignaling();
+  const didInitSignalSettingsRef = useRef(false);
+  const didEditSignalSettingsRef = useRef(false);
 
   useEffect(() => {
+    if (!didInitSignalSettingsRef.current) return;
+    if (!didEditSignalSettingsRef.current) return;
     scheduleEnvLocalSync({
       NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS: signaling.signalingIpAddress,
       NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT: signaling.signalingPort,
     });
   }, [signaling.signalingIpAddress, signaling.signalingPort]);
+
+  useEffect(() => {
+    didInitSignalSettingsRef.current = true;
+  }, []);
 
   const sendLive =
     signaling.rtcState === "connected" || signaling.rtcState === "connecting";
@@ -54,5 +62,13 @@ export function useAudioSenderController() {
     canStartMic,
     signalingWsUrlForDisplay,
     signalingBaseUrlForDisplay,
+    setSignalingIpAddress: (value: string) => {
+      didEditSignalSettingsRef.current = true;
+      signaling.setSignalingIpAddress(value);
+    },
+    setSignalingPort: (value: string) => {
+      didEditSignalSettingsRef.current = true;
+      signaling.setSignalingPort(value);
+    },
   };
 }
