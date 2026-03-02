@@ -296,13 +296,20 @@ if (signalingServer !== appServer) {
 
 function printAddresses() {
   const globals = getNetworkIPv4Addresses();
+  const machineName = os.hostname();
 
   console.log(`teleco-gui listening on http://localhost:${appPort}`);
+  if (machineName && machineName !== "localhost") {
+    console.log(`teleco-gui listening on http://${machineName}:${appPort}`);
+  }
   for (const ip of globals) {
     console.log(`teleco-gui listening on http://${ip}:${appPort}`);
   }
 
   console.log(`signaling ws: ws://localhost:${signalingPort}/ws`);
+  if (machineName && machineName !== "localhost") {
+    console.log(`signaling ws: ws://${machineName}:${signalingPort}/ws`);
+  }
   for (const ip of globals) {
     console.log(`signaling ws: ws://${ip}:${signalingPort}/ws`);
   }

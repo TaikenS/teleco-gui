@@ -47,12 +47,29 @@ const VIDEO_SEND_SIGNALING_PORT_ENV_KEYS = [
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT",
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_PORT",
 ];
+const HAS_VIDEO_SIGNALING_IP_ENV = VIDEO_SEND_SIGNALING_IP_ENV_KEYS.some(
+  (key) => !!process.env[key]?.trim(),
+);
+const HAS_VIDEO_SIGNALING_PORT_ENV = VIDEO_SEND_SIGNALING_PORT_ENV_KEYS.some(
+  (key) => !!process.env[key]?.trim(),
+);
 const DEFAULT_SIGNALING_IP_ADDRESS = getDefaultSignalingIpAddress({
   envKeys: VIDEO_SEND_SIGNALING_IP_ENV_KEYS,
 });
 const DEFAULT_SIGNALING_PORT = getDefaultSignalingPort({
   envKeys: VIDEO_SEND_SIGNALING_PORT_ENV_KEYS,
 });
+
+function getFirstValue(
+  values: Record<string, string>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = values[key];
+    if (value?.trim()) return value.trim();
+  }
+  return null;
+}
 
 function parseVideoMode(raw: string): VideoSourceMode {
   return raw === "webSender" ? "webSender" : "local";
@@ -67,6 +84,9 @@ function serializeBinaryFlag(value: boolean): string {
 }
 
 export default function GuiPage() {
+  const didInitSettingsRef = React.useRef(false);
+  const didEditSignalSettingsRef = React.useRef(false);
+
   const [mode, setMode] = usePersistentState<VideoSourceMode>(
     VIDEO_MODE_STORAGE_KEY,
     "local",
@@ -89,6 +109,8 @@ export default function GuiPage() {
     );
 
   React.useEffect(() => {
+    if (!didInitSettingsRef.current) return;
+    if (!didEditSignalSettingsRef.current) return;
     scheduleEnvLocalSync({
       NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS: videoSignalingIpAddress,
       NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT: videoSignalingPort,
@@ -107,20 +129,37 @@ export default function GuiPage() {
     });
 
   React.useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (HAS_VIDEO_SIGNALING_IP_ENV) {
+      setVideoSignalingIpAddress(DEFAULT_SIGNALING_IP_ADDRESS);
+    }
+    if (HAS_VIDEO_SIGNALING_PORT_ENV) {
+      setVideoSignalingPort(DEFAULT_SIGNALING_PORT);
+    }
+    didInitSettingsRef.current = true;
 
-    const hasLegacyIp = window.localStorage.getItem(
-      VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY,
-    );
-    const hasLegacyPort = window.localStorage.getItem(
-      VIDEO_SIGNAL_PORT_STORAGE_KEY,
-    );
-    if (hasLegacyIp == null && hasLegacyPort == null) return;
+    void (async () => {
+      try {
+        const res = await fetch("/api/env-local", { cache: "no-store" });
+        const data = (await res.json()) as {
+          ok?: boolean;
+          values?: Record<string, string>;
+        };
+        const values = data?.values;
+        if (!values) return;
 
-    window.localStorage.removeItem(VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY);
-    window.localStorage.removeItem(VIDEO_SIGNAL_PORT_STORAGE_KEY);
-    setVideoSignalingIpAddress(DEFAULT_SIGNALING_IP_ADDRESS);
-    setVideoSignalingPort(DEFAULT_SIGNALING_PORT);
+        if (!didEditSignalSettingsRef.current) {
+          const envIp = getFirstValue(values, VIDEO_SEND_SIGNALING_IP_ENV_KEYS);
+          const envPort = getFirstValue(
+            values,
+            VIDEO_SEND_SIGNALING_PORT_ENV_KEYS,
+          );
+          if (envIp) setVideoSignalingIpAddress(envIp);
+          if (envPort) setVideoSignalingPort(envPort);
+        }
+      } catch {
+        // noop
+      }
+    })();
   }, [setVideoSignalingIpAddress, setVideoSignalingPort]);
 
   React.useEffect(() => {
@@ -133,6 +172,16 @@ export default function GuiPage() {
     port: videoSignalingPort,
     roomId: videoRoomId || DEFAULT_VIDEO_ROOM,
   });
+
+  const handleVideoSignalingIpAddressChange = (nextValue: string) => {
+    didEditSignalSettingsRef.current = true;
+    setVideoSignalingIpAddress(nextValue);
+  };
+
+  const handleVideoSignalingPortChange = (nextValue: string) => {
+    didEditSignalSettingsRef.current = true;
+    setVideoSignalingPort(nextValue);
+  };
 
   return (
     <div className="teleco-gui-shell min-h-screen text-slate-900">
@@ -208,7 +257,7 @@ export default function GuiPage() {
                       className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                       value={videoSignalingIpAddress}
                       onChange={(e) =>
-                        setVideoSignalingIpAddress(e.target.value)
+                        handleVideoSignalingIpAddressChange(e.target.value)
                       }
                       placeholder="192.168.1.12"
                     />
@@ -219,7 +268,9 @@ export default function GuiPage() {
                     <input
                       className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
                       value={videoSignalingPort}
-                      onChange={(e) => setVideoSignalingPort(e.target.value)}
+                      onChange={(e) =>
+                        handleVideoSignalingPortChange(e.target.value)
+                      }
                       placeholder="3000"
                     />
                   </label>

@@ -65,6 +65,45 @@ const VIDEO_SEND_SIGNALING_PORT_ENV_KEYS = [
   "NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT",
   "NEXT_PUBLIC_VIDEO_SENDER_SIGNALING_PORT",
 ];
+const HAS_VIDEO_SIGNALING_IP_ENV = VIDEO_SEND_SIGNALING_IP_ENV_KEYS.some(
+  (key) => !!process.env[key]?.trim(),
+);
+const HAS_VIDEO_SIGNALING_PORT_ENV = VIDEO_SEND_SIGNALING_PORT_ENV_KEYS.some(
+  (key) => !!process.env[key]?.trim(),
+);
+
+function getFirstValue(
+  values: Record<string, string>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = values[key];
+    if (value?.trim()) return value.trim();
+  }
+  return null;
+}
+
+async function getRuntimeVideoSignalDefaults(): Promise<{
+  ipAddress: string | null;
+  port: string | null;
+}> {
+  try {
+    const res = await fetch("/api/env-local", { cache: "no-store" });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      values?: Record<string, string>;
+    };
+    const values = data?.values;
+    if (!values) return { ipAddress: null, port: null };
+
+    return {
+      ipAddress: getFirstValue(values, VIDEO_SEND_SIGNALING_IP_ENV_KEYS),
+      port: getFirstValue(values, VIDEO_SEND_SIGNALING_PORT_ENV_KEYS),
+    };
+  } catch {
+    return { ipAddress: null, port: null };
+  }
+}
 
 export default function VideoSenderPage() {
   const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
@@ -76,6 +115,8 @@ export default function VideoSenderPage() {
   );
 
   useEffect(() => {
+    if (!didInitSettingsRef.current) return;
+    if (!didEditSignalSettingsRef.current) return;
     scheduleEnvLocalSync({
       NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS: signalingIpAddress,
       NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT: signalingPort,
@@ -105,6 +146,8 @@ export default function VideoSenderPage() {
   const shouldAutoConnectRef = useRef(false);
   const shouldAutoStartCameraRef = useRef(false);
   const desiredStreamingRef = useRef(false);
+  const didInitSettingsRef = useRef(false);
+  const didEditSignalSettingsRef = useRef(false);
 
   const logLine = (line: string) =>
     setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
@@ -374,7 +417,10 @@ export default function VideoSenderPage() {
   };
 
   // シグナリングへの接続
-  const connectSignaling = (isReconnect = false) => {
+  const connectSignaling = (
+    isReconnect = false,
+    target?: { ipAddress?: string; port?: string; roomId?: string },
+  ) => {
     const current = wsRef.current;
     if (
       current &&
@@ -388,10 +434,14 @@ export default function VideoSenderPage() {
     clearReconnectTimer();
     setWsError(null);
 
+    const ipAddress = (target?.ipAddress ?? signalingIpAddress).trim();
+    const port = (target?.port ?? signalingPort).trim();
+    const room = (target?.roomId ?? roomId).trim();
+
     const url = buildSignalingUrl({
-      ipAddress: signalingIpAddress,
-      port: signalingPort,
-      roomId,
+      ipAddress,
+      port,
+      roomId: room,
     });
 
     if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
@@ -414,7 +464,7 @@ export default function VideoSenderPage() {
       logLine(
         `${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`,
       );
-      ws.send(JSON.stringify({ type: "join", roomId, role: "sender" }));
+      ws.send(JSON.stringify({ type: "join", roomId: room, role: "sender" }));
 
       maybeAutoStartWebRTC();
     };
@@ -598,44 +648,84 @@ export default function VideoSenderPage() {
   }, [stream]);
 
   useEffect(() => {
-    const savedRoom = getStoredValue("roomId");
-    if (savedRoom) setRoomId(savedRoom);
+    void (async () => {
+      let nextRoomId = roomId;
+      let nextIpAddress = signalingIpAddress;
+      let nextPort = signalingPort;
 
-    const savedSignalIpAddress = getStoredValue("signalingIpAddress");
-    if (savedSignalIpAddress) setSignalingIpAddress(savedSignalIpAddress);
+      const savedRoom = getStoredValue("roomId");
+      if (savedRoom) {
+        nextRoomId = savedRoom;
+        setRoomId(savedRoom);
+      }
 
-    const savedSignalPort = getStoredValue("signalingPort");
-    if (savedSignalPort) setSignalingPort(savedSignalPort);
+      const savedSignalIpAddress = getStoredValue("signalingIpAddress");
+      if (!HAS_VIDEO_SIGNALING_IP_ENV && savedSignalIpAddress) {
+        nextIpAddress = savedSignalIpAddress;
+        setSignalingIpAddress(savedSignalIpAddress);
+      }
 
-    const legacySignalUrl = getStoredValue("signalingWsUrlLegacy");
-    if (legacySignalUrl) {
-      const parsed = parseSignalingUrl(legacySignalUrl);
-      if (parsed?.ipAddress) setSignalingIpAddress(parsed.ipAddress);
-      if (parsed?.port) setSignalingPort(parsed.port);
-      if (parsed?.roomId) setRoomId(parsed.roomId);
-    }
+      const savedSignalPort = getStoredValue("signalingPort");
+      if (!HAS_VIDEO_SIGNALING_PORT_ENV && savedSignalPort) {
+        nextPort = savedSignalPort;
+        setSignalingPort(savedSignalPort);
+      }
 
-    if (HAS_DEFAULT_VIDEO_ROOM_ENV) {
-      setRoomId(DEFAULT_VIDEO_ROOM);
-    }
+      const legacySignalUrl = getStoredValue("signalingWsUrlLegacy");
+      if (legacySignalUrl) {
+        const parsed = parseSignalingUrl(legacySignalUrl);
+        if (!HAS_VIDEO_SIGNALING_IP_ENV && parsed?.ipAddress) {
+          nextIpAddress = parsed.ipAddress;
+          setSignalingIpAddress(parsed.ipAddress);
+        }
+        if (!HAS_VIDEO_SIGNALING_PORT_ENV && parsed?.port) {
+          nextPort = parsed.port;
+          setSignalingPort(parsed.port);
+        }
+        if (parsed?.roomId) {
+          nextRoomId = parsed.roomId;
+          setRoomId(parsed.roomId);
+        }
+      }
 
-    const savedCameraDeviceId = getStoredValue("cameraDeviceId") || "";
-    if (savedCameraDeviceId) setSelectedCameraId(savedCameraDeviceId);
+      if (HAS_DEFAULT_VIDEO_ROOM_ENV) {
+        nextRoomId = DEFAULT_VIDEO_ROOM;
+        setRoomId(DEFAULT_VIDEO_ROOM);
+      }
 
-    shouldAutoConnectRef.current = getStoredValue("autoConnect") === "1";
-    shouldAutoStartCameraRef.current = getStoredValue("cameraActive") === "1";
-    desiredStreamingRef.current = getStoredValue("streamingActive") === "1";
+      const runtimeDefaults = await getRuntimeVideoSignalDefaults();
+      if (runtimeDefaults.ipAddress && !didEditSignalSettingsRef.current) {
+        nextIpAddress = runtimeDefaults.ipAddress;
+        setSignalingIpAddress(runtimeDefaults.ipAddress);
+      }
+      if (runtimeDefaults.port && !didEditSignalSettingsRef.current) {
+        nextPort = runtimeDefaults.port;
+        setSignalingPort(runtimeDefaults.port);
+      }
 
-    void enumerateVideoInputs();
+      const savedCameraDeviceId = getStoredValue("cameraDeviceId") || "";
+      if (savedCameraDeviceId) setSelectedCameraId(savedCameraDeviceId);
 
-    if (shouldAutoStartCameraRef.current) {
-      void startCamera(savedCameraDeviceId || undefined);
-    }
+      shouldAutoConnectRef.current = getStoredValue("autoConnect") === "1";
+      shouldAutoStartCameraRef.current = getStoredValue("cameraActive") === "1";
+      desiredStreamingRef.current = getStoredValue("streamingActive") === "1";
 
-    if (shouldAutoConnectRef.current) {
-      manualCloseRef.current = false;
-      connectSignaling(false);
-    }
+      void enumerateVideoInputs();
+
+      if (shouldAutoStartCameraRef.current) {
+        void startCamera(savedCameraDeviceId || undefined);
+      }
+
+      if (shouldAutoConnectRef.current) {
+        manualCloseRef.current = false;
+        connectSignaling(false, {
+          ipAddress: nextIpAddress,
+          port: nextPort,
+          roomId: nextRoomId,
+        });
+      }
+      didInitSettingsRef.current = true;
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -799,6 +889,16 @@ export default function VideoSenderPage() {
     }
   };
 
+  const handleSignalingIpAddressChange = (nextValue: string) => {
+    didEditSignalSettingsRef.current = true;
+    setSignalingIpAddress(nextValue);
+  };
+
+  const handleSignalingPortChange = (nextValue: string) => {
+    didEditSignalSettingsRef.current = true;
+    setSignalingPort(nextValue);
+  };
+
   const handleConnectSignaling = () => {
     manualCloseRef.current = false;
     shouldAutoConnectRef.current = true;
@@ -847,8 +947,8 @@ export default function VideoSenderPage() {
           stopReason={stopReason}
           wsError={wsError}
           onRoomIdChange={setRoomId}
-          onSignalingIpAddressChange={setSignalingIpAddress}
-          onSignalingPortChange={setSignalingPort}
+          onSignalingIpAddressChange={handleSignalingIpAddressChange}
+          onSignalingPortChange={handleSignalingPortChange}
           onCameraChange={handleCameraChange}
           onRefreshCameras={() => void enumerateVideoInputs()}
           onStartCamera={() => void startCamera()}

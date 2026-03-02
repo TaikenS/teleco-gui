@@ -25,8 +25,39 @@ type EnvPayload = {
   values?: Record<string, string>;
 };
 
+type EnvMap = Record<string, string>;
+
 function sanitizeEnvValue(value: string): string {
   return value.replace(/[\r\n]/g, "").trim();
+}
+
+function parseEnvContent(content: string): EnvMap {
+  const values: EnvMap = {};
+  const lines = content.split(/\r?\n/);
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+
+    const eq = trimmed.indexOf("=");
+    if (eq <= 0) continue;
+
+    const key = trimmed.slice(0, eq).trim();
+    const raw = trimmed.slice(eq + 1).trim();
+    if (!key) continue;
+    values[key] = raw.replace(/^["']|["']$/g, "");
+  }
+
+  return values;
+}
+
+async function readEnvFileValues(filePath: string): Promise<EnvMap> {
+  try {
+    const text = await fs.readFile(filePath, "utf8");
+    return parseEnvContent(text);
+  } catch {
+    return {};
+  }
 }
 
 function updateEnvContent(
@@ -64,6 +95,30 @@ function updateEnvContent(
 
   const joined = lines.join("\n").replace(/\n*$/, "\n");
   return joined;
+}
+
+export async function GET() {
+  try {
+    const envPath = path.join(process.cwd(), ".env");
+    const envLocalPath = path.join(process.cwd(), ".env.local");
+
+    const base = await readEnvFileValues(envPath);
+    const local = await readEnvFileValues(envLocalPath);
+    const merged = { ...base, ...local };
+
+    const values: EnvMap = {};
+    for (const key of Object.keys(merged)) {
+      if (!ALLOWED_KEYS.has(key)) continue;
+      values[key] = merged[key];
+    }
+
+    return NextResponse.json({ ok: true, values });
+  } catch {
+    return NextResponse.json(
+      { ok: false, error: "failed to read env files" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function POST(req: Request) {
