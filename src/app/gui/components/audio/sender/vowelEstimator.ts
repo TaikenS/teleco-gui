@@ -11,13 +11,16 @@ export class VowelEstimator {
   public th_volume_above = 0.0001;
   public th_volume_under = 0.000001;
 
-  public VOWEL_WINDOW = 20;
+  public VOWEL_WINDOW = 12;
   public pre_behavior: string = "n";
   public th_isSpeaking = 0.15;
+  public SPEECH_STOP_DELAY_MS = 250;
+  public BEHAVIOR_LOCK_MS = 120;
 
   private vowelhist: number[] = [];
   private lockingBehavior = false;
   private timer_isSpeaking: number | null = null;
+  private isSpeaking = false;
 
   private onVowel: (v: string) => void = () => {};
   private onSpeakStatus: (s: "start" | "stop") => void = () => {};
@@ -68,9 +71,11 @@ export class VowelEstimator {
     let current = "n";
 
     if (ave > this.th_isSpeaking) {
+      const wasSpeaking = this.isSpeaking;
       current = getVowelLabel(v);
+      this.isSpeaking = true;
 
-      if (!this.timer_isSpeaking) {
+      if (!wasSpeaking) {
         this.onSpeakStatus("start");
       }
 
@@ -80,16 +85,21 @@ export class VowelEstimator {
       }
 
       this.timer_isSpeaking = window.setTimeout(() => {
+        this.isSpeaking = false;
         this.onSpeakStatus("stop");
         this.timer_isSpeaking = null;
+        this.pre_behavior = "n";
         this.onVowel("N");
-      }, 1500);
+      }, this.SPEECH_STOP_DELAY_MS);
 
-      if (this.pre_behavior !== current && !this.lockingBehavior) {
+      if ((!wasSpeaking || this.pre_behavior !== current) && !this.lockingBehavior) {
         this.onVowel(current);
         this.lockingBehavior = true;
         this.pre_behavior = current;
-        window.setTimeout(() => (this.lockingBehavior = false), 200);
+        window.setTimeout(
+          () => (this.lockingBehavior = false),
+          this.BEHAVIOR_LOCK_MS,
+        );
       }
     }
   }

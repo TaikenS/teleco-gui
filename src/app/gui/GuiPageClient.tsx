@@ -3,6 +3,9 @@
 import React from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import AudioSenderDevicePanel from "@/app/gui/components/audio/sender/AudioSenderDevicePanel";
+import { useAudioSenderController } from "@/app/gui/components/audio/sender/useAudioSenderController";
+import TelecoControlPanel from "@/app/gui/components/teleco/TelecoControlPanel";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingUrl,
@@ -11,10 +14,6 @@ import {
 } from "@/lib/signaling";
 import { usePersistentState } from "@/lib/usePersistentState";
 
-const AudioSender = dynamic(
-  () => import("@/app/gui/components/audio/sender/AudioSender"),
-  { ssr: false },
-);
 const LocalCameraStream = dynamic(
   () => import("@/app/gui/components/video/LocalCameraStream"),
   { ssr: false },
@@ -88,6 +87,8 @@ function serializeBinaryFlag(value: boolean): string {
 export default function GuiPage() {
   const didInitSettingsRef = React.useRef(false);
   const didEditSignalSettingsRef = React.useRef(false);
+
+  const audioSenderController = useAudioSenderController({ panel: "all" });
 
   const [mode, setMode] = usePersistentState<VideoSourceMode>(
     VIDEO_MODE_STORAGE_KEY,
@@ -213,15 +214,21 @@ export default function GuiPage() {
 
       <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-4 md:px-6 lg:grid-cols-12 lg:items-start lg:pb-6">
         <section className="space-y-4 lg:col-span-4 lg:sticky lg:top-[92px] lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
+          {audioSenderController.error && (
+            <p className="text-xs text-red-600 whitespace-pre-line">
+              {audioSenderController.error}
+            </p>
+          )}
+
           <Card title="デバイス設定" subtitle="音声送信とマイク状態を確認します">
-            <AudioSender panel="device" />
+            <AudioSenderDevicePanel {...audioSenderController.devicePanelProps} />
           </Card>
 
           <Card
             title="Teleco制御"
             subtitle="Teleco接続、口パク手動プリセット、任意コマンド送信"
           >
-            <AudioSender panel="teleco" />
+            <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
           </Card>
         </section>
 
