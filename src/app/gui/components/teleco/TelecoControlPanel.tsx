@@ -125,6 +125,9 @@ export default function TelecoControlPanel({
             ? "現在: 口パクテスト・矢印コマンドを実行できます"
             : "次の操作: ① Command WS接続（/command）"}
         </p>
+        <p className="text-[11px] text-slate-500">
+          XBOXコントローラー対応: LTで左、RTで右（トリガーの押し込みを検出）
+        </p>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="action-button-wrap">

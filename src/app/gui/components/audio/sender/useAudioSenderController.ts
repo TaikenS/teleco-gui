@@ -9,6 +9,10 @@ import {
   DEFAULT_SIGNALING_IP_ADDRESS,
   DEFAULT_SIGNALING_PORT,
   DEFAULT_TELECO_PORT,
+  GAMEPAD_ARROW_COOLDOWN_MS,
+  GAMEPAD_LT_BUTTON_INDEX,
+  GAMEPAD_RT_BUTTON_INDEX,
+  GAMEPAD_TRIGGER_THRESHOLD,
   resolveDefaultTelecoIpAddress,
   STORAGE_KEYS,
   TELECO_ARROW_EVENT,
@@ -257,15 +261,21 @@ export function useAudioSenderController({
     );
   }
 
-  function sendArrowMove(direction: TelecoArrowDirection) {
+  function sendArrowMove(
+    direction: TelecoArrowDirection,
+    options?: { silentIfDisconnected?: boolean },
+  ) {
     const angle = direction === "left" ? -20 : 20;
-    sendCommand({
-      label: "move_multi",
-      joints: [8],
-      angles: [angle],
-      speeds: [30],
-      dontsendback: true,
-    });
+    sendCommand(
+      {
+        label: "move_multi",
+        joints: [8],
+        angles: [angle],
+        speeds: [30],
+        dontsendback: true,
+      },
+      options,
+    );
   }
 
   function sendInitializePose() {
@@ -905,6 +915,64 @@ export function useAudioSenderController({
     window.addEventListener("keydown", onKeyDown);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTelecoPanel]);
+
+  useEffect(() => {
+    if (!isTelecoPanel) return;
+
+    let rafId: number | null = null;
+    let lastLeftPressed = false;
+    let lastRightPressed = false;
+    let lastSentAt = 0;
+
+    const readTriggerValue = (button: GamepadButton | undefined): number => {
+      if (!button) return 0;
+      return typeof button.value === "number"
+        ? button.value
+        : button.pressed
+          ? 1
+          : 0;
+    };
+
+    const tick = () => {
+      const pads = navigator.getGamepads?.() ?? [];
+      const pad = pads.find((p) => p?.connected);
+
+      if (pad) {
+        const lt =
+          readTriggerValue(pad.buttons[GAMEPAD_LT_BUTTON_INDEX]) >=
+          GAMEPAD_TRIGGER_THRESHOLD;
+        const rt =
+          readTriggerValue(pad.buttons[GAMEPAD_RT_BUTTON_INDEX]) >=
+          GAMEPAD_TRIGGER_THRESHOLD;
+        const now = performance.now();
+        const canSend = now - lastSentAt >= GAMEPAD_ARROW_COOLDOWN_MS;
+
+        if (lt && !lastLeftPressed && canSend) {
+          sendArrowMove("left", { silentIfDisconnected: true });
+          lastSentAt = now;
+        } else if (rt && !lastRightPressed && canSend) {
+          sendArrowMove("right", { silentIfDisconnected: true });
+          lastSentAt = now;
+        }
+
+        lastLeftPressed = lt;
+        lastRightPressed = rt;
+      } else {
+        lastLeftPressed = false;
+        lastRightPressed = false;
+      }
+
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => {
+      if (rafId != null) {
+        window.cancelAnimationFrame(rafId);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTelecoPanel]);
