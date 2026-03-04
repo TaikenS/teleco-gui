@@ -4,6 +4,7 @@ import {
 } from "@/lib/signaling";
 
 export const TELECO_ARROW_EVENT = "teleco:arrow";
+export const TELECO_HEADING_EVENT = "teleco:heading";
 export const GAMEPAD_LT_BUTTON_INDEX = 6;
 export const GAMEPAD_RT_BUTTON_INDEX = 7;
 export const GAMEPAD_TRIGGER_THRESHOLD = 0.4;

@@ -16,6 +16,7 @@ import {
   resolveDefaultTelecoIpAddress,
   STORAGE_KEYS,
   TELECO_ARROW_EVENT,
+  TELECO_HEADING_EVENT,
 } from "@/app/gui/components/audio/sender/controller/constants";
 import {
   bindRecoveryListeners,
@@ -267,7 +268,7 @@ export function useAudioSenderController({
     options?: { silentIfDisconnected?: boolean },
   ) {
     const angle = direction === "left" ? -20 : 20;
-    sendCommand(
+    const sent = sendCommand(
       {
         label: "move_multi",
         joints: [8],
@@ -277,6 +278,14 @@ export function useAudioSenderController({
       },
       options,
     );
+    if (sent) {
+      window.dispatchEvent(
+        new CustomEvent<{ direction: TelecoArrowDirection }>(
+          TELECO_HEADING_EVENT,
+          { detail: { direction } },
+        ),
+      );
+    }
   }
 
   function sendInitializePose() {
