@@ -129,12 +129,12 @@ export function useMouthAnalyzer(params: {
       const estimator = new VowelEstimator();
       estimator.bufferSize = 1024;
       estimator.th_isSpeaking = Math.max(0, Math.min(1, speakingThreshold));
+      estimator.SPEECH_STOP_DELAY_MS = 700;
       estimator.setSampleRate(ctx.sampleRate);
       estimator.setCallbacks(
         (v) => {
           if (!autoMouthEnabled) return;
           if (v === "N" || v === "n") {
-            sendMouthVowel("xn");
             return;
           }
           if (v === "a" || v === "i" || v === "u" || v === "e" || v === "o") {

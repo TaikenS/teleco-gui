@@ -343,7 +343,7 @@ export function useAudioSenderController({
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
   const [gain, setGain] = useState<number>(20);
   const [mouthSpeakingThreshold, setMouthSpeakingThreshold] =
-    useState<number>(0.05);
+    useState<number>(0.03);
   const {
     micTestAudioRef,
     micTestRunning,
