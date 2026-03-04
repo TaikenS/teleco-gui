@@ -80,13 +80,13 @@ export default function WebRtcVideoReceiver({
   const logLine = (line: string) =>
     setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
-  const sendArrowByClickPosition = (
+  const sendArrowByHorizontalPosition = (
     ev: ReactMouseEvent<HTMLDivElement>,
   ) => {
     const rect = ev.currentTarget.getBoundingClientRect();
     const x = ev.clientX - rect.left;
     const direction: TelecoArrowDirection =
-      x < rect.width / 2 ? "left" : "right";
+      x <= rect.width / 2 ? "left" : "right";
 
     window.dispatchEvent(
       new CustomEvent<{ direction: TelecoArrowDirection }>(TELECO_ARROW_EVENT, {
@@ -497,11 +497,11 @@ export default function WebRtcVideoReceiver({
         ref={frameRef}
         className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
         title="クリックでフルスクリーン / 全画面中は左右タップで向きを変更"
-        onClick={(ev) => {
+        onPointerDown={(ev) => {
           const frame = frameRef.current;
           if (!frame) return;
           if (document.fullscreenElement === frame) {
-            sendArrowByClickPosition(ev);
+            sendArrowByHorizontalPosition(ev);
             return;
           }
           if (!document.fullscreenElement) {
@@ -521,6 +521,9 @@ export default function WebRtcVideoReceiver({
             <button
               type="button"
               className="pointer-events-auto rounded-lg bg-white px-3 py-2 text-xs text-slate-900"
+              onPointerDown={(ev) => {
+                ev.stopPropagation();
+              }}
               onClick={(ev) => {
                 ev.stopPropagation();
                 void tryPlayRemoteVideo();
