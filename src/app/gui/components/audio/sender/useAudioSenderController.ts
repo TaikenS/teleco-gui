@@ -966,7 +966,36 @@ export function useAudioSenderController({
 
     const tick = () => {
       const pads = navigator.getGamepads?.() ?? [];
-      const padIndex = pads.findIndex((p) => !!p?.connected);
+      let padIndex = -1;
+      let bestScore = -1;
+      for (let i = 0; i < pads.length; i++) {
+        const candidate = pads[i];
+        if (!candidate?.connected) continue;
+
+        const id = candidate.id?.toLowerCase() ?? "";
+        const isXboxLike =
+          id.includes("xbox") ||
+          id.includes("xinput") ||
+          id.includes("microsoft");
+        const hasStandardMapping = candidate.mapping === "standard";
+        const buttonCount = candidate.buttons?.length ?? 0;
+        const likelyGamepad = buttonCount >= 10;
+
+        // 優先順:
+        // 1) Xbox系ID
+        // 2) standard mapping
+        // 3) ボタン数が多い
+        const score =
+          (isXboxLike ? 1000 : 0) +
+          (hasStandardMapping ? 100 : 0) +
+          (likelyGamepad ? 10 : 0) +
+          buttonCount;
+
+        if (score > bestScore) {
+          bestScore = score;
+          padIndex = i;
+        }
+      }
       const pad = padIndex >= 0 ? pads[padIndex] : null;
       const connected = !!pad;
       if (connected !== lastConnectionState) {
