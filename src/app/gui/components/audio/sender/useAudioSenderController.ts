@@ -183,6 +183,9 @@ export function useAudioSenderController({
   // ---- mouth ----
   const lastVowelRef = useRef<Vowel>("xn");
   const lastSendMsRef = useRef<number>(0);
+  const lastActiveVowelRef = useRef<Exclude<Vowel, "xn"> | null>(null);
+  const sameVowelStreakRef = useRef<number>(0);
+  const mouthPositiveSideRef = useRef<boolean>(true);
   const [mouthSendFps, setMouthSendFps] = useState<number>(15);
 
   function appendError(msg: string) {
@@ -256,22 +259,40 @@ export function useAudioSenderController({
     const now = performance.now();
     const minInterval = 1000 / Math.max(1, mouthSendFps);
 
-    if (
-      vowel === lastVowelRef.current &&
-      now - lastSendMsRef.current < minInterval
-    )
+    if (vowel === "xn") {
+      lastVowelRef.current = "xn";
+      lastActiveVowelRef.current = null;
+      sameVowelStreakRef.current = 0;
       return;
+    }
+
+    if (lastActiveVowelRef.current && lastActiveVowelRef.current !== vowel) {
+      mouthPositiveSideRef.current = !mouthPositiveSideRef.current;
+      sameVowelStreakRef.current = 1;
+    } else {
+      sameVowelStreakRef.current += 1;
+      if (sameVowelStreakRef.current >= 3) {
+        mouthPositiveSideRef.current = !mouthPositiveSideRef.current;
+        sameVowelStreakRef.current = 0;
+      }
+    }
+    lastActiveVowelRef.current = vowel;
+
+    const vowelChanged = lastVowelRef.current !== vowel;
+    if (!vowelChanged && lastVowelRef.current !== "xn" && now - lastSendMsRef.current < minInterval) {
+      return;
+    }
 
     lastVowelRef.current = vowel;
     lastSendMsRef.current = now;
-
+    const openAngles = mouthPositiveSideRef.current ? [40, -40] : [-40, 40];
     sendCommand(
       {
-        label: "faceCommand",
-        commandFace: "change_mouth_vowel",
-        vowel,
-        clientId: clientIdRef.current,
-        ts: Date.now(),
+        label: "move_multi",
+        joints: [2, 4],
+        angles: openAngles,
+        speeds: [50, 50],
+        dontsendback: true,
       },
       { silentIfDisconnected: true },
     );
