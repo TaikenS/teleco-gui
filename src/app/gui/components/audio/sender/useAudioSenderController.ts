@@ -145,6 +145,7 @@ export function useAudioSenderController({
 
   const [signalWsStatus, setSignalWsStatus] = useState<string>("未接続");
   const [commandWsStatus, setCommandWsStatus] = useState<string>("未接続");
+  const [gamepadConnected, setGamepadConnected] = useState(false);
   const [callStatus, setCallStatus] = useState<string>("停止");
   const [error, setError] = useState<string | null>(null);
 
@@ -926,6 +927,7 @@ export function useAudioSenderController({
     let lastLeftPressed = false;
     let lastRightPressed = false;
     let lastSentAt = 0;
+    let lastConnectionState = false;
 
     const readTriggerValue = (button: GamepadButton | undefined): number => {
       if (!button) return 0;
@@ -939,6 +941,11 @@ export function useAudioSenderController({
     const tick = () => {
       const pads = navigator.getGamepads?.() ?? [];
       const pad = pads.find((p) => p?.connected);
+      const connected = !!pad;
+      if (connected !== lastConnectionState) {
+        lastConnectionState = connected;
+        setGamepadConnected(connected);
+      }
 
       if (pad) {
         const lt =
@@ -973,6 +980,7 @@ export function useAudioSenderController({
       if (rafId != null) {
         window.cancelAnimationFrame(rafId);
       }
+      setGamepadConnected(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTelecoPanel]);
@@ -1150,6 +1158,7 @@ export function useAudioSenderController({
       telecoPort,
       telecoDebugUrlForDisplay: telecoCommand.telecoDebugUrlForDisplay,
       commandWsUrlForDisplay: telecoCommand.commandWsUrlForDisplay,
+      gamepadConnected,
       commandConnected: telecoCommand.commandConnected,
       commandBusy: telecoCommand.commandBusy,
       hasTelecoTarget: telecoCommand.hasTelecoTarget,

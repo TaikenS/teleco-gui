@@ -3,6 +3,7 @@ type Props = {
   telecoPort: string;
   telecoDebugUrlForDisplay: string;
   commandWsUrlForDisplay: string;
+  gamepadConnected: boolean;
   commandConnected: boolean;
   commandBusy: boolean;
   hasTelecoTarget: boolean;
@@ -35,6 +36,7 @@ export default function TelecoControlPanel({
   telecoPort,
   telecoDebugUrlForDisplay,
   commandWsUrlForDisplay,
+  gamepadConnected,
   commandConnected,
   commandBusy,
   hasTelecoTarget,
@@ -117,6 +119,9 @@ export default function TelecoControlPanel({
               : commandBusy
                 ? "CONNECTING"
                 : "OFFLINE"}
+          </span>
+          <span className={`status-chip ${gamepadConnected ? "is-on" : "is-off"}`}>
+            Gamepad {gamepadConnected ? "CONNECTED" : "OFFLINE"}
           </span>
         </div>
 
