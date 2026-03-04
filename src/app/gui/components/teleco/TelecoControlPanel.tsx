@@ -19,6 +19,8 @@ type Props = {
   commandWsStatus: string;
   showMouthPresetPanel: boolean;
   showRawCommandPanel: boolean;
+  enableFaceCommandSend: boolean;
+  enableMoveMultiSend: boolean;
   commandJson: string;
   commandLog: string;
   onSetTelecoIpAddress: (v: string) => void;
@@ -31,6 +33,8 @@ type Props = {
   onInitializePose: () => void;
   onSetShowMouthPresetPanel: (v: boolean) => void;
   onSetShowRawCommandPanel: (v: boolean) => void;
+  onSetEnableFaceCommandSend: (v: boolean) => void;
+  onSetEnableMoveMultiSend: (v: boolean) => void;
   onSendMouthVowel: (v: "a" | "i" | "u" | "e" | "o" | "xn") => void;
   onSetCommandJson: (v: string) => void;
   onSendRawCommandJson: () => void;
@@ -58,6 +62,8 @@ export default function TelecoControlPanel({
   commandWsStatus,
   showMouthPresetPanel,
   showRawCommandPanel,
+  enableFaceCommandSend,
+  enableMoveMultiSend,
   commandJson,
   commandLog,
   onSetTelecoIpAddress,
@@ -70,6 +76,8 @@ export default function TelecoControlPanel({
   onInitializePose,
   onSetShowMouthPresetPanel,
   onSetShowRawCommandPanel,
+  onSetEnableFaceCommandSend,
+  onSetEnableMoveMultiSend,
   onSendMouthVowel,
   onSetCommandJson,
   onSendRawCommandJson,
@@ -307,6 +315,27 @@ export default function TelecoControlPanel({
           <div className="text-sm font-semibold">
             口パク手動プリセット（faceCommand）
           </div>
+          <div className="flex flex-wrap gap-4 text-sm text-slate-700">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={enableFaceCommandSend}
+                onChange={(e) => onSetEnableFaceCommandSend(e.target.checked)}
+              />
+              口パク送信（faceCommand）
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={enableMoveMultiSend}
+                onChange={(e) => onSetEnableMoveMultiSend(e.target.checked)}
+              />
+              腕動かし送信（move_multi 2,4）
+            </label>
+          </div>
+          <p className="text-xs text-slate-500">
+            初期状態は両方OFFです。チェックしたコマンドだけ送信します。
+          </p>
           <p className="action-state-hint" role="status" aria-live="polite">
             {commandConnected
               ? "Command WS接続済み: 手動プリセットを送信できます"

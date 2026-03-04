@@ -267,20 +267,24 @@ export function useAudioSenderController({
       if (!force && !vowelChanged && now - lastSendMsRef.current < minInterval) {
         return;
       }
-      const faceSent = sendCommand(
-        {
-          label: "faceCommand",
-          commandFace: "change_mouth_vowel",
-          vowel,
-          clientId: clientIdRef.current,
-          ts: Date.now(),
-        },
-        { silentIfDisconnected: true },
-      );
+      const faceSent = enableFaceCommandSend
+        ? sendCommand(
+            {
+              label: "faceCommand",
+              commandFace: "change_mouth_vowel",
+              vowel,
+              clientId: clientIdRef.current,
+              ts: Date.now(),
+            },
+            { silentIfDisconnected: true },
+          )
+        : false;
       if (faceSent) {
-        logCommand(`MOUTH(${source}): faceCommand vowel=${vowel}`);
         lastSendMsRef.current = now;
       }
+      logCommand(
+        `MOUTH(${source}): vowel=${vowel} face=${enableFaceCommandSend ? (faceSent ? "sent" : "skip") : "off"} move_multi=off`,
+      );
       lastVowelRef.current = "xn";
       return;
     }
@@ -301,16 +305,18 @@ export function useAudioSenderController({
     const amplitude = 40;
     const sign = mouthPositiveSideRef.current ? 1 : -1;
     const openAngles = [amplitude * sign, -amplitude * sign];
-    const faceSent = sendCommand(
-      {
-        label: "faceCommand",
-        commandFace: "change_mouth_vowel",
-        vowel,
-        clientId: clientIdRef.current,
-        ts: Date.now(),
-      },
-      { silentIfDisconnected: true },
-    );
+    const faceSent = enableFaceCommandSend
+      ? sendCommand(
+          {
+            label: "faceCommand",
+            commandFace: "change_mouth_vowel",
+            vowel,
+            clientId: clientIdRef.current,
+            ts: Date.now(),
+          },
+          { silentIfDisconnected: true },
+        )
+      : false;
     const payload = {
       label: "move_multi",
       joints: [2, 4],
@@ -318,15 +324,12 @@ export function useAudioSenderController({
       speeds: [50, 50],
       dontsendback: true,
     };
-    const moveSent = sendCommand(
-      payload,
-      { silentIfDisconnected: true },
+    const moveSent = enableMoveMultiSend
+      ? sendCommand(payload, { silentIfDisconnected: true })
+      : false;
+    logCommand(
+      `MOUTH(${source}): vowel=${vowel} face=${enableFaceCommandSend ? (faceSent ? "sent" : "skip") : "off"} move_multi=${enableMoveMultiSend ? (moveSent ? "sent" : "skip") : "off"} joints=[2,4] angles=[${openAngles[0]},${openAngles[1]}]`,
     );
-    if (faceSent || moveSent) {
-      logCommand(
-        `MOUTH(${source}): vowel=${vowel} face=${faceSent ? "sent" : "skip"} move_multi=${moveSent ? "sent" : "skip"} joints=[2,4] angles=[${openAngles[0]},${openAngles[1]}]`,
-      );
-    }
   }
 
   function sendArrowMove(
@@ -369,6 +372,8 @@ export function useAudioSenderController({
 
   const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(false);
   const [showRawCommandPanel, setShowRawCommandPanel] = useState(false);
+  const [enableFaceCommandSend, setEnableFaceCommandSend] = useState(true);
+  const [enableMoveMultiSend, setEnableMoveMultiSend] = useState(true);
 
   // レベルメータ用（RMS）
   const [noiseFloor, setNoiseFloor] = useState<number>(0.02);
@@ -1325,6 +1330,8 @@ export function useAudioSenderController({
       commandWsStatus,
       showMouthPresetPanel,
       showRawCommandPanel,
+      enableFaceCommandSend,
+      enableMoveMultiSend,
       commandJson,
       commandLog,
       onSetTelecoIpAddress: setTelecoIpAddress,
@@ -1342,6 +1349,8 @@ export function useAudioSenderController({
       onInitializePose: sendInitializePose,
       onSetShowMouthPresetPanel: setShowMouthPresetPanel,
       onSetShowRawCommandPanel: setShowRawCommandPanel,
+      onSetEnableFaceCommandSend: setEnableFaceCommandSend,
+      onSetEnableMoveMultiSend: setEnableMoveMultiSend,
       onSendMouthVowel: (v) => sendMouthVowel(v, { force: true, source: "manual" }),
       onSetCommandJson: setCommandJson,
       onSendRawCommandJson: sendRawCommandJson,
