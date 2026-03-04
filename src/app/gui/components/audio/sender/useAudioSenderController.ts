@@ -10,9 +10,15 @@ import {
   DEFAULT_SIGNALING_PORT,
   DEFAULT_TELECO_PORT,
   GAMEPAD_ARROW_COOLDOWN_MS,
+  GAMEPAD_B_BUTTON_INDEX,
+  GAMEPAD_DPAD_LEFT_BUTTON_INDEX,
+  GAMEPAD_DPAD_RIGHT_BUTTON_INDEX,
+  GAMEPAD_LB_BUTTON_INDEX,
   GAMEPAD_LT_BUTTON_INDEX,
+  GAMEPAD_RB_BUTTON_INDEX,
   GAMEPAD_RT_BUTTON_INDEX,
   GAMEPAD_TRIGGER_THRESHOLD,
+  GAMEPAD_X_BUTTON_INDEX,
   resolveDefaultTelecoIpAddress,
   STORAGE_KEYS,
   TELECO_ARROW_EVENT,
@@ -946,6 +952,8 @@ export function useAudioSenderController({
           ? 1
           : 0;
     };
+    const isPressed = (button: GamepadButton | undefined): boolean =>
+      !!button?.pressed;
 
     const tick = () => {
       const pads = navigator.getGamepads?.() ?? [];
@@ -957,25 +965,31 @@ export function useAudioSenderController({
       }
 
       if (pad) {
-        const lt =
+        const leftPressed =
+          isPressed(pad.buttons[GAMEPAD_LB_BUTTON_INDEX]) ||
+          isPressed(pad.buttons[GAMEPAD_X_BUTTON_INDEX]) ||
+          isPressed(pad.buttons[GAMEPAD_DPAD_LEFT_BUTTON_INDEX]) ||
           readTriggerValue(pad.buttons[GAMEPAD_LT_BUTTON_INDEX]) >=
           GAMEPAD_TRIGGER_THRESHOLD;
-        const rt =
+        const rightPressed =
+          isPressed(pad.buttons[GAMEPAD_RB_BUTTON_INDEX]) ||
+          isPressed(pad.buttons[GAMEPAD_B_BUTTON_INDEX]) ||
+          isPressed(pad.buttons[GAMEPAD_DPAD_RIGHT_BUTTON_INDEX]) ||
           readTriggerValue(pad.buttons[GAMEPAD_RT_BUTTON_INDEX]) >=
           GAMEPAD_TRIGGER_THRESHOLD;
         const now = performance.now();
         const canSend = now - lastSentAt >= GAMEPAD_ARROW_COOLDOWN_MS;
 
-        if (lt && !lastLeftPressed && canSend) {
+        if (leftPressed && !lastLeftPressed && canSend) {
           sendArrowMove("left", { silentIfDisconnected: true });
           lastSentAt = now;
-        } else if (rt && !lastRightPressed && canSend) {
+        } else if (rightPressed && !lastRightPressed && canSend) {
           sendArrowMove("right", { silentIfDisconnected: true });
           lastSentAt = now;
         }
 
-        lastLeftPressed = lt;
-        lastRightPressed = rt;
+        lastLeftPressed = leftPressed;
+        lastRightPressed = rightPressed;
       } else {
         lastLeftPressed = false;
         lastRightPressed = false;

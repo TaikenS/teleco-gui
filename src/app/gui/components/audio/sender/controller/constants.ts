@@ -5,8 +5,14 @@ import {
 
 export const TELECO_ARROW_EVENT = "teleco:arrow";
 export const TELECO_HEADING_EVENT = "teleco:heading";
+export const GAMEPAD_LB_BUTTON_INDEX = 4;
+export const GAMEPAD_RB_BUTTON_INDEX = 5;
 export const GAMEPAD_LT_BUTTON_INDEX = 6;
 export const GAMEPAD_RT_BUTTON_INDEX = 7;
+export const GAMEPAD_B_BUTTON_INDEX = 1;
+export const GAMEPAD_X_BUTTON_INDEX = 2;
+export const GAMEPAD_DPAD_LEFT_BUTTON_INDEX = 14;
+export const GAMEPAD_DPAD_RIGHT_BUTTON_INDEX = 15;
 export const GAMEPAD_TRIGGER_THRESHOLD = 0.4;
 export const GAMEPAD_ARROW_COOLDOWN_MS = 150;
 
