@@ -183,10 +183,7 @@ export function useAudioSenderController({
   // ---- mouth ----
   const lastVowelRef = useRef<Vowel>("xn");
   const lastSendMsRef = useRef<number>(0);
-  const lastActiveVowelRef = useRef<Exclude<Vowel, "xn"> | null>(null);
-  const sameVowelStreakRef = useRef<number>(0);
   const mouthPositiveSideRef = useRef<boolean>(true);
-  const mouthWideSwingRef = useRef<boolean>(false);
   const [mouthSendFps, setMouthSendFps] = useState<number>(15);
 
   function appendError(msg: string) {
@@ -285,23 +282,8 @@ export function useAudioSenderController({
         lastSendMsRef.current = now;
       }
       lastVowelRef.current = "xn";
-      lastActiveVowelRef.current = null;
-      sameVowelStreakRef.current = 0;
-      mouthWideSwingRef.current = false;
       return;
     }
-
-    if (lastActiveVowelRef.current && lastActiveVowelRef.current !== vowel) {
-      mouthPositiveSideRef.current = !mouthPositiveSideRef.current;
-      sameVowelStreakRef.current = 1;
-    } else {
-      sameVowelStreakRef.current += 1;
-      if (sameVowelStreakRef.current >= 3) {
-        mouthPositiveSideRef.current = !mouthPositiveSideRef.current;
-        sameVowelStreakRef.current = 0;
-      }
-    }
-    lastActiveVowelRef.current = vowel;
 
     const vowelChanged = lastVowelRef.current !== vowel;
     if (
@@ -315,11 +297,10 @@ export function useAudioSenderController({
 
     lastVowelRef.current = vowel;
     lastSendMsRef.current = now;
-    mouthWideSwingRef.current = !mouthWideSwingRef.current;
-    const amplitude = mouthWideSwingRef.current ? 60 : 35;
-    const openAngles = mouthPositiveSideRef.current
-      ? [amplitude, -amplitude]
-      : [-amplitude, amplitude];
+    mouthPositiveSideRef.current = !mouthPositiveSideRef.current;
+    const amplitude = 40;
+    const sign = mouthPositiveSideRef.current ? 1 : -1;
+    const openAngles = [amplitude * sign, -amplitude * sign];
     const faceSent = sendCommand(
       {
         label: "faceCommand",
