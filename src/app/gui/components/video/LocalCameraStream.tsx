@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { TELECO_HEADING_EVENT } from "@/app/gui/components/audio/sender/controller/constants";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  TELECO_ARROW_EVENT,
+  TELECO_HEADING_EVENT,
+} from "@/app/gui/components/audio/sender/controller/constants";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import type { TelecoArrowDirection } from "@/app/gui/components/audio/sender/controller/types";
 
@@ -116,6 +119,7 @@ function headingLabel(heading: number): "LEFT" | "CENTER" | "RIGHT" {
 }
 
 export default function LocalCameraStream({ videoDeviceId }: Props) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const sharpenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const sharpenWorkCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -493,6 +497,21 @@ export default function LocalCameraStream({ videoDeviceId }: Props) {
   const canStop = !!stream;
   const useSharpenPreview = sharpenAmount > 0;
 
+  const sendArrowByClickPosition = (
+    ev: ReactMouseEvent<HTMLDivElement>,
+  ) => {
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const direction: TelecoArrowDirection =
+      x < rect.width / 2 ? "left" : "right";
+
+    window.dispatchEvent(
+      new CustomEvent<{ direction: TelecoArrowDirection }>(TELECO_ARROW_EVENT, {
+        detail: { direction },
+      }),
+    );
+  };
+
   useEffect(() => {
     if (!stream || sharpenAmount <= 0) return;
 
@@ -786,17 +805,18 @@ export default function LocalCameraStream({ videoDeviceId }: Props) {
       </div>
 
       <div
+        ref={frameRef}
         className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
-        title="クリックでフルスクリーン切替"
-        onClick={() => {
-          const el = useSharpenPreview
-            ? sharpenCanvasRef.current
-            : videoRef.current;
-          if (!el) return;
-          if (document.fullscreenElement) {
-            void document.exitFullscreen();
-          } else {
-            void el.requestFullscreen();
+        title="クリックでフルスクリーン / 全画面中は左右タップで向きを変更"
+        onClick={(ev) => {
+          const frame = frameRef.current;
+          if (!frame) return;
+          if (document.fullscreenElement === frame) {
+            sendArrowByClickPosition(ev);
+            return;
+          }
+          if (!document.fullscreenElement) {
+            void frame.requestFullscreen();
           }
         }}
       >

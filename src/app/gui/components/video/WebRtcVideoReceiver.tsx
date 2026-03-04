@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { TELECO_ARROW_EVENT } from "@/app/gui/components/audio/sender/controller/constants";
 import { getSignalingUrl } from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,
@@ -8,6 +9,7 @@ import {
   isWsOfferMessage,
   parseWsJsonData,
 } from "@/lib/webrtc/wsMessageUtils";
+import type { TelecoArrowDirection } from "@/app/gui/components/audio/sender/controller/types";
 
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
@@ -77,6 +79,21 @@ export default function WebRtcVideoReceiver({
 
   const logLine = (line: string) =>
     setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
+
+  const sendArrowByClickPosition = (
+    ev: ReactMouseEvent<HTMLDivElement>,
+  ) => {
+    const rect = ev.currentTarget.getBoundingClientRect();
+    const x = ev.clientX - rect.left;
+    const direction: TelecoArrowDirection =
+      x < rect.width / 2 ? "left" : "right";
+
+    window.dispatchEvent(
+      new CustomEvent<{ direction: TelecoArrowDirection }>(TELECO_ARROW_EVENT, {
+        detail: { direction },
+      }),
+    );
+  };
 
   const tryPlayRemoteVideo = async () => {
     const video = remoteVideoRef.current;
@@ -479,13 +496,15 @@ export default function WebRtcVideoReceiver({
       <div
         ref={frameRef}
         className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"
-        title="クリックでフルスクリーン切替"
-        onClick={() => {
+        title="クリックでフルスクリーン / 全画面中は左右タップで向きを変更"
+        onClick={(ev) => {
           const frame = frameRef.current;
           if (!frame) return;
-          if (document.fullscreenElement) {
-            void document.exitFullscreen();
-          } else {
+          if (document.fullscreenElement === frame) {
+            sendArrowByClickPosition(ev);
+            return;
+          }
+          if (!document.fullscreenElement) {
             void frame.requestFullscreen();
           }
         }}
@@ -502,7 +521,8 @@ export default function WebRtcVideoReceiver({
             <button
               type="button"
               className="pointer-events-auto rounded-lg bg-white px-3 py-2 text-xs text-slate-900"
-              onClick={() => {
+              onClick={(ev) => {
+                ev.stopPropagation();
                 void tryPlayRemoteVideo();
               }}
             >
