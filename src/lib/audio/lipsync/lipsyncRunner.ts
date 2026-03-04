@@ -17,9 +17,11 @@ export interface LipSyncHandle {
 export function startLipSync(
   stream: MediaStream,
   cb: LipSyncCallbacks = {},
-  options: { bufferSize?: number } = {},
+  options: { bufferSize?: number; neutralDelayMs?: number } = {},
 ): LipSyncHandle {
   const bufferSize = options.bufferSize ?? 1024;
+  const neutralDelayMs = options.neutralDelayMs ?? 700;
+  let neutralTimer: ReturnType<typeof setTimeout> | null = null;
 
   const ctx = new AudioContext();
   const src = ctx.createMediaStreamSource(stream);
@@ -30,11 +32,24 @@ export function startLipSync(
   silent.gain.value = 0;
 
   const formant = new VowelFormantAnalyzer();
+  formant.SPEECH_STOP_DELAY_MS = Math.max(0, neutralDelayMs);
   formant.setVowelHandler((v: string) => {
     const upper = String(v).toUpperCase();
     const vowel = (
       ["A", "I", "U", "E", "O", "N"].includes(upper) ? upper : "N"
     ) as VowelLabel;
+    if (vowel === "N") {
+      if (neutralTimer != null) return;
+      neutralTimer = setTimeout(() => {
+        neutralTimer = null;
+        cb.onVowel?.("N");
+      }, neutralDelayMs);
+      return;
+    }
+    if (neutralTimer != null) {
+      clearTimeout(neutralTimer);
+      neutralTimer = null;
+    }
     cb.onVowel?.(vowel);
   });
   formant.setSpeakStatusHandler((s: string) => {
@@ -66,6 +81,10 @@ export function startLipSync(
   silent.connect(ctx.destination);
 
   const stop = () => {
+    if (neutralTimer != null) {
+      clearTimeout(neutralTimer);
+      neutralTimer = null;
+    }
     try {
       proc.disconnect();
     } catch {}

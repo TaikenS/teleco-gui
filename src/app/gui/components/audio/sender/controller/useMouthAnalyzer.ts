@@ -31,6 +31,8 @@ export function useMouthAnalyzer(params: {
   const mouthProcessorRef = useRef<ScriptProcessorNode | null>(null);
   const mouthZeroGainRef = useRef<GainNode | null>(null);
   const mouthEstimatorRef = useRef<VowelEstimator | null>(null);
+  const lastDetectedVowelRef = useRef<Exclude<Vowel, "xn"> | null>(null);
+  const lastDetectedAtMsRef = useRef<number>(0);
 
   const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -77,6 +79,8 @@ export function useMouthAnalyzer(params: {
 
     mouthEstimatorRef.current = null;
     mouthModeRef.current = null;
+    lastDetectedVowelRef.current = null;
+    lastDetectedAtMsRef.current = 0;
 
     setMicTestRunning(false);
     setMicLevel(0);
@@ -129,15 +133,22 @@ export function useMouthAnalyzer(params: {
       const estimator = new VowelEstimator();
       estimator.bufferSize = 1024;
       estimator.th_isSpeaking = Math.max(0, Math.min(1, speakingThreshold));
-      estimator.SPEECH_STOP_DELAY_MS = 700;
+      estimator.SPEECH_STOP_DELAY_MS = 1000;
       estimator.setSampleRate(ctx.sampleRate);
       estimator.setCallbacks(
         (v) => {
           if (!autoMouthEnabled) return;
+          const now = performance.now();
           if (v === "N" || v === "n") {
+            // 発話終了時は口形をニュートラル(xn)へ戻す。
+            lastDetectedVowelRef.current = null;
+            lastDetectedAtMsRef.current = now;
+            sendMouthVowel("xn");
             return;
           }
           if (v === "a" || v === "i" || v === "u" || v === "e" || v === "o") {
+            lastDetectedVowelRef.current = v;
+            lastDetectedAtMsRef.current = now;
             sendMouthVowel(v);
           }
         },

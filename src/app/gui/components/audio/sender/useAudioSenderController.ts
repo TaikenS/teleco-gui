@@ -186,6 +186,7 @@ export function useAudioSenderController({
   const lastActiveVowelRef = useRef<Exclude<Vowel, "xn"> | null>(null);
   const sameVowelStreakRef = useRef<number>(0);
   const mouthPositiveSideRef = useRef<boolean>(true);
+  const mouthWideSwingRef = useRef<boolean>(false);
   const [mouthSendFps, setMouthSendFps] = useState<number>(15);
 
   function appendError(msg: string) {
@@ -255,14 +256,38 @@ export function useAudioSenderController({
     }
   }
 
-  function sendMouthVowel(vowel: Vowel) {
+  function sendMouthVowel(
+    vowel: Vowel,
+    options?: { force?: boolean; source?: "manual" | "auto" },
+  ) {
+    const force = options?.force === true;
+    const source = options?.source ?? "auto";
     const now = performance.now();
     const minInterval = 1000 / Math.max(1, mouthSendFps);
 
     if (vowel === "xn") {
+      const vowelChanged = lastVowelRef.current !== "xn";
+      if (!force && !vowelChanged && now - lastSendMsRef.current < minInterval) {
+        return;
+      }
+      const faceSent = sendCommand(
+        {
+          label: "faceCommand",
+          commandFace: "change_mouth_vowel",
+          vowel,
+          clientId: clientIdRef.current,
+          ts: Date.now(),
+        },
+        { silentIfDisconnected: true },
+      );
+      if (faceSent) {
+        logCommand(`MOUTH(${source}): faceCommand vowel=${vowel}`);
+        lastSendMsRef.current = now;
+      }
       lastVowelRef.current = "xn";
       lastActiveVowelRef.current = null;
       sameVowelStreakRef.current = 0;
+      mouthWideSwingRef.current = false;
       return;
     }
 
@@ -279,23 +304,48 @@ export function useAudioSenderController({
     lastActiveVowelRef.current = vowel;
 
     const vowelChanged = lastVowelRef.current !== vowel;
-    if (!vowelChanged && lastVowelRef.current !== "xn" && now - lastSendMsRef.current < minInterval) {
+    if (
+      !force &&
+      !vowelChanged &&
+      lastVowelRef.current !== "xn" &&
+      now - lastSendMsRef.current < minInterval
+    ) {
       return;
     }
 
     lastVowelRef.current = vowel;
     lastSendMsRef.current = now;
-    const openAngles = mouthPositiveSideRef.current ? [40, -40] : [-40, 40];
-    sendCommand(
+    mouthWideSwingRef.current = !mouthWideSwingRef.current;
+    const amplitude = mouthWideSwingRef.current ? 60 : 35;
+    const openAngles = mouthPositiveSideRef.current
+      ? [amplitude, -amplitude]
+      : [-amplitude, amplitude];
+    const faceSent = sendCommand(
       {
-        label: "move_multi",
-        joints: [2, 4],
-        angles: openAngles,
-        speeds: [50, 50],
-        dontsendback: true,
+        label: "faceCommand",
+        commandFace: "change_mouth_vowel",
+        vowel,
+        clientId: clientIdRef.current,
+        ts: Date.now(),
       },
       { silentIfDisconnected: true },
     );
+    const payload = {
+      label: "move_multi",
+      joints: [2, 4],
+      angles: openAngles,
+      speeds: [50, 50],
+      dontsendback: true,
+    };
+    const moveSent = sendCommand(
+      payload,
+      { silentIfDisconnected: true },
+    );
+    if (faceSent || moveSent) {
+      logCommand(
+        `MOUTH(${source}): vowel=${vowel} face=${faceSent ? "sent" : "skip"} move_multi=${moveSent ? "sent" : "skip"} joints=[2,4] angles=[${openAngles[0]},${openAngles[1]}]`,
+      );
+    }
   }
 
   function sendArrowMove(
@@ -1305,13 +1355,13 @@ export function useAudioSenderController({
         connectCommandWs();
       },
       onDisconnectCommand: disconnectCommandWs,
-      onMouthTestA: () => sendMouthVowel("a"),
+      onMouthTestA: () => sendMouthVowel("a", { force: true, source: "manual" }),
       onArrowLeft: () => sendArrowMove("left"),
       onArrowRight: () => sendArrowMove("right"),
       onInitializePose: sendInitializePose,
       onSetShowMouthPresetPanel: setShowMouthPresetPanel,
       onSetShowRawCommandPanel: setShowRawCommandPanel,
-      onSendMouthVowel: sendMouthVowel,
+      onSendMouthVowel: (v) => sendMouthVowel(v, { force: true, source: "manual" }),
       onSetCommandJson: setCommandJson,
       onSendRawCommandJson: sendRawCommandJson,
       onClearCommandLog: () => setCommandLog(""),

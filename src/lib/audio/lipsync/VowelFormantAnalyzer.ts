@@ -16,6 +16,7 @@ export default class VowelFormantAnalyzer {
   public VOWEL_WINDOW = 20;
   public preBehavior: VowelLabelLower = "n";
   public speakingThreshold = 0.15;
+  public SPEECH_STOP_DELAY_MS = 1500;
 
   public vowelHistory: number[] = [];
   public lockingBehavior = false;
@@ -102,7 +103,7 @@ export default class VowelFormantAnalyzer {
         this.actionstart("stop");
         this.speakingTimer = null;
         this.vowelresult("N");
-      }, 1500);
+      }, this.SPEECH_STOP_DELAY_MS);
 
       // 口形の変化（過剰に変わり続けないよう200msロック）
       if (this.preBehavior !== _v && !this.lockingBehavior) {
