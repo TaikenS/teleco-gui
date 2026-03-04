@@ -4,6 +4,12 @@ type Props = {
   telecoDebugUrlForDisplay: string;
   commandWsUrlForDisplay: string;
   gamepadConnected: boolean;
+  gamepadIndex: number | null;
+  gamepadId: string;
+  gamepadMapping: string;
+  gamepadPressedButtons: number[];
+  gamepadLtValue: number;
+  gamepadRtValue: number;
   commandConnected: boolean;
   commandBusy: boolean;
   hasTelecoTarget: boolean;
@@ -37,6 +43,12 @@ export default function TelecoControlPanel({
   telecoDebugUrlForDisplay,
   commandWsUrlForDisplay,
   gamepadConnected,
+  gamepadIndex,
+  gamepadId,
+  gamepadMapping,
+  gamepadPressedButtons,
+  gamepadLtValue,
+  gamepadRtValue,
   commandConnected,
   commandBusy,
   hasTelecoTarget,
@@ -131,7 +143,17 @@ export default function TelecoControlPanel({
             : "次の操作: ① Command WS接続（/command）"}
         </p>
         <p className="text-[11px] text-slate-500">
-          XBOXコントローラー対応: LTで左、RTで右（トリガーの押し込みを検出）
+          XBOXコントローラー対応: LB/LT/X/十字左で左、RB/RT/B/十字右で右
+        </p>
+        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700 break-all">
+          Gamepad Debug: index={gamepadIndex ?? "-"} / mapping=
+          {gamepadMapping || "-"} / LT={gamepadLtValue.toFixed(2)} / RT=
+          {gamepadRtValue.toFixed(2)} / pressed=
+          {gamepadPressedButtons.length > 0
+            ? gamepadPressedButtons.join(",")
+            : "(none)"}
+          <br />
+          id: {gamepadId || "(none)"}
         </p>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

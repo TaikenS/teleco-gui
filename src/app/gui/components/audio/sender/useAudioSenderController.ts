@@ -153,6 +153,14 @@ export function useAudioSenderController({
   const [signalWsStatus, setSignalWsStatus] = useState<string>("未接続");
   const [commandWsStatus, setCommandWsStatus] = useState<string>("未接続");
   const [gamepadConnected, setGamepadConnected] = useState(false);
+  const [gamepadIndex, setGamepadIndex] = useState<number | null>(null);
+  const [gamepadId, setGamepadId] = useState<string>("");
+  const [gamepadMapping, setGamepadMapping] = useState<string>("");
+  const [gamepadPressedButtons, setGamepadPressedButtons] = useState<number[]>(
+    [],
+  );
+  const [gamepadLtValue, setGamepadLtValue] = useState(0);
+  const [gamepadRtValue, setGamepadRtValue] = useState(0);
   const [callStatus, setCallStatus] = useState<string>("停止");
   const [error, setError] = useState<string | null>(null);
 
@@ -939,6 +947,7 @@ export function useAudioSenderController({
     if (!isTelecoPanel) return;
 
     let rafId: number | null = null;
+    let lastDebugSignature = "";
     let lastLeftPressed = false;
     let lastRightPressed = false;
     let lastSentAt = 0;
@@ -957,7 +966,8 @@ export function useAudioSenderController({
 
     const tick = () => {
       const pads = navigator.getGamepads?.() ?? [];
-      const pad = pads.find((p) => p?.connected);
+      const padIndex = pads.findIndex((p) => !!p?.connected);
+      const pad = padIndex >= 0 ? pads[padIndex] : null;
       const connected = !!pad;
       if (connected !== lastConnectionState) {
         lastConnectionState = connected;
@@ -965,18 +975,40 @@ export function useAudioSenderController({
       }
 
       if (pad) {
+        const ltRaw = readTriggerValue(pad.buttons[GAMEPAD_LT_BUTTON_INDEX]);
+        const rtRaw = readTriggerValue(pad.buttons[GAMEPAD_RT_BUTTON_INDEX]);
+        const pressedButtons = pad.buttons
+          .map((button, index) => (button?.pressed ? index : -1))
+          .filter((index) => index >= 0);
+        const mapping = pad.mapping || "(empty)";
+        const nextSignature = [
+          String(padIndex),
+          pad.id,
+          mapping,
+          pressedButtons.join(","),
+          ltRaw.toFixed(2),
+          rtRaw.toFixed(2),
+        ].join("|");
+        if (nextSignature !== lastDebugSignature) {
+          lastDebugSignature = nextSignature;
+          setGamepadIndex(padIndex);
+          setGamepadId(pad.id || "(empty)");
+          setGamepadMapping(mapping);
+          setGamepadPressedButtons(pressedButtons);
+          setGamepadLtValue(ltRaw);
+          setGamepadRtValue(rtRaw);
+        }
+
         const leftPressed =
           isPressed(pad.buttons[GAMEPAD_LB_BUTTON_INDEX]) ||
           isPressed(pad.buttons[GAMEPAD_X_BUTTON_INDEX]) ||
           isPressed(pad.buttons[GAMEPAD_DPAD_LEFT_BUTTON_INDEX]) ||
-          readTriggerValue(pad.buttons[GAMEPAD_LT_BUTTON_INDEX]) >=
-          GAMEPAD_TRIGGER_THRESHOLD;
+          ltRaw >= GAMEPAD_TRIGGER_THRESHOLD;
         const rightPressed =
           isPressed(pad.buttons[GAMEPAD_RB_BUTTON_INDEX]) ||
           isPressed(pad.buttons[GAMEPAD_B_BUTTON_INDEX]) ||
           isPressed(pad.buttons[GAMEPAD_DPAD_RIGHT_BUTTON_INDEX]) ||
-          readTriggerValue(pad.buttons[GAMEPAD_RT_BUTTON_INDEX]) >=
-          GAMEPAD_TRIGGER_THRESHOLD;
+          rtRaw >= GAMEPAD_TRIGGER_THRESHOLD;
         const now = performance.now();
         const canSend = now - lastSentAt >= GAMEPAD_ARROW_COOLDOWN_MS;
 
@@ -991,6 +1023,15 @@ export function useAudioSenderController({
         lastLeftPressed = leftPressed;
         lastRightPressed = rightPressed;
       } else {
+        if (lastDebugSignature !== "") {
+          lastDebugSignature = "";
+          setGamepadIndex(null);
+          setGamepadId("");
+          setGamepadMapping("");
+          setGamepadPressedButtons([]);
+          setGamepadLtValue(0);
+          setGamepadRtValue(0);
+        }
         lastLeftPressed = false;
         lastRightPressed = false;
       }
@@ -1004,6 +1045,12 @@ export function useAudioSenderController({
         window.cancelAnimationFrame(rafId);
       }
       setGamepadConnected(false);
+      setGamepadIndex(null);
+      setGamepadId("");
+      setGamepadMapping("");
+      setGamepadPressedButtons([]);
+      setGamepadLtValue(0);
+      setGamepadRtValue(0);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTelecoPanel]);
@@ -1182,6 +1229,12 @@ export function useAudioSenderController({
       telecoDebugUrlForDisplay: telecoCommand.telecoDebugUrlForDisplay,
       commandWsUrlForDisplay: telecoCommand.commandWsUrlForDisplay,
       gamepadConnected,
+      gamepadIndex,
+      gamepadId,
+      gamepadMapping,
+      gamepadPressedButtons,
+      gamepadLtValue,
+      gamepadRtValue,
       commandConnected: telecoCommand.commandConnected,
       commandBusy: telecoCommand.commandBusy,
       hasTelecoTarget: telecoCommand.hasTelecoTarget,
