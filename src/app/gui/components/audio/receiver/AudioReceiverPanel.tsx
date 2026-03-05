@@ -1,7 +1,7 @@
 "use client";
 
-import AudioReceiverControlPanel from "@/app/audio/components/AudioReceiverControlPanel";
-import { useAudioReceiverController } from "@/app/audio/controller/useAudioReceiverController";
+import AudioReceiverControlPanel from "@/app/gui/components/audio/receiver/components/AudioReceiverControlPanel";
+import { useAudioReceiverController } from "@/app/gui/components/audio/receiver/controller/useAudioReceiverController";
 
 export default function AudioReceiverPage({
   embedded = false,

@@ -28,11 +28,11 @@ const WebRtcVideoReceiver = dynamic(
   { ssr: false },
 );
 const EmbeddedVideoSenderPage = dynamic(
-  () => import("@/app/video/VideoSenderPageClient"),
+  () => import("@/app/gui/components/video/sender/VideoSenderPanel"),
   { ssr: false },
 );
 const EmbeddedAudioReceiverPage = dynamic(
-  () => import("@/app/audio/AudioReceiverPageClient"),
+  () => import("@/app/gui/components/audio/receiver/AudioReceiverPanel"),
   { ssr: false },
 );
 
@@ -308,7 +308,7 @@ export default function GuiPage() {
                   value={mode}
                   onChange={(e) => setMode(e.target.value as VideoSourceMode)}
                 >
-                  <option value="webSender">/video 送信映像（WebRTC）</option>
+                  <option value="webSender">GUI内 送信映像（WebRTC）</option>
                   <option value="local">このPCのローカルカメラ</option>
                 </PanelSelect>
               </div>

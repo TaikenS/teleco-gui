@@ -1,10 +1,10 @@
 import { useEffect, useRef } from "react";
-import { useAudioSenderSignaling } from "@/app/audio/sender/controller/useAudioSenderSignaling";
+import { useAudioReceiverSignaling } from "@/app/gui/components/audio/receiver/controller/useAudioReceiverSignaling";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
-import { buildSignalingBaseUrl, buildSignalingUrl } from "@/lib/signaling";
+import { buildSignalingUrl } from "@/lib/signaling";
 
-export function useAudioSenderController() {
-  const signaling = useAudioSenderSignaling();
+export function useAudioReceiverController() {
+  const signaling = useAudioReceiverSignaling();
   const didInitSignalSettingsRef = useRef(false);
   const didEditSignalSettingsRef = useRef(false);
 
@@ -12,8 +12,9 @@ export function useAudioSenderController() {
     if (!didInitSignalSettingsRef.current) return;
     if (!didEditSignalSettingsRef.current) return;
     scheduleEnvLocalSync({
-      NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS: signaling.signalingIpAddress,
-      NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT: signaling.signalingPort,
+      NEXT_PUBLIC_AUDIO_RECEIVE_SIGNALING_IP_ADDRESS:
+        signaling.signalingIpAddress,
+      NEXT_PUBLIC_AUDIO_RECEIVE_SIGNALING_PORT: signaling.signalingPort,
     });
   }, [signaling.signalingIpAddress, signaling.signalingPort]);
 
@@ -21,27 +22,14 @@ export function useAudioSenderController() {
     didInitSignalSettingsRef.current = true;
   }, []);
 
-  const sendLive =
-    signaling.rtcState === "connected" || signaling.rtcState === "connecting";
-
-  const canConnectSignal =
+  const canConnect =
     !signaling.connected &&
     !signaling.wsBusy &&
     signaling.roomId.trim().length > 0 &&
     signaling.signalingIpAddress.trim().length > 0 &&
     signaling.signalingPort.trim().length > 0;
 
-  const canStartSend =
-    signaling.micReady &&
-    signaling.connected &&
-    signaling.sendEnabled &&
-    !signaling.sendBusy &&
-    !sendLive;
-
-  const canStopConnection =
-    signaling.connected || signaling.wsBusy || signaling.sendBusy || sendLive;
-
-  const canStartMic = !signaling.micBusy;
+  const canDisconnect = signaling.connected || signaling.wsBusy;
 
   const signalingWsUrlForDisplay = buildSignalingUrl({
     ipAddress: signaling.signalingIpAddress,
@@ -49,19 +37,11 @@ export function useAudioSenderController() {
     roomId: signaling.roomId,
   });
 
-  const signalingBaseUrlForDisplay = buildSignalingBaseUrl({
-    ipAddress: signaling.signalingIpAddress,
-    port: signaling.signalingPort,
-  });
-
   return {
     ...signaling,
-    canConnectSignal,
-    canStartSend,
-    canStopConnection,
-    canStartMic,
+    canConnect,
+    canDisconnect,
     signalingWsUrlForDisplay,
-    signalingBaseUrlForDisplay,
     setSignalingIpAddress: (value: string) => {
       didEditSignalSettingsRef.current = true;
       signaling.setSignalingIpAddress(value);

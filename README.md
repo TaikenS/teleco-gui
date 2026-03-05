@@ -77,9 +77,6 @@ npm run deps:verify
 ### 主要ページ
 
 - `/gui` : オペレーターGUI
-- `/video` : Video Sender
-- `/audio` : Audio Receiver
-- `/audio/sender` : Audio Sender
 
 ---
 
@@ -105,13 +102,13 @@ SIGNAL_PORT=3000
 # NEXT_PUBLIC_SIGNALING_IP_ADDRESS=192.168.0.10
 
 # 用途別Signal先（推奨）
-# Audio Receiver (/audio)
+# Audio Receiver (/gui 音声受信)
 NEXT_PUBLIC_AUDIO_RECEIVE_SIGNALING_IP_ADDRESS=localhost
 NEXT_PUBLIC_AUDIO_RECEIVE_SIGNALING_PORT=3000
-# Audio Sender (/audio/sender, /gui 音声送信)
+# Audio Sender (/gui 音声送信)
 NEXT_PUBLIC_AUDIO_SEND_SIGNALING_IP_ADDRESS=localhost
 NEXT_PUBLIC_AUDIO_SEND_SIGNALING_PORT=3000
-# Video Sender (/video, /gui webSender)
+# Video Sender (/gui webSender)
 NEXT_PUBLIC_VIDEO_SEND_SIGNALING_IP_ADDRESS=localhost
 NEXT_PUBLIC_VIDEO_SEND_SIGNALING_PORT=3000
 # Video Receiver (/gui で webSender 受信)
@@ -143,7 +140,7 @@ NEXT_PUBLIC_TELECO_PORT=11920
 
 ### Signaling設定UIについて
 
-`/gui` `/video` `/audio` `/audio/sender` は、`Signaling WS URL` の直入力ではなく、`IP Address` / `Port` / `Room ID` 入力から URL を組み立てる方式です。  
+`/gui` は、`Signaling WS URL` の直入力ではなく、`IP Address` / `Port` / `Room ID` 入力から URL を組み立てる方式です。  
 画面上の `Signaling WS URL` は確認用表示です。
 
 ## トラブルシュート
