@@ -1,4 +1,4 @@
-import type { RefObject } from "react";
+import { useState, type RefObject } from "react";
 
 type MicOption = { deviceId: string; label: string };
 
@@ -101,6 +101,8 @@ export default function AudioSenderDevicePanel({
   onStartMicTest,
   onStopMicTest,
 }: Props) {
+  const [showMicTestPanel, setShowMicTestPanel] = useState(false);
+
   return (
     <>
       <div className="rounded-xl border bg-white p-3 space-y-3">
@@ -291,167 +293,179 @@ export default function AudioSenderDevicePanel({
       </div>
 
       <div className="rounded-xl border bg-white p-3 space-y-3">
-        <div className="text-sm font-semibold">
-          マイクテスト（ローカル再生 + 母音推定 → faceCommand）
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold">マイクテスト</div>
+          <button
+            type="button"
+            className="rounded-lg border bg-slate-100 px-2 py-1 text-xs text-slate-700 hover:bg-slate-200"
+            onClick={() => setShowMicTestPanel((v) => !v)}
+            aria-expanded={showMicTestPanel}
+          >
+            {showMicTestPanel ? "非表示" : "表示"}
+          </button>
         </div>
 
-        <div className="status-chip-row">
-          <span
-            className={`status-chip ${micTestRunning ? "is-on" : "is-off"}`}
-          >
-            Mic Test {micTestRunning ? "RUNNING" : "STOPPED"}
-          </span>
-          <span
-            className={`status-chip ${autoMouthEnabled ? "is-on" : "is-off"}`}
-          >
-            Auto Mouth {autoMouthEnabled ? "ON" : "OFF"}
-          </span>
-        </div>
+        {showMicTestPanel && (
+          <>
+            <div className="status-chip-row">
+              <span
+                className={`status-chip ${micTestRunning ? "is-on" : "is-off"}`}
+              >
+                Mic Test {micTestRunning ? "RUNNING" : "STOPPED"}
+              </span>
+              <span
+                className={`status-chip ${autoMouthEnabled ? "is-on" : "is-off"}`}
+              >
+                Auto Mouth {autoMouthEnabled ? "ON" : "OFF"}
+              </span>
+            </div>
 
-        <p className="action-state-hint" role="status" aria-live="polite">
-          {!hasMic
-            ? "次の操作: マイクを選択してください"
-            : !micTestRunning
-              ? "次の操作: マイクテストを開始"
-              : "現在: マイクテスト動作中です"}
-        </p>
-
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div className="action-button-wrap">
-            <button
-              onClick={onStartMicTest}
-              disabled={!canStartMicTest}
-              className="action-button bg-blue-600 text-white text-sm"
-            >
-              マイクテスト開始
-            </button>
-            <p
-              className={`button-reason ${canStartMicTest ? "is-ready" : "is-disabled"}`}
-            >
+            <p className="action-state-hint" role="status" aria-live="polite">
               {!hasMic
-                ? "先にマイクを選択してください"
-                : micTestRunning
-                  ? "すでに実行中です"
-                  : "マイクテストを開始できます"}
+                ? "次の操作: マイクを選択してください"
+                : !micTestRunning
+                  ? "次の操作: マイクテストを開始"
+                  : "現在: マイクテスト動作中です"}
             </p>
-          </div>
 
-          <div className="action-button-wrap">
-            <button
-              onClick={onStopMicTest}
-              disabled={!canStopMicTest}
-              className="action-button bg-slate-100 text-sm"
-            >
-              マイクテスト停止
-            </button>
-            <p
-              className={`button-reason ${canStopMicTest ? "is-ready" : "is-disabled"}`}
-            >
-              {canStopMicTest
-                ? "マイクテストを停止できます"
-                : "現在は停止中です"}
-            </p>
-          </div>
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="action-button-wrap">
+                <button
+                  onClick={onStartMicTest}
+                  disabled={!canStartMicTest}
+                  className="action-button bg-blue-600 text-white text-sm"
+                >
+                  マイクテスト開始
+                </button>
+                <p
+                  className={`button-reason ${canStartMicTest ? "is-ready" : "is-disabled"}`}
+                >
+                  {!hasMic
+                    ? "先にマイクを選択してください"
+                    : micTestRunning
+                      ? "すでに実行中です"
+                      : "マイクテストを開始できます"}
+                </p>
+              </div>
 
-          <div className="action-button-wrap">
-            <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
-              <input
-                type="checkbox"
-                checked={autoMouthEnabled}
-                onChange={(e) => onSetAutoMouthEnabled(e.target.checked)}
-              />
-              口パク送信（faceCommand）
-            </label>
-            <p
-              className={`button-reason ${autoMouthEnabled ? "is-ready" : "is-disabled"}`}
-            >
-              {autoMouthEnabled
-                ? "母音推定をfaceCommandとして送信します"
-                : "ONにすると母音推定を送信します"}
-            </p>
-          </div>
-        </div>
+              <div className="action-button-wrap">
+                <button
+                  onClick={onStopMicTest}
+                  disabled={!canStopMicTest}
+                  className="action-button bg-slate-100 text-sm"
+                >
+                  マイクテスト停止
+                </button>
+                <p
+                  className={`button-reason ${canStopMicTest ? "is-ready" : "is-disabled"}`}
+                >
+                  {canStopMicTest
+                    ? "マイクテストを停止できます"
+                    : "現在は停止中です"}
+                </p>
+              </div>
 
-        <div className="grid gap-2 md:grid-cols-3">
-          <label className="text-xs text-slate-700">
-            モニター音量（ハウリング注意）
-            <input
-              className="mt-1 w-full"
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
-              value={monitorVolume}
-              onChange={(e) => onSetMonitorVolume(Number(e.target.value))}
-            />
-            <div className="text-[11px] text-slate-500">
-              {monitorVolume.toFixed(2)}
+              <div className="action-button-wrap">
+                <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={autoMouthEnabled}
+                    onChange={(e) => onSetAutoMouthEnabled(e.target.checked)}
+                  />
+                  口パク送信（faceCommand）
+                </label>
+                <p
+                  className={`button-reason ${autoMouthEnabled ? "is-ready" : "is-disabled"}`}
+                >
+                  {autoMouthEnabled
+                    ? "母音推定をfaceCommandとして送信します"
+                    : "ONにすると母音推定を送信します"}
+                </p>
+              </div>
             </div>
-          </label>
 
-          <label className="text-xs text-slate-700">
-            ノイズしきい値（レベルメーター用）
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-              type="number"
-              step="0.001"
-              value={noiseFloor}
-              onChange={(e) => onSetNoiseFloor(Number(e.target.value))}
-            />
-          </label>
+            <div className="grid gap-2 md:grid-cols-3">
+              <label className="text-xs text-slate-700">
+                モニター音量（ハウリング注意）
+                <input
+                  className="mt-1 w-full"
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  value={monitorVolume}
+                  onChange={(e) => onSetMonitorVolume(Number(e.target.value))}
+                />
+                <div className="text-[11px] text-slate-500">
+                  {monitorVolume.toFixed(2)}
+                </div>
+              </label>
 
-          <label className="text-xs text-slate-700">
-            ゲイン（レベルメーター用）
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-              type="number"
-              step="1"
-              value={gain}
-              onChange={(e) => onSetGain(Number(e.target.value))}
-            />
-          </label>
+              <label className="text-xs text-slate-700">
+                ノイズしきい値（レベルメーター用）
+                <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  step="0.001"
+                  value={noiseFloor}
+                  onChange={(e) => onSetNoiseFloor(Number(e.target.value))}
+                />
+              </label>
 
-          <label className="text-xs text-slate-700">
-            口パクしきい値（小さいほど反応しやすい）
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-              type="number"
-              min={0}
-              max={1}
-              step="0.01"
-              value={mouthSpeakingThreshold}
-              onChange={(e) =>
-                onSetMouthSpeakingThreshold(Number(e.target.value))
-              }
-            />
-          </label>
+              <label className="text-xs text-slate-700">
+                ゲイン（レベルメーター用）
+                <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  step="1"
+                  value={gain}
+                  onChange={(e) => onSetGain(Number(e.target.value))}
+                />
+              </label>
 
-          <label className="text-xs text-slate-700">
-            口パク送信FPS（送信頻度制限）
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-              type="number"
-              step="1"
-              value={mouthSendFps}
-              onChange={(e) => onSetMouthSendFps(Number(e.target.value))}
-            />
-          </label>
+              <label className="text-xs text-slate-700">
+                口パクしきい値（小さいほど反応しやすい）
+                <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  min={0}
+                  max={1}
+                  step="0.01"
+                  value={mouthSpeakingThreshold}
+                  onChange={(e) =>
+                    onSetMouthSpeakingThreshold(Number(e.target.value))
+                  }
+                />
+              </label>
 
-          <div className="md:col-span-2">
-            <div className="text-xs text-slate-700">マイク入力レベル</div>
-            <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
-              <div
-                className="h-3 bg-emerald-500"
-                style={{ width: `${Math.round(micLevel * 100)}%` }}
-              />
+              <label className="text-xs text-slate-700">
+                口パク送信FPS（送信頻度制限）
+                <input
+                  className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                  type="number"
+                  step="1"
+                  value={mouthSendFps}
+                  onChange={(e) => onSetMouthSendFps(Number(e.target.value))}
+                />
+              </label>
+
+              <div className="md:col-span-2">
+                <div className="text-xs text-slate-700">マイク入力レベル</div>
+                <div className="h-3 w-full rounded bg-slate-100 overflow-hidden border">
+                  <div
+                    className="h-3 bg-emerald-500"
+                    style={{ width: `${Math.round(micLevel * 100)}%` }}
+                  />
+                </div>
+                <div className="text-[11px] text-slate-500">
+                  レベル: {micLevel.toFixed(3)}
+                </div>
+              </div>
             </div>
-            <div className="text-[11px] text-slate-500">
-              レベル: {micLevel.toFixed(3)}
-            </div>
-          </div>
-        </div>
 
-        <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
+            <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
+          </>
+        )}
       </div>
     </>
   );
