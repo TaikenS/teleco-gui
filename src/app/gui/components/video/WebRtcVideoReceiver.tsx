@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { TELECO_ARROW_EVENT } from "@/app/gui/components/audio/sender/controller/constants";
+import { ActionControl } from "@/components/ui/ActionButton";
 import { getSignalingUrl } from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,
@@ -575,38 +576,28 @@ export default function WebRtcVideoReceiver({
       {settingsPanel}
 
       <div className="grid gap-3 md:grid-cols-2">
-        <div className="action-button-wrap">
-          <button
-            type="button"
-            onClick={handleConnectSignaling}
-            disabled={!canConnectSignaling}
-            className="action-button bg-slate-900 text-white text-sm"
-            data-busy={wsBusy ? "1" : "0"}
-            aria-busy={wsBusy}
-          >
-            {wsBusy ? "シグナリング接続中..." : "シグナリング接続"}
-          </button>
-          <p
-            className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
-          >
-            {connectReason}
-          </p>
-        </div>
-        <div className="action-button-wrap">
-          <button
-            type="button"
-            onClick={disconnectSignaling}
-            disabled={!canDisconnectSignaling}
-            className="action-button bg-slate-100 text-sm"
-          >
-            シグナリング切断
-          </button>
-          <p
-            className={`button-reason ${canDisconnectSignaling ? "is-ready" : "is-disabled"}`}
-          >
-            {disconnectReason}
-          </p>
-        </div>
+        <ActionControl
+          isReady={canConnectSignaling}
+          reason={connectReason}
+          button={{
+            onClick: handleConnectSignaling,
+            disabled: !canConnectSignaling,
+            tone: "primary",
+            busy: wsBusy,
+            label: "シグナリング接続",
+            busyLabel: "シグナリング接続中...",
+          }}
+        />
+        <ActionControl
+          isReady={canDisconnectSignaling}
+          reason={disconnectReason}
+          button={{
+            onClick: disconnectSignaling,
+            disabled: !canDisconnectSignaling,
+            tone: "secondary",
+            label: "シグナリング切断",
+          }}
+        />
       </div>
 
       <div

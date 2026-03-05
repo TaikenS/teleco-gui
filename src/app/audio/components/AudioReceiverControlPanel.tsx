@@ -1,4 +1,5 @@
 import { useState, type RefObject } from "react";
+import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
 
 type AudioOutputOption = {
   deviceId: string;
@@ -118,20 +119,10 @@ export default function AudioReceiverControlPanel(props: Props) {
       </div>
 
       <div className="flex flex-wrap gap-3 text-sm">
-        <div className="action-button-wrap">
-          <button
-            onClick={onConnect}
-            disabled={!canConnect}
-            className="action-button bg-slate-900 text-white text-sm"
-            data-busy={wsBusy ? "1" : "0"}
-            aria-busy={wsBusy}
-          >
-            {wsBusy ? "シグナリング接続中..." : "シグナリング接続"}
-          </button>
-          <p
-            className={`button-reason ${canConnect ? "is-ready" : "is-disabled"}`}
-          >
-            {!roomId.trim() ||
+        <ActionControl
+          isReady={canConnect}
+          reason={
+            !roomId.trim() ||
             !signalingIpAddress.trim() ||
             !signalingPort.trim()
               ? "ルームID / IPアドレス / ポート を入力してください"
@@ -139,27 +130,31 @@ export default function AudioReceiverControlPanel(props: Props) {
                 ? "すでに接続中です"
                 : wsBusy
                   ? "シグナリング接続処理中です"
-                  : "シグナリングへ接続できます"}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onDisconnect}
-            disabled={!canDisconnect}
-            className="action-button bg-slate-100 text-sm"
-          >
-            シグナリング切断
-          </button>
-          <p
-            className={`button-reason ${canDisconnect ? "is-ready" : "is-disabled"}`}
-          >
-            {canDisconnect
+                  : "シグナリングへ接続できます"
+          }
+          button={{
+            onClick: onConnect,
+            disabled: !canConnect,
+            tone: "primary",
+            busy: wsBusy,
+            label: "シグナリング接続",
+            busyLabel: "シグナリング接続中...",
+          }}
+        />
+        <ActionControl
+          isReady={canDisconnect}
+          reason={
+            canDisconnect
               ? "シグナリング接続を停止できます"
-              : "シグナリングは未接続です"}
-          </p>
-        </div>
-
+              : "シグナリングは未接続です"
+          }
+          button={{
+            onClick: onDisconnect,
+            disabled: !canDisconnect,
+            tone: "secondary",
+            label: "シグナリング切断",
+          }}
+        />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
         <label className="text-xs text-slate-700">
@@ -177,13 +172,12 @@ export default function AudioReceiverControlPanel(props: Props) {
             ))}
           </select>
         </label>
-        <button
-          className="action-button bg-slate-100 self-end text-sm"
-          type="button"
+        <ActionButton
+          className="self-end"
           onClick={onRefreshAudioOutputs}
-        >
-          デバイス更新
-        </button>
+          tone="secondary"
+          label="デバイス更新"
+        />
       </div>
       {!sinkSelectionSupported && (
         <p className="text-xs text-amber-700">

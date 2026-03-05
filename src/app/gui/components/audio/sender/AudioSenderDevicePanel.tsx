@@ -1,4 +1,5 @@
 import { useState, type RefObject } from "react";
+import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
 
 type MicOption = { deviceId: string; label: string };
 
@@ -187,94 +188,81 @@ export default function AudioSenderDevicePanel({
               ))}
             </select>
           </label>
-          <button
+          <ActionButton
+            className="self-end"
             onClick={onRefreshDevices}
-            className="action-button bg-slate-100 self-end text-sm"
-          >
-            デバイス更新
-          </button>
+            tone="secondary"
+            label="デバイス更新"
+          />
         </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div className="action-button-wrap">
-            <button
-              onClick={onConnectSignal}
-              disabled={!canConnectSignalNow}
-            className="action-button bg-slate-900 text-white text-sm"
-            data-busy={signalBusy ? "1" : "0"}
-            aria-busy={signalBusy}
-          >
-              {signalBusy ? "シグナリング接続中..." : "シグナリング接続"}
-            </button>
-            <p
-              className={`button-reason ${canConnectSignalNow ? "is-ready" : "is-disabled"}`}
-            >
-              {signalConnected
+          <ActionControl
+            isReady={canConnectSignalNow}
+            reason={
+              signalConnected
                 ? "シグナリングはすでに接続中です"
                 : signalBusy
                   ? "シグナリング接続処理中です"
                   : !hasSignalingTarget
                     ? "IPアドレス / ポート / ルームIDを入力してください"
-                    : "シグナリングへ接続できます"}
-            </p>
-          </div>
-
-          <div className="action-button-wrap">
-            <button
-              onClick={onDisconnectSignal}
-              disabled={!canDisconnectSignal}
-              className="action-button bg-slate-100 text-sm"
-            >
-              シグナリング切断
-            </button>
-            <p
-              className={`button-reason ${canDisconnectSignal ? "is-ready" : "is-disabled"}`}
-            >
-              {canDisconnectSignal
+                    : "シグナリングへ接続できます"
+            }
+            button={{
+              onClick: onConnectSignal,
+              disabled: !canConnectSignalNow,
+              tone: "primary",
+              busy: signalBusy,
+              label: "シグナリング接続",
+              busyLabel: "シグナリング接続中...",
+            }}
+          />
+          <ActionControl
+            isReady={canDisconnectSignal}
+            reason={
+              canDisconnectSignal
                 ? "シグナリング接続を停止できます"
-                : "シグナリングは未接続です"}
-            </p>
-          </div>
-
-          <div className="action-button-wrap">
-            <button
-              onClick={onStartSending}
-              disabled={!canStartSending}
-              className="action-button bg-emerald-600 text-white text-sm"
-              data-busy={callStatus === "offer送信中" ? "1" : "0"}
-              aria-busy={callStatus === "offer送信中"}
-            >
-              {callStatus === "offer送信中"
-                ? "送信開始中..."
-                : "送信開始"}
-            </button>
-            <p
-              className={`button-reason ${canStartSending ? "is-ready" : "is-disabled"}`}
-            >
-              {!signalConnected
+                : "シグナリングは未接続です"
+            }
+            button={{
+              onClick: onDisconnectSignal,
+              disabled: !canDisconnectSignal,
+              tone: "secondary",
+              label: "シグナリング切断",
+            }}
+          />
+          <ActionControl
+            isReady={canStartSending}
+            reason={
+              !signalConnected
                 ? "先にシグナリング接続が必要です"
                 : !hasMic
                   ? "先にマイクを選択してください"
                   : callActive
                     ? "すでに送信中です"
-                    : "Receiverへ送信できます"}
-            </p>
-          </div>
-
-          <div className="action-button-wrap">
-            <button
-              onClick={onStopSending}
-              className="action-button bg-slate-100 text-sm"
-              disabled={!canStopSending}
-            >
-              送信停止
-            </button>
-            <p
-              className={`button-reason ${canStopSending ? "is-ready" : "is-disabled"}`}
-            >
-              {canStopSending ? "送信を停止できます" : "現在は送信していません"}
-            </p>
-          </div>
+                    : "Receiverへ送信できます"
+            }
+            button={{
+              onClick: onStartSending,
+              disabled: !canStartSending,
+              tone: "success",
+              busy: callStatus === "offer送信中",
+              label: "送信開始",
+              busyLabel: "送信開始中...",
+            }}
+          />
+          <ActionControl
+            isReady={canStopSending}
+            reason={
+              canStopSending ? "送信を停止できます" : "現在は送信していません"
+            }
+            button={{
+              onClick: onStopSending,
+              disabled: !canStopSending,
+              tone: "secondary",
+              label: "送信停止",
+            }}
+          />
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
@@ -328,41 +316,37 @@ export default function AudioSenderDevicePanel({
             </p>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <div className="action-button-wrap">
-                <button
-                  onClick={onStartMicTest}
-                  disabled={!canStartMicTest}
-                  className="action-button bg-blue-600 text-white text-sm"
-                >
-                  マイクテスト開始
-                </button>
-                <p
-                  className={`button-reason ${canStartMicTest ? "is-ready" : "is-disabled"}`}
-                >
-                  {!hasMic
+              <ActionControl
+                isReady={canStartMicTest}
+                reason={
+                  !hasMic
                     ? "先にマイクを選択してください"
                     : micTestRunning
                       ? "すでに実行中です"
-                      : "マイクテストを開始できます"}
-                </p>
-              </div>
+                      : "マイクテストを開始できます"
+                }
+                button={{
+                  onClick: onStartMicTest,
+                  disabled: !canStartMicTest,
+                  tone: "info",
+                  label: "マイクテスト開始",
+                }}
+              />
 
-              <div className="action-button-wrap">
-                <button
-                  onClick={onStopMicTest}
-                  disabled={!canStopMicTest}
-                  className="action-button bg-slate-100 text-sm"
-                >
-                  マイクテスト停止
-                </button>
-                <p
-                  className={`button-reason ${canStopMicTest ? "is-ready" : "is-disabled"}`}
-                >
-                  {canStopMicTest
+              <ActionControl
+                isReady={canStopMicTest}
+                reason={
+                  canStopMicTest
                     ? "マイクテストを停止できます"
-                    : "現在は停止中です"}
-                </p>
-              </div>
+                    : "現在は停止中です"
+                }
+                button={{
+                  onClick: onStopMicTest,
+                  disabled: !canStopMicTest,
+                  tone: "secondary",
+                  label: "マイクテスト停止",
+                }}
+              />
 
               <div className="action-button-wrap">
                 <label className="flex items-center gap-2 text-xs text-slate-700 rounded-xl bg-slate-100 px-3 py-2">

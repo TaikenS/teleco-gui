@@ -1,3 +1,5 @@
+import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
+
 type VideoInput = {
   deviceId: string;
   label: string;
@@ -172,12 +174,12 @@ export default function VideoSenderControlPanel(props: Props) {
               ))
             )}
           </select>
-          <button
+          <ActionButton
+            className="self-end"
             onClick={onRefreshCameras}
-            className="action-button bg-slate-100 self-end text-sm"
-          >
-            デバイス更新
-          </button>
+            tone="secondary"
+            label="デバイス更新"
+          />
         </div>
         <p className="text-[11px] text-slate-500">
           {videoInputs.length > 0
@@ -187,101 +189,72 @@ export default function VideoSenderControlPanel(props: Props) {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        <div className="action-button-wrap">
-          <button
-            onClick={onStartCamera}
-            className="action-button bg-slate-900 text-white text-sm"
-            disabled={!canStartCamera}
-            data-busy={cameraBusy ? "1" : "0"}
-            aria-busy={cameraBusy}
-          >
-            {cameraBusy ? "カメラ起動中..." : "カメラ起動"}
-          </button>
-          <p
-            className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}
-          >
-            {startCameraReason}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onStopCamera}
-            className="action-button bg-slate-100 text-sm"
-            disabled={!canStopCamera}
-          >
-            カメラ停止
-          </button>
-          <p
-            className={`button-reason ${canStopCamera ? "is-ready" : "is-disabled"}`}
-          >
-            {stopCameraReason}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onConnectSignaling}
-            className="action-button bg-slate-900 text-white text-sm"
-            disabled={!canConnectSignaling}
-            data-busy={wsBusy ? "1" : "0"}
-            aria-busy={wsBusy}
-          >
-            {wsBusy ? "接続中..." : "シグナリング接続"}
-          </button>
-          <p
-            className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
-          >
-            {connectReason}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onDisconnectSignaling}
-            className="action-button bg-slate-100 text-sm"
-            disabled={!canDisconnectSignaling}
-          >
-            シグナリング切断
-          </button>
-          <p
-            className={`button-reason ${canDisconnectSignaling ? "is-ready" : "is-disabled"}`}
-          >
-            {disconnectReason}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onStartStreaming}
-            className="action-button bg-emerald-600 text-white text-sm"
-            disabled={!canStartStreaming}
-            data-busy={rtcBusy ? "1" : "0"}
-            aria-busy={rtcBusy}
-          >
-            {rtcBusy ? "開始中..." : "送信開始"}
-          </button>
-          <p
-            className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}
-          >
-            {startStreamingReason}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onStopStreaming}
-            className="action-button bg-slate-100 text-sm"
-            disabled={!canStopStreaming}
-          >
-            送信停止
-          </button>
-          <p
-            className={`button-reason ${canStopStreaming ? "is-ready" : "is-disabled"}`}
-          >
-            {stopStreamingReason}
-          </p>
-        </div>
+        <ActionControl
+          isReady={canStartCamera}
+          reason={startCameraReason}
+          button={{
+            onClick: onStartCamera,
+            disabled: !canStartCamera,
+            tone: "primary",
+            busy: cameraBusy,
+            label: "カメラ起動",
+            busyLabel: "カメラ起動中...",
+          }}
+        />
+        <ActionControl
+          isReady={canStopCamera}
+          reason={stopCameraReason}
+          button={{
+            onClick: onStopCamera,
+            disabled: !canStopCamera,
+            tone: "secondary",
+            label: "カメラ停止",
+          }}
+        />
+        <ActionControl
+          isReady={canConnectSignaling}
+          reason={connectReason}
+          button={{
+            onClick: onConnectSignaling,
+            disabled: !canConnectSignaling,
+            tone: "primary",
+            busy: wsBusy,
+            label: "シグナリング接続",
+            busyLabel: "接続中...",
+          }}
+        />
+        <ActionControl
+          isReady={canDisconnectSignaling}
+          reason={disconnectReason}
+          button={{
+            onClick: onDisconnectSignaling,
+            disabled: !canDisconnectSignaling,
+            tone: "secondary",
+            label: "シグナリング切断",
+          }}
+        />
+        <ActionControl
+          isReady={canStartStreaming}
+          reason={startStreamingReason}
+          button={{
+            onClick: onStartStreaming,
+            disabled: !canStartStreaming,
+            tone: "success",
+            busy: rtcBusy,
+            label: "送信開始",
+            busyLabel: "開始中...",
+          }}
+        />
+        <ActionControl
+          isReady={canStopStreaming}
+          reason={stopStreamingReason}
+          button={{
+            onClick: onStopStreaming,
+            disabled: !canStopStreaming,
+            tone: "secondary",
+            label: "送信停止",
+          }}
+        />
       </div>
 
       {wsError && <p className="text-xs text-red-600">{wsError}</p>}
