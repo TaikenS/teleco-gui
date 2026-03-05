@@ -564,13 +564,9 @@ export function useAudioSenderController({
       }
     }
 
-    shouldAutoCommandRef.current =
-      window.localStorage.getItem(STORAGE_KEYS.commandAutoConnect) === "1";
-    if (shouldAutoCommandRef.current) {
-      manualCommandDisconnectRef.current = false;
-      window.setTimeout(() => connectCommandWs(false), 0);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 初期表示では常に未接続で開始する（起動時の自動接続はしない）
+    shouldAutoCommandRef.current = false;
+    window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "0");
   }, [isTelecoPanel]);
 
   useEffect(() => {
@@ -1339,7 +1335,7 @@ export function useAudioSenderController({
       onConnectCommand: () => {
         manualCommandDisconnectRef.current = false;
         shouldAutoCommandRef.current = true;
-        window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "1");
+        window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "0");
         connectCommandWs();
       },
       onDisconnectCommand: disconnectCommandWs,
