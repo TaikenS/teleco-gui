@@ -12,7 +12,6 @@ type Props = {
   signalingPort: string;
   roomHint: string;
   signalingWsUrlForDisplay: string;
-  signalingBaseUrlForDisplay: string;
   mics: MicOption[];
   selectedMicId: string;
   signalWsStatus: string;
@@ -62,7 +61,6 @@ export default function AudioSenderDevicePanel({
   signalingPort,
   roomHint,
   signalingWsUrlForDisplay,
-  signalingBaseUrlForDisplay,
   mics,
   selectedMicId,
   signalWsStatus,
@@ -171,9 +169,6 @@ export default function AudioSenderDevicePanel({
         </div>
         <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
           確認用 Signal WS URL: {signalingWsUrlForDisplay}
-        </p>
-        <p className="text-[11px] text-slate-500">
-          確認用ベースURL: {signalingBaseUrlForDisplay}
         </p>
 
         <label className="text-sm text-slate-700">
@@ -285,23 +280,24 @@ export default function AudioSenderDevicePanel({
           </div>
         </div>
 
-        <div className="text-xs text-slate-600 space-y-1">
-          <div>Signal WS: {signalWsStatus}</div>
-          <div>音声送信: {callStatus}</div>
-          <div>最終母音: {lastVowel}</div>
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+          <span>Signal WS: {signalWsStatus}</span>
+          <span>音声送信: {callStatus}</span>
+          <span>最終母音: {lastVowel}</span>
         </div>
       </div>
 
       <div className="rounded-xl border bg-white p-3 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-sm font-semibold">マイクテスト</div>
+        <div className="text-sm font-semibold">マイクテスト</div>
+        <div className="toggle-pill-group">
           <button
             type="button"
-            className="rounded-lg border bg-slate-100 px-2 py-1 text-xs text-slate-700 hover:bg-slate-200"
+            className={`toggle-pill ${showMicTestPanel ? "is-active" : ""}`}
             onClick={() => setShowMicTestPanel((v) => !v)}
             aria-expanded={showMicTestPanel}
+            aria-pressed={showMicTestPanel}
           >
-            {showMicTestPanel ? "非表示" : "表示"}
+            マイクテスト
           </button>
         </div>
 

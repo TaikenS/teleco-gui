@@ -1255,7 +1255,6 @@ export function useAudioSenderController({
       signalingPort,
       roomHint,
       signalingWsUrlForDisplay: deviceSignal.signalingWsUrlForDisplay,
-      signalingBaseUrlForDisplay: deviceSignal.signalingBaseUrlForDisplay,
       mics: micAnalyzer.mics,
       selectedMicId: micAnalyzer.selectedMicId,
       signalWsStatus: micAnalyzer.signalWsStatus,

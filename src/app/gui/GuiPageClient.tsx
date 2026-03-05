@@ -294,11 +294,6 @@ export default function GuiPage() {
                   確認用WS URL: {videoSignalingWsUrl}
                 </p>
 
-                <p className="text-[11px] text-slate-500">
-                  単一インスタンス運用向け: ここで受信先のSignal / Roomを切り替えできます。
-                  Sender側のRoom IDと一致させてください。
-                </p>
-
                 <WebRtcVideoReceiver
                   roomId={videoRoomId || DEFAULT_VIDEO_ROOM}
                   signalingWsUrl={videoSignalingWsUrl}
