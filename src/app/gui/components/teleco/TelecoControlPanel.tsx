@@ -1,3 +1,13 @@
+import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
+import {
+  PanelBox,
+  PanelDivider,
+  PanelField,
+  PanelInfo,
+  PanelInput,
+  PanelLog,
+} from "@/components/ui/PanelCommon";
+
 type Props = {
   telecoIpAddress: string;
   telecoPort: string;
@@ -95,7 +105,7 @@ export default function TelecoControlPanel({
 }: Props) {
   return (
     <>
-      <div className="rounded-xl border bg-white p-3 space-y-2">
+      <PanelBox className="space-y-2">
         <div className="status-chip-row">
           <span
             className={`status-chip ${commandConnected ? "is-on" : commandBusy ? "is-busy" : "is-off"}`}
@@ -119,147 +129,131 @@ export default function TelecoControlPanel({
         </p>
 
         <div className="grid gap-2 md:grid-cols-2">
-          <label className="text-sm text-slate-700">
-            Teleco IPアドレス
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+          <PanelField label="Teleco IPアドレス">
+            <PanelInput
               value={telecoIpAddress}
               onChange={(e) => onSetTelecoIpAddress(e.target.value)}
               placeholder="192.168.1.12"
               disabled={commandConnected || commandBusy}
             />
-          </label>
+          </PanelField>
 
-          <label className="text-sm text-slate-700">
-            Teleco ポート
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+          <PanelField label="Teleco ポート">
+            <PanelInput
               value={telecoPort}
               onChange={(e) => onSetTelecoPort(e.target.value)}
               placeholder="11920"
               disabled={commandConnected || commandBusy}
             />
-          </label>
+          </PanelField>
         </div>
-        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+        <PanelInfo>
           確認用デバッグURL: {commandWsUrlForDisplay}
-        </p>
+        </PanelInfo>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          <div className="action-button-wrap">
-            <button
-              onClick={onConnectCommand}
-              disabled={!canConnectCommandNow}
-              className="action-button bg-slate-900 text-white text-sm"
-              data-busy={commandBusy ? "1" : "0"}
-              aria-busy={commandBusy}
-            >
-              {commandBusy ? "Command 接続中..." : "Command WS接続"}
-            </button>
-            <p
-              className={`button-reason ${canConnectCommandNow ? "is-ready" : "is-disabled"}`}
-            >
-              {commandConnected
+          <ActionControl
+            isReady={canConnectCommandNow}
+            reason={
+              commandConnected
                 ? "Command WSはすでに接続中です"
                 : commandBusy
                   ? "Command WS接続処理中です"
                   : !hasTelecoTarget
                     ? "Teleco の IPアドレス / ポートを入力してください"
-                    : "Command WSへ接続できます"}
-            </p>
-          </div>
+                    : "Command WSへ接続できます"
+            }
+            button={{
+              onClick: onConnectCommand,
+              disabled: !canConnectCommandNow,
+              tone: "primary",
+              busy: commandBusy,
+              label: "Command WS接続",
+              busyLabel: "Command 接続中...",
+            }}
+          />
 
-          <div className="action-button-wrap">
-            <button
-              onClick={onDisconnectCommand}
-              disabled={!canDisconnectCommand}
-              className="action-button bg-slate-100 text-sm"
-            >
-              Command WS切断
-            </button>
-            <p
-              className={`button-reason ${canDisconnectCommand ? "is-ready" : "is-disabled"}`}
-            >
-              {canDisconnectCommand
+          <ActionControl
+            isReady={canDisconnectCommand}
+            reason={
+              canDisconnectCommand
                 ? "Command WS接続を停止できます"
-                : "Command WSは未接続です"}
-            </p>
-          </div>
+                : "Command WSは未接続です"
+            }
+            button={{
+              onClick: onDisconnectCommand,
+              disabled: !canDisconnectCommand,
+              tone: "secondary",
+              label: "Command WS切断",
+            }}
+          />
 
-          <div className="action-button-wrap">
-            <button
-              onClick={onMouthTestA}
-              disabled={!canRunMouthTest}
-              className="action-button bg-blue-600 text-white text-sm"
-            >
-              口パクテスト（a）
-            </button>
-            <p
-              className={`button-reason ${canRunMouthTest ? "is-ready" : "is-disabled"}`}
-            >
-              {canRunMouthTest
+          <ActionControl
+            isReady={canRunMouthTest}
+            reason={
+              canRunMouthTest
                 ? "即時に口パクテストを送信できます"
-                : "Command WS接続後に実行できます"}
-            </p>
-          </div>
+                : "Command WS接続後に実行できます"
+            }
+            button={{
+              onClick: onMouthTestA,
+              disabled: !canRunMouthTest,
+              tone: "info",
+              label: "口パクテスト（a）",
+            }}
+          />
 
-          <div className="action-button-wrap">
-            <button
-              onClick={onArrowLeft}
-              disabled={!commandConnected}
-              className="action-button bg-violet-600 text-white text-sm"
-            >
-              ← 左（+10）
-            </button>
-            <p
-              className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}
-            >
-              {commandConnected
+          <ActionControl
+            isReady={commandConnected}
+            reason={
+              commandConnected
                 ? "首を左へ動かせます"
-                : "Command WS未接続のため送信できません"}
-            </p>
-          </div>
+                : "Command WS未接続のため送信できません"
+            }
+            button={{
+              onClick: onArrowLeft,
+              disabled: !commandConnected,
+              tone: "violet",
+              label: "← 左（+10）",
+            }}
+          />
 
-          <div className="action-button-wrap">
-            <button
-              onClick={onArrowRight}
-              disabled={!commandConnected}
-              className="action-button bg-violet-600 text-white text-sm"
-            >
-              → 右（-10）
-            </button>
-            <p
-              className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}
-            >
-              {commandConnected
+          <ActionControl
+            isReady={commandConnected}
+            reason={
+              commandConnected
                 ? "首を右へ動かせます"
-                : "Command WS未接続のため送信できません"}
-            </p>
-          </div>
+                : "Command WS未接続のため送信できません"
+            }
+            button={{
+              onClick: onArrowRight,
+              disabled: !commandConnected,
+              tone: "violet",
+              label: "→ 右（-10）",
+            }}
+          />
 
-          <div className="action-button-wrap">
-            <button
-              onClick={onInitializePose}
-              disabled={!commandConnected}
-              className="action-button bg-amber-600 text-white text-sm"
-            >
-              初期化
-            </button>
-            <p
-              className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}
-            >
-              {commandConnected
+          <ActionControl
+            isReady={commandConnected}
+            reason={
+              commandConnected
                 ? "初期姿勢コマンドを送信します"
-                : "Command WS未接続のため送信できません"}
-            </p>
-          </div>
+                : "Command WS未接続のため送信できません"
+            }
+            button={{
+              onClick: onInitializePose,
+              disabled: !commandConnected,
+              tone: "amber",
+              label: "初期化",
+            }}
+          />
         </div>
 
         <div className="text-xs text-slate-600">
           Command WS: {commandWsStatus}
         </div>
 
-        <div className="border-t pt-3" />
+        <PanelDivider />
         <div className="toggle-pill-group">
           <button
             type="button"
@@ -311,10 +305,10 @@ export default function TelecoControlPanel({
             ログ
           </button>
         </div>
-      </div>
+      </PanelBox>
 
       {showMouthPresetPanel && (
-        <div className="rounded-xl border bg-white p-3 space-y-2">
+        <PanelBox className="space-y-2">
           <div className="text-sm font-semibold">
             口パク手動プリセット（faceCommand）
           </div>
@@ -346,23 +340,20 @@ export default function TelecoControlPanel({
           </p>
           <div className="flex flex-wrap gap-2">
             {(["a", "i", "u", "e", "o", "xn"] as const).map((v) => (
-              <button
+              <ActionButton
                 key={v}
                 onClick={() => onSendMouthVowel(v)}
                 disabled={!commandConnected}
-                className={`action-button text-sm hover:opacity-90 ${
-                  v === "xn" ? "bg-slate-100" : "bg-slate-900 text-white"
-                }`}
-              >
-                {v === "xn" ? "close(xn)" : v}
-              </button>
+                tone={v === "xn" ? "secondary" : "primary"}
+                label={v === "xn" ? "close(xn)" : v}
+              />
             ))}
           </div>
-        </div>
+        </PanelBox>
       )}
 
       {showRawCommandPanel && (
-        <div className="rounded-xl border bg-white p-3 space-y-2">
+        <PanelBox className="space-y-2">
           <div className="text-sm font-semibold">
             任意コマンド送信（/command）
           </div>
@@ -379,54 +370,50 @@ export default function TelecoControlPanel({
           </div>
 
           <textarea
-            className="w-full rounded-xl border px-3 py-2 text-xs font-mono bg-slate-50"
+            className="w-full rounded-xl border bg-slate-50 px-3 py-2 text-xs font-mono"
             rows={10}
             value={commandJson}
             onChange={(e) => onSetCommandJson(e.target.value)}
           />
 
           <div className="flex flex-wrap gap-3">
-            <div className="action-button-wrap">
-              <button
-                onClick={onSendRawCommandJson}
-                disabled={!commandConnected}
-                className="action-button bg-blue-600 text-white text-sm"
-              >
-                コマンド送信
-              </button>
-              <p
-                className={`button-reason ${commandConnected ? "is-ready" : "is-disabled"}`}
-              >
-                {commandConnected
+            <ActionControl
+              isReady={commandConnected}
+              reason={
+                commandConnected
                   ? "現在のJSONを送信できます"
-                  : "Command WS接続後に送信できます"}
-              </p>
-            </div>
+                  : "Command WS接続後に送信できます"
+              }
+              button={{
+                onClick: onSendRawCommandJson,
+                disabled: !commandConnected,
+                tone: "info",
+                label: "コマンド送信",
+              }}
+            />
 
-            <div className="action-button-wrap">
-              <button
-                onClick={onClearCommandLog}
-                className="action-button bg-slate-100 text-sm"
-              >
-                ログをクリア
-              </button>
-              <p className="button-reason is-ready">ログ表示をクリアします</p>
-            </div>
+            <ActionControl
+              isReady
+              reason="ログ表示をクリアします"
+              button={{
+                onClick: onClearCommandLog,
+                tone: "secondary",
+                label: "ログをクリア",
+              }}
+            />
           </div>
 
-          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
-            {commandLog || "ログはまだありません"}
-          </pre>
-        </div>
+          <PanelLog>{commandLog || "ログはまだありません"}</PanelLog>
+        </PanelBox>
       )}
 
       {showGamepadPanel && (
-        <div className="rounded-xl border bg-white p-3 space-y-2">
+        <PanelBox className="space-y-2">
           <div className="text-sm font-semibold">コントローラー確認</div>
           <p className="text-[11px] text-slate-500">
             XBOXコントローラー対応: LB/LT/X/十字左で左、RB/RT/B/十字右で右
           </p>
-          <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700 break-all">
+          <PanelInfo className="break-all">
             Gamepad Debug: index={gamepadIndex ?? "-"} / mapping=
             {gamepadMapping || "-"} / LT={gamepadLtValue.toFixed(2)} / RT=
             {gamepadRtValue.toFixed(2)} / pressed=
@@ -435,14 +422,14 @@ export default function TelecoControlPanel({
               : "(none)"}
             <br />
             id: {gamepadId || "(none)"}
-          </p>
-        </div>
+          </PanelInfo>
+        </PanelBox>
       )}
 
       {showCommandLogPanel && (
-        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
+        <PanelLog>
           {commandConnectionLog || "ログはまだありません"}
-        </pre>
+        </PanelLog>
       )}
     </>
   );

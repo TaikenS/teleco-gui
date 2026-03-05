@@ -1,4 +1,11 @@
 import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
+import {
+  PanelBox,
+  PanelField,
+  PanelInfo,
+  PanelInput,
+  PanelSelect,
+} from "@/components/ui/PanelCommon";
 
 type VideoInput = {
   deviceId: string;
@@ -89,7 +96,7 @@ export default function VideoSenderControlPanel(props: Props) {
   } = props;
 
   return (
-    <div className="space-y-2 rounded-xl border bg-white p-3">
+    <PanelBox className="space-y-2">
       <div className="status-chip-row">
         <span className={`status-chip ${hasCameraStream ? "is-on" : "is-off"}`}>
           Camera {hasCameraStream ? "ON" : "OFF"}
@@ -122,44 +129,33 @@ export default function VideoSenderControlPanel(props: Props) {
       </p>
 
       <div className="grid gap-2 md:grid-cols-3">
-        <label className="text-sm text-slate-700">
-          シグナリング IPアドレス
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+        <PanelField label="シグナリング IPアドレス">
+          <PanelInput
             value={signalingIpAddress}
             onChange={(e) => onSignalingIpAddressChange(e.target.value)}
             placeholder="192.168.1.12"
             disabled={connected}
           />
-        </label>
-        <label className="text-sm text-slate-700">
-          シグナリング ポート
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+        </PanelField>
+        <PanelField label="シグナリング ポート">
+          <PanelInput
             value={signalingPort}
             onChange={(e) => onSignalingPortChange(e.target.value)}
             placeholder="3000"
             disabled={connected}
           />
-        </label>
-        <label className="text-sm text-slate-700">
-          ルームID
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-            value={roomId}
-            onChange={(e) => onRoomIdChange(e.target.value)}
-          />
-        </label>
+        </PanelField>
+        <PanelField label="ルームID">
+          <PanelInput value={roomId} onChange={(e) => onRoomIdChange(e.target.value)} />
+        </PanelField>
       </div>
-      <div className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-        <div>確認用 Signal WS URL: {signalingWsUrlForDisplay}</div>
-      </div>
+      <PanelInfo>確認用 Signal WS URL: {signalingWsUrlForDisplay}</PanelInfo>
 
       <div className="space-y-1">
         <label className="text-sm text-slate-700">カメラ</label>
         <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-          <select
-            className="w-full rounded-xl border px-3 py-2 text-sm"
+          <PanelSelect
+            className="mt-0"
             value={selectedCameraId}
             onChange={(e) => onCameraChange(e.target.value)}
             disabled={videoInputs.length === 0}
@@ -173,7 +169,7 @@ export default function VideoSenderControlPanel(props: Props) {
                 </option>
               ))
             )}
-          </select>
+          </PanelSelect>
           <ActionButton
             className="self-end"
             onClick={onRefreshCameras}
@@ -258,6 +254,6 @@ export default function VideoSenderControlPanel(props: Props) {
       </div>
 
       {wsError && <p className="text-xs text-red-600">{wsError}</p>}
-    </div>
+    </PanelBox>
   );
 }

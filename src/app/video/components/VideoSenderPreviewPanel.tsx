@@ -1,4 +1,5 @@
 import { useState, type RefObject } from "react";
+import { PanelDivider, PanelLog } from "@/components/ui/PanelCommon";
 
 type Props = {
   localVideoRef: RefObject<HTMLVideoElement | null>;
@@ -28,7 +29,7 @@ export default function VideoSenderPreviewPanel({
         Signal: {connected ? "接続中" : "未接続"}
       </p>
 
-      <div className="border-t pt-3" />
+      <PanelDivider />
       <div className="toggle-pill-group">
         <button
           type="button"
@@ -41,9 +42,7 @@ export default function VideoSenderPreviewPanel({
       </div>
 
       {showLog && (
-        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
-          {log.length > 0 ? log.join("\n") : "ログはまだありません"}
-        </pre>
+        <PanelLog>{log.length > 0 ? log.join("\n") : "ログはまだありません"}</PanelLog>
       )}
     </div>
   );

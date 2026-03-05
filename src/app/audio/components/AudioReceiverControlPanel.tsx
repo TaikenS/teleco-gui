@@ -1,5 +1,14 @@
 import { useState, type RefObject } from "react";
 import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
+import {
+  PanelBox,
+  PanelDivider,
+  PanelField,
+  PanelInfo,
+  PanelInput,
+  PanelLog,
+  PanelSelect,
+} from "@/components/ui/PanelCommon";
 
 type AudioOutputOption = {
   deviceId: string;
@@ -59,7 +68,7 @@ export default function AudioReceiverControlPanel(props: Props) {
   const [showLogPanel, setShowLogPanel] = useState(false);
 
   return (
-    <div className="space-y-3 rounded-xl border bg-white p-3">
+    <PanelBox>
       <div className="status-chip-row">
         <span
           className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}
@@ -82,41 +91,33 @@ export default function AudioReceiverControlPanel(props: Props) {
       </p>
 
       <div className="grid gap-2 md:grid-cols-3">
-        <label className="text-sm text-slate-700">
-          シグナリング IPアドレス
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+        <PanelField label="シグナリング IPアドレス">
+          <PanelInput
             value={signalingIpAddress}
             onChange={(e) => onSignalingIpAddressChange(e.target.value)}
             disabled={connected || wsBusy}
             placeholder="192.168.0.10"
           />
-        </label>
+        </PanelField>
 
-        <label className="text-sm text-slate-700">
-          シグナリング ポート
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+        <PanelField label="シグナリング ポート">
+          <PanelInput
             value={signalingPort}
             onChange={(e) => onSignalingPortChange(e.target.value)}
             disabled={connected || wsBusy}
             placeholder="3000"
           />
-        </label>
+        </PanelField>
 
-        <label className="text-sm text-slate-700">
-          ルームID
-          <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+        <PanelField label="ルームID">
+          <PanelInput
             value={roomId}
             onChange={(e) => onRoomIdChange(e.target.value)}
             disabled={connected || wsBusy}
           />
-        </label>
+        </PanelField>
       </div>
-      <div className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-        <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-      </div>
+      <PanelInfo>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</PanelInfo>
 
       <div className="flex flex-wrap gap-3 text-sm">
         <ActionControl
@@ -157,10 +158,9 @@ export default function AudioReceiverControlPanel(props: Props) {
         />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <label className="text-xs text-slate-700">
-          出力デバイス
-          <select
-            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
+        <PanelField label="出力デバイス" labelClassName="text-xs">
+          <PanelSelect
+            className="py-1.5 text-xs"
             value={selectedAudioOutputId}
             onChange={(e) => onAudioOutputChange(e.target.value)}
             disabled={!sinkSelectionSupported || audioOutputOptions.length === 0}
@@ -170,8 +170,8 @@ export default function AudioReceiverControlPanel(props: Props) {
                 {d.label}
               </option>
             ))}
-          </select>
-        </label>
+          </PanelSelect>
+        </PanelField>
         <ActionButton
           className="self-end"
           onClick={onRefreshAudioOutputs}
@@ -186,7 +186,7 @@ export default function AudioReceiverControlPanel(props: Props) {
       )}
       <audio ref={audioRef} controls autoPlay className="w-full" />
 
-      <div className="border-t pt-3" />
+      <PanelDivider />
       <div className="toggle-pill-group">
         <button
           type="button"
@@ -198,11 +198,9 @@ export default function AudioReceiverControlPanel(props: Props) {
         </button>
       </div>
       {showLogPanel && (
-        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
-          {log.length > 0 ? log.join("\n") : "ログはまだありません"}
-        </pre>
+        <PanelLog>{log.length > 0 ? log.join("\n") : "ログはまだありません"}</PanelLog>
       )}
       {error && <p className="text-xs text-red-600">{error}</p>}
-    </div>
+    </PanelBox>
   );
 }

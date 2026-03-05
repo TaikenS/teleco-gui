@@ -5,6 +5,12 @@ import dynamic from "next/dynamic";
 import AudioSenderDevicePanel from "@/app/gui/components/audio/sender/AudioSenderDevicePanel";
 import { useAudioSenderController } from "@/app/gui/components/audio/sender/useAudioSenderController";
 import TelecoControlPanel from "@/app/gui/components/teleco/TelecoControlPanel";
+import {
+  PanelField,
+  PanelInfo,
+  PanelInput,
+  PanelSelect,
+} from "@/components/ui/PanelCommon";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
   buildSignalingUrl,
@@ -297,14 +303,14 @@ export default function GuiPage() {
             <Card title="映像受信">
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <span className="text-xs font-medium text-slate-500">映像ソース</span>
-                <select
-                  className="rounded-xl border bg-white px-3 py-1.5 text-xs"
+                <PanelSelect
+                  className="mt-0 px-3 py-1.5 text-xs"
                   value={mode}
                   onChange={(e) => setMode(e.target.value as VideoSourceMode)}
                 >
                   <option value="webSender">/video 送信映像（WebRTC）</option>
                   <option value="local">このPCのローカルカメラ</option>
-                </select>
+                </PanelSelect>
               </div>
 
               {mode === "local" && (
@@ -319,44 +325,38 @@ export default function GuiPage() {
                     settingsPanel={
                       <>
                         <div className="grid gap-2 md:grid-cols-3">
-                          <label className="text-sm text-slate-700">
-                            シグナリング IPアドレス
-                            <input
-                              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                          <PanelField label="シグナリング IPアドレス">
+                            <PanelInput
                               value={videoSignalingIpAddress}
                               onChange={(e) =>
                                 handleVideoSignalingIpAddressChange(e.target.value)
                               }
                               placeholder="192.168.1.12"
                             />
-                          </label>
+                          </PanelField>
 
-                          <label className="text-sm text-slate-700">
-                            シグナリング ポート
-                            <input
-                              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                          <PanelField label="シグナリング ポート">
+                            <PanelInput
                               value={videoSignalingPort}
                               onChange={(e) =>
                                 handleVideoSignalingPortChange(e.target.value)
                               }
                               placeholder="3000"
                             />
-                          </label>
+                          </PanelField>
 
-                          <label className="text-sm text-slate-700">
-                            ルームID
-                            <input
-                              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                          <PanelField label="ルームID">
+                            <PanelInput
                               value={videoRoomId}
                               onChange={(e) => setVideoRoomId(e.target.value)}
                               placeholder="video_ab"
                             />
-                          </label>
+                          </PanelField>
                         </div>
 
-                        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+                        <PanelInfo>
                           確認用WS URL: {videoSignalingWsUrl}
-                        </p>
+                        </PanelInfo>
                       </>
                     }
                   />

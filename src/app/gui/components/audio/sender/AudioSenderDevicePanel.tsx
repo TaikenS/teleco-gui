@@ -1,5 +1,14 @@
 import { useState, type RefObject } from "react";
 import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
+import {
+  PanelBox,
+  PanelDivider,
+  PanelField,
+  PanelInfo,
+  PanelInput,
+  PanelLog,
+  PanelSelect,
+} from "@/components/ui/PanelCommon";
 
 type MicOption = { deviceId: string; label: string };
 
@@ -109,7 +118,7 @@ export default function AudioSenderDevicePanel({
   const [showMicTestPanel, setShowMicTestPanel] = useState(false);
 
   return (
-    <div className="rounded-xl border bg-white p-3 space-y-3">
+    <PanelBox>
         <div className="status-chip-row">
           <span
             className={`status-chip ${signalConnected ? "is-on" : signalBusy ? "is-busy" : "is-off"}`}
@@ -139,45 +148,37 @@ export default function AudioSenderDevicePanel({
         </p>
 
         <div className="grid gap-2 md:grid-cols-3">
-          <label className="text-sm text-slate-700">
-            シグナリング IPアドレス
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+          <PanelField label="シグナリング IPアドレス">
+            <PanelInput
               value={signalingIpAddress}
               onChange={(e) => onSetSignalingIpAddress(e.target.value)}
               placeholder="192.168.1.12"
             />
-          </label>
+          </PanelField>
 
-          <label className="text-sm text-slate-700">
-            シグナリング ポート
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+          <PanelField label="シグナリング ポート">
+            <PanelInput
               value={signalingPort}
               onChange={(e) => onSetSignalingPort(e.target.value)}
               placeholder="3000"
             />
-          </label>
+          </PanelField>
 
-          <label className="text-sm text-slate-700">
-            ルームID
-            <input
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+          <PanelField label="ルームID">
+            <PanelInput
               value={roomHint}
               onChange={(e) => onSetRoomHint(e.target.value)}
               placeholder="audio1"
             />
-          </label>
+          </PanelField>
         </div>
-        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+        <PanelInfo>
           確認用 Signal WS URL: {signalingWsUrlForDisplay}
-        </p>
+        </PanelInfo>
 
         <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-          <label className="text-sm text-slate-700">
-            マイク
-            <select
-              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+          <PanelField label="マイク">
+            <PanelSelect
               value={selectedMicId}
               onChange={(e) => onSetSelectedMicId(e.target.value)}
             >
@@ -186,8 +187,8 @@ export default function AudioSenderDevicePanel({
                   {m.label}
                 </option>
               ))}
-            </select>
-          </label>
+            </PanelSelect>
+          </PanelField>
           <ActionButton
             className="self-end"
             onClick={onRefreshDevices}
@@ -271,7 +272,7 @@ export default function AudioSenderDevicePanel({
           <span>最終母音: {lastVowel}</span>
         </div>
 
-        <div className="border-t pt-3" />
+        <PanelDivider />
         <div className="toggle-pill-group">
           <button
             type="button"
@@ -451,10 +452,8 @@ export default function AudioSenderDevicePanel({
         )}
 
         {showSignalLogPanel && (
-          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
-            {signalConnectionLog || "ログはまだありません"}
-          </pre>
+          <PanelLog>{signalConnectionLog || "ログはまだありません"}</PanelLog>
         )}
-    </div>
+    </PanelBox>
   );
 }

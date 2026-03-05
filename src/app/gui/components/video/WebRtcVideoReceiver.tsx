@@ -8,7 +8,8 @@ import {
   type ReactNode,
 } from "react";
 import { TELECO_ARROW_EVENT } from "@/app/gui/components/audio/sender/controller/constants";
-import { ActionControl } from "@/components/ui/ActionButton";
+import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
+import { PanelDivider, PanelLog } from "@/components/ui/PanelCommon";
 import { getSignalingUrl } from "@/lib/signaling";
 import {
   isKeepaliveSignalMessage,
@@ -625,9 +626,10 @@ export default function WebRtcVideoReceiver({
         />
         {playRetryNeeded && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45">
-            <button
-              type="button"
-              className="pointer-events-auto rounded-lg bg-white px-3 py-2 text-xs text-slate-900"
+            <ActionButton
+              className="pointer-events-auto text-xs"
+              tone="secondary"
+              label="映像再生を再試行"
               onPointerDown={(ev) => {
                 ev.stopPropagation();
               }}
@@ -635,9 +637,7 @@ export default function WebRtcVideoReceiver({
                 ev.stopPropagation();
                 void tryPlayRemoteVideo();
               }}
-            >
-              映像再生を再試行
-            </button>
+            />
           </div>
         )}
       </div>
@@ -652,7 +652,7 @@ export default function WebRtcVideoReceiver({
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      <div className="border-t pt-3" />
+      <PanelDivider />
       <div className="toggle-pill-group">
         <button
           type="button"
@@ -664,9 +664,7 @@ export default function WebRtcVideoReceiver({
         </button>
       </div>
       {showLogPanel && (
-        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
-          {log.length > 0 ? log.join("\n") : "ログはまだありません"}
-        </pre>
+        <PanelLog>{log.length > 0 ? log.join("\n") : "ログはまだありません"}</PanelLog>
       )}
     </div>
   );

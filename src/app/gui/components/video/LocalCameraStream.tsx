@@ -5,6 +5,8 @@ import {
   TELECO_ARROW_EVENT,
   TELECO_HEADING_EVENT,
 } from "@/app/gui/components/audio/sender/controller/constants";
+import { ActionControl } from "@/components/ui/ActionButton";
+import { PanelBox, PanelInfo } from "@/components/ui/PanelCommon";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import type { TelecoArrowDirection } from "@/app/gui/components/audio/sender/controller/types";
 
@@ -632,7 +634,7 @@ export default function LocalCameraStream({ videoDeviceId }: Props) {
           : "現在: プレビュー表示中です（クリックでフルスクリーン）"}
       </p>
 
-      <div className="rounded-xl border bg-slate-50 p-3 space-y-3">
+      <PanelBox className="space-y-3 bg-slate-50">
         <div className="status-chip-row">
           <span className={`status-chip ${cameraOn ? "is-on" : "is-off"}`}>
             Heading {headingLabel(heading)}
@@ -782,16 +784,18 @@ export default function LocalCameraStream({ videoDeviceId }: Props) {
             />
           </label>
 
-          <button
-            type="button"
-            onClick={() => setHeading(0)}
-            className="action-button bg-slate-100 text-sm text-slate-900"
-          >
-            向き推定を中央に戻す
-          </button>
+          <ActionControl
+            isReady
+            reason="向き推定値を中央へリセットします"
+            button={{
+              onClick: () => setHeading(0),
+              tone: "secondary",
+              label: "向き推定を中央に戻す",
+            }}
+          />
         </div>
 
-        <p className="text-[11px] text-slate-500">
+        <PanelInfo className="text-slate-500">
           適用状態: {applyStatus}
           {appliedExposure != null && ` / exposure=${appliedExposure.toFixed(2)}`}
           {appliedBrightness != null &&
@@ -801,8 +805,8 @@ export default function LocalCameraStream({ videoDeviceId }: Props) {
           {!zoomRange.supported && " / zoom=プレビュー拡大で代替"}
           {!manualFocusSupported && !focusRange.supported && " / focus=未対応"}
           {useSharpenPreview && " / sharpen=プレビュー後段補正"}
-        </p>
-      </div>
+        </PanelInfo>
+      </PanelBox>
 
       <div
         ref={frameRef}
@@ -843,47 +847,37 @@ export default function LocalCameraStream({ videoDeviceId }: Props) {
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <div className="action-button-wrap">
-          <button
-            type="button"
-            onClick={start}
-            disabled={!canStart}
-            className="action-button bg-slate-900 text-sm text-white"
-            data-busy={isStarting ? "1" : "0"}
-            aria-busy={isStarting}
-          >
-            {isStarting
-              ? "起動中..."
-              : cameraOn
-                ? "カメラ再起動"
-                : "カメラ開始"}
-          </button>
-          <p
-            className={`button-reason ${canStart ? "is-ready" : "is-disabled"}`}
-          >
-            {isStarting
+        <ActionControl
+          isReady={canStart}
+          reason={
+            isStarting
               ? "カメラ起動処理中です"
               : cameraOn
                 ? "現在の設定で再起動できます"
-                : "カメラを起動できます"}
-          </p>
-        </div>
+                : "カメラを起動できます"
+          }
+          button={{
+            onClick: () => {
+              void start();
+            },
+            disabled: !canStart,
+            tone: "primary",
+            busy: isStarting,
+            label: cameraOn ? "カメラ再起動" : "カメラ開始",
+            busyLabel: "起動中...",
+          }}
+        />
 
-        <div className="action-button-wrap">
-          <button
-            type="button"
-            onClick={stop}
-            disabled={!canStop}
-            className="action-button bg-slate-100 text-sm text-slate-900"
-          >
-            停止
-          </button>
-          <p
-            className={`button-reason ${canStop ? "is-ready" : "is-disabled"}`}
-          >
-            {canStop ? "プレビューを停止できます" : "停止対象がありません"}
-          </p>
-        </div>
+        <ActionControl
+          isReady={canStop}
+          reason={canStop ? "プレビューを停止できます" : "停止対象がありません"}
+          button={{
+            onClick: stop,
+            disabled: !canStop,
+            tone: "secondary",
+            label: "停止",
+          }}
+        />
 
         {error && <span className="text-xs text-red-600">{error}</span>}
       </div>
