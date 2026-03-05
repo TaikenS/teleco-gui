@@ -130,6 +130,8 @@ export default function GuiPage() {
       deserialize: parseBinaryFlag,
       serialize: serializeBinaryFlag,
     });
+  const isSingleEmbeddedPreviewPanel =
+    Number(showVideoSenderPanel) + Number(showAudioReceiverPanel) === 1;
 
   React.useEffect(() => {
     if (HAS_VIDEO_SIGNALING_IP_ENV) {
@@ -348,7 +350,9 @@ export default function GuiPage() {
 
             <div className="grid gap-4 xl:grid-cols-2">
               {showVideoSenderPanel && (
-                <section className="rounded-xl border bg-slate-50 p-2">
+                <section
+                  className={`rounded-xl border bg-slate-50 p-2 ${isSingleEmbeddedPreviewPanel ? "xl:col-span-2" : ""}`}
+                >
                   <div className="mb-2 flex items-center justify-between px-1">
                     <h3 className="text-sm font-semibold">
                       Video Sender (/video)
@@ -373,7 +377,9 @@ export default function GuiPage() {
               )}
 
               {showAudioReceiverPanel && (
-                <section className="rounded-xl border bg-slate-50 p-2">
+                <section
+                  className={`rounded-xl border bg-slate-50 p-2 ${isSingleEmbeddedPreviewPanel ? "xl:col-span-2" : ""}`}
+                >
                   <div className="mb-2 flex items-center justify-between px-1">
                     <h3 className="text-sm font-semibold">
                       Audio Receiver (/audio)
