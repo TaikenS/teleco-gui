@@ -1,5 +1,5 @@
-import AudioReceiverPageClient from "./AudioReceiverPageClient";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <AudioReceiverPageClient />;
+  redirect("/gui");
 }

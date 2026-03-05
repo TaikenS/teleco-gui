@@ -81,10 +81,10 @@ export default function AudioReceiverControlPanel(props: Props) {
       </p>
 
       <div className="grid gap-2 md:grid-cols-3">
-        <label className="text-sm text-slate-700">
+        <label className="text-xs text-slate-700">
           シグナリング IPアドレス
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
             value={signalingIpAddress}
             onChange={(e) => onSignalingIpAddressChange(e.target.value)}
             disabled={connected || wsBusy}
@@ -92,10 +92,10 @@ export default function AudioReceiverControlPanel(props: Props) {
           />
         </label>
 
-        <label className="text-sm text-slate-700">
+        <label className="text-xs text-slate-700">
           シグナリング ポート
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
             value={signalingPort}
             onChange={(e) => onSignalingPortChange(e.target.value)}
             disabled={connected || wsBusy}
@@ -103,10 +103,10 @@ export default function AudioReceiverControlPanel(props: Props) {
           />
         </label>
 
-        <label className="text-sm text-slate-700">
+        <label className="text-xs text-slate-700">
           ルームID
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
             value={roomId}
             onChange={(e) => onRoomIdChange(e.target.value)}
             disabled={connected || wsBusy}
@@ -160,10 +160,10 @@ export default function AudioReceiverControlPanel(props: Props) {
 
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <label className="text-sm text-slate-700">
+        <label className="text-xs text-slate-700">
           出力デバイス
           <select
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
             value={selectedAudioOutputId}
             onChange={(e) => onAudioOutputChange(e.target.value)}
             disabled={!sinkSelectionSupported || audioOutputOptions.length === 0}

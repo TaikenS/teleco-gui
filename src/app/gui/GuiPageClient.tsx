@@ -2,7 +2,6 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import AudioSenderDevicePanel from "@/app/gui/components/audio/sender/AudioSenderDevicePanel";
 import { useAudioSenderController } from "@/app/gui/components/audio/sender/useAudioSenderController";
 import TelecoControlPanel from "@/app/gui/components/teleco/TelecoControlPanel";
@@ -20,6 +19,14 @@ const LocalCameraStream = dynamic(
 );
 const WebRtcVideoReceiver = dynamic(
   () => import("@/app/gui/components/video/WebRtcVideoReceiver"),
+  { ssr: false },
+);
+const EmbeddedVideoSenderPage = dynamic(
+  () => import("@/app/video/VideoSenderPageClient"),
+  { ssr: false },
+);
+const EmbeddedAudioReceiverPage = dynamic(
+  () => import("@/app/audio/AudioReceiverPageClient"),
   { ssr: false },
 );
 
@@ -325,26 +332,10 @@ export default function GuiPage() {
                 <section
                   className={`rounded-xl border bg-slate-50 p-2 ${isSingleEmbeddedPreviewPanel ? "xl:col-span-2" : ""}`}
                 >
-                  <div className="mb-2 flex items-center justify-between px-1">
-                    <h3 className="text-sm font-semibold">
-                      Video Sender (/video)
-                    </h3>
-                    <Link
-                      href="/video"
-                      target="_blank"
-                      prefetch={false}
-                      className="text-xs text-slate-600 hover:text-slate-900"
-                    >
-                      新しいタブで開く
-                    </Link>
+                  <div className="mb-2 px-1">
+                    <h3 className="text-sm font-semibold">Video Sender</h3>
                   </div>
-
-                  <iframe
-                    src="/video"
-                    title="Video Sender"
-                    className="h-[760px] w-full rounded-lg border bg-white"
-                    allow="camera; microphone; autoplay"
-                  />
+                  <EmbeddedVideoSenderPage embedded />
                 </section>
               )}
 
@@ -352,26 +343,10 @@ export default function GuiPage() {
                 <section
                   className={`rounded-xl border bg-slate-50 p-2 ${isSingleEmbeddedPreviewPanel ? "xl:col-span-2" : ""}`}
                 >
-                  <div className="mb-2 flex items-center justify-between px-1">
-                    <h3 className="text-sm font-semibold">
-                      Audio Receiver (/audio)
-                    </h3>
-                    <Link
-                      href="/audio"
-                      target="_blank"
-                      prefetch={false}
-                      className="text-xs text-slate-600 hover:text-slate-900"
-                    >
-                      新しいタブで開く
-                    </Link>
+                  <div className="mb-2 px-1">
+                    <h3 className="text-sm font-semibold">Audio Receiver</h3>
                   </div>
-
-                  <iframe
-                    src="/audio"
-                    title="Audio Receiver"
-                    className="h-[760px] w-full rounded-lg border bg-white"
-                    allow="autoplay"
-                  />
+                  <EmbeddedAudioReceiverPage embedded />
                 </section>
               )}
             </div>

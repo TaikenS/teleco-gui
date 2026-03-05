@@ -1,5 +1,5 @@
-import VideoSenderPageClient from "./VideoSenderPageClient";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  return <VideoSenderPageClient />;
+  redirect("/gui");
 }

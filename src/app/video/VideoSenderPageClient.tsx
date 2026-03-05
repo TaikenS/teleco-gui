@@ -105,7 +105,11 @@ async function getRuntimeVideoSignalDefaults(): Promise<{
   }
 }
 
-export default function VideoSenderPage() {
+export default function VideoSenderPage({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const [roomId, setRoomId] = useState(DEFAULT_VIDEO_ROOM);
   const [signalingIpAddress, setSignalingIpAddress] = useState<string>(
     getDefaultSignalingIpAddress({ envKeys: VIDEO_SEND_SIGNALING_IP_ENV_KEYS }),
@@ -899,52 +903,60 @@ export default function VideoSenderPage() {
     setRtcBusy(false);
   };
 
+  const content = (
+    <>
+      {!embedded && <h1 className="text-xl font-semibold">Sender (別PC用)</h1>}
+      <VideoSenderControlPanel
+        hasCameraStream={hasCameraStream}
+        wsConnected={wsConnected}
+        wsBusy={wsBusy}
+        rtcBusy={rtcBusy}
+        rtcState={rtcState}
+        nextActionHint={nextActionHint}
+        roomId={roomId}
+        signalingIpAddress={signalingIpAddress}
+        signalingPort={signalingPort}
+        connected={connected}
+        signalingWsUrlForDisplay={signalingWsUrlForDisplay}
+        signalingBaseUrlForDisplay={signalingBaseUrlForDisplay}
+        selectedCameraId={selectedCameraId}
+        videoInputs={videoInputs}
+        canStartCamera={canStartCamera}
+        cameraBusy={cameraBusy}
+        startCameraReason={startCameraReason}
+        canConnectSignaling={canConnectSignaling}
+        connectReason={connectReason}
+        canStartStreaming={canStartStreaming}
+        startStreamingReason={startStreamingReason}
+        canStopConnection={canStopConnection}
+        stopReason={stopReason}
+        wsError={wsError}
+        onRoomIdChange={setRoomId}
+        onSignalingIpAddressChange={handleSignalingIpAddressChange}
+        onSignalingPortChange={handleSignalingPortChange}
+        onCameraChange={handleCameraChange}
+        onRefreshCameras={() => void enumerateVideoInputs()}
+        onStartCamera={() => void startCamera()}
+        onConnectSignaling={handleConnectSignaling}
+        onStartStreaming={() => void startWebRTC()}
+        onStopConnection={handleStopConnection}
+      />
+      <VideoSenderPreviewPanel
+        localVideoRef={localVideoRef}
+        connected={connected}
+        activeCameraLabel={activeCameraLabel}
+      />
+      <VideoSenderLogPanel log={log} />
+    </>
+  );
+
+  if (embedded) {
+    return <div className="space-y-4">{content}</div>;
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-3xl space-y-4 p-4">
-        <h1 className="text-xl font-semibold">Sender (別PC用)</h1>
-        <VideoSenderControlPanel
-          hasCameraStream={hasCameraStream}
-          wsConnected={wsConnected}
-          wsBusy={wsBusy}
-          rtcBusy={rtcBusy}
-          rtcState={rtcState}
-          nextActionHint={nextActionHint}
-          roomId={roomId}
-          signalingIpAddress={signalingIpAddress}
-          signalingPort={signalingPort}
-          connected={connected}
-          signalingWsUrlForDisplay={signalingWsUrlForDisplay}
-          signalingBaseUrlForDisplay={signalingBaseUrlForDisplay}
-          selectedCameraId={selectedCameraId}
-          videoInputs={videoInputs}
-          canStartCamera={canStartCamera}
-          cameraBusy={cameraBusy}
-          startCameraReason={startCameraReason}
-          canConnectSignaling={canConnectSignaling}
-          connectReason={connectReason}
-          canStartStreaming={canStartStreaming}
-          startStreamingReason={startStreamingReason}
-          canStopConnection={canStopConnection}
-          stopReason={stopReason}
-          wsError={wsError}
-          onRoomIdChange={setRoomId}
-          onSignalingIpAddressChange={handleSignalingIpAddressChange}
-          onSignalingPortChange={handleSignalingPortChange}
-          onCameraChange={handleCameraChange}
-          onRefreshCameras={() => void enumerateVideoInputs()}
-          onStartCamera={() => void startCamera()}
-          onConnectSignaling={handleConnectSignaling}
-          onStartStreaming={() => void startWebRTC()}
-          onStopConnection={handleStopConnection}
-        />
-        <VideoSenderPreviewPanel
-          localVideoRef={localVideoRef}
-          connected={connected}
-          activeCameraLabel={activeCameraLabel}
-        />
-        <VideoSenderLogPanel log={log} />
-      </div>
+      <div className="mx-auto max-w-3xl space-y-4 p-4">{content}</div>
     </main>
   );
 }
