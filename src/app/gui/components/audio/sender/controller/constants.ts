@@ -32,6 +32,7 @@ export const STORAGE_KEYS = {
   showMouthPresetPanel: "teleco.gui.audio.showMouthPresetPanel",
   showRawCommandPanel: "teleco.gui.audio.showRawCommandPanel",
   showGamepadPanel: "teleco.gui.audio.showGamepadPanel",
+  showCommandLogPanel: "teleco.gui.audio.showCommandLogPanel",
   mouthSpeakingThreshold: "teleco.gui.audio.mouthSpeakingThreshold",
 } as const;
 

@@ -179,6 +179,7 @@ export function useAudioSenderController({
 }`,
   );
   const [commandLog, setCommandLog] = useState<string>("");
+  const [commandConnectionLog, setCommandConnectionLog] = useState<string>("");
 
   // ---- mouth ----
   const lastVowelRef = useRef<Vowel>("xn");
@@ -191,6 +192,11 @@ export function useAudioSenderController({
   }
   function logCommand(line: string) {
     setCommandLog((prev) => `${prev}${line}\n`);
+  }
+  function logCommandConnection(line: string) {
+    setCommandConnectionLog(
+      (prev) => `${prev}[${new Date().toLocaleTimeString()}] ${line}\n`,
+    );
   }
 
   function sendSignal(obj: unknown) {
@@ -373,6 +379,7 @@ export function useAudioSenderController({
   const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(false);
   const [showRawCommandPanel, setShowRawCommandPanel] = useState(false);
   const [showGamepadPanel, setShowGamepadPanel] = useState(false);
+  const [showCommandLogPanel, setShowCommandLogPanel] = useState(false);
   const [enableFaceCommandSend, setEnableFaceCommandSend] = useState(true);
   const [enableMoveMultiSend, setEnableMoveMultiSend] = useState(true);
 
@@ -561,6 +568,12 @@ export function useAudioSenderController({
     if (savedShowGamepadPanel != null)
       setShowGamepadPanel(savedShowGamepadPanel === "1");
 
+    const savedShowCommandLogPanel = window.localStorage.getItem(
+      STORAGE_KEYS.showCommandLogPanel,
+    );
+    if (savedShowCommandLogPanel != null)
+      setShowCommandLogPanel(savedShowCommandLogPanel === "1");
+
     const savedMouthSpeakingThreshold = window.localStorage.getItem(
       STORAGE_KEYS.mouthSpeakingThreshold,
     );
@@ -625,6 +638,14 @@ export function useAudioSenderController({
   }, [isTelecoPanel, showGamepadPanel]);
 
   useEffect(() => {
+    if (!isTelecoPanel) return;
+    window.localStorage.setItem(
+      STORAGE_KEYS.showCommandLogPanel,
+      showCommandLogPanel ? "1" : "0",
+    );
+  }, [isTelecoPanel, showCommandLogPanel]);
+
+  useEffect(() => {
     if (!isDevicePanel) return;
     window.localStorage.setItem(
       STORAGE_KEYS.mouthSpeakingThreshold,
@@ -673,6 +694,7 @@ export function useAudioSenderController({
       1000 * 2 ** commandReconnectAttemptRef.current,
     );
     commandReconnectAttemptRef.current += 1;
+    logCommandConnection(`Command WS 再接続を予約 (${Math.round(waitMs / 1000)}s)`);
 
     commandReconnectTimerRef.current = window.setTimeout(() => {
       commandReconnectTimerRef.current = null;
@@ -818,10 +840,16 @@ export function useAudioSenderController({
     if (!telecoIpAddress.trim() || !telecoPort.trim()) {
       setCommandWsStatus("エラー");
       appendError("teleco の IP Address / Port を入力してください。");
+      logCommandConnection(
+        "Command WS 接続失敗: teleco の IP Address / Port が未入力",
+      );
       return;
     }
 
     const commandWsUrl = `ws://${telecoIpAddress.trim()}:${telecoPort.trim()}/command`;
+    logCommandConnection(
+      `${isReconnect ? "Command WS 再接続開始" : "Command WS 接続開始"}: ${commandWsUrl}`,
+    );
 
     try {
       const ws = new WebSocket(commandWsUrl);
@@ -830,19 +858,24 @@ export function useAudioSenderController({
       ws.onopen = () => {
         commandReconnectAttemptRef.current = 0;
         setCommandWsStatus("接続済み");
+        logCommandConnection(`Command WS 接続成功: ${commandWsUrl}`);
         if (isReconnect) {
           logCommand("Command WS 再接続");
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
         if (commandWsRef.current === ws) commandWsRef.current = null;
         setCommandWsStatus("切断");
+        logCommandConnection(
+          `Command WS 切断 code=${ev.code} reason=${ev.reason || "(none)"}`,
+        );
         scheduleCommandReconnect();
       };
 
       ws.onerror = () => {
         setCommandWsStatus("エラー");
+        logCommandConnection(`Command WS エラー: ${commandWsUrl}`);
         appendError(
           `Command WebSocket 接続でエラーが発生しました。\n接続先: ${commandWsUrl}`,
         );
@@ -865,6 +898,7 @@ export function useAudioSenderController({
     } catch (e) {
       console.error(e);
       setCommandWsStatus("エラー");
+      logCommandConnection(`Command WS 作成失敗: ${String(e)}`);
       appendError("Command WebSocket の作成に失敗しました。");
     }
   };
@@ -874,6 +908,7 @@ export function useAudioSenderController({
     shouldAutoCommandRef.current = false;
     window.localStorage.setItem(STORAGE_KEYS.commandAutoConnect, "0");
     clearCommandReconnectTimer();
+    logCommandConnection("Command WS 手動切断");
 
     const ws = commandWsRef.current;
     if (ws) {
@@ -1341,10 +1376,12 @@ export function useAudioSenderController({
       showMouthPresetPanel,
       showRawCommandPanel,
       showGamepadPanel,
+      showCommandLogPanel,
       enableFaceCommandSend,
       enableMoveMultiSend,
       commandJson,
       commandLog,
+      commandConnectionLog,
       onSetTelecoIpAddress: setTelecoIpAddress,
       onSetTelecoPort: setTelecoPort,
       onConnectCommand: () => {
@@ -1361,6 +1398,7 @@ export function useAudioSenderController({
       onSetShowMouthPresetPanel: setShowMouthPresetPanel,
       onSetShowRawCommandPanel: setShowRawCommandPanel,
       onSetShowGamepadPanel: setShowGamepadPanel,
+      onSetShowCommandLogPanel: setShowCommandLogPanel,
       onSetEnableFaceCommandSend: setEnableFaceCommandSend,
       onSetEnableMoveMultiSend: setEnableMoveMultiSend,
       onSendMouthVowel: (v: Vowel) =>
@@ -1368,6 +1406,7 @@ export function useAudioSenderController({
       onSetCommandJson: setCommandJson,
       onSendRawCommandJson: sendRawCommandJson,
       onClearCommandLog: () => setCommandLog(""),
+      onClearCommandConnectionLog: () => setCommandConnectionLog(""),
     },
   };
 }

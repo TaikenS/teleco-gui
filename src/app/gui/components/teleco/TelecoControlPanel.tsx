@@ -20,10 +20,12 @@ type Props = {
   showMouthPresetPanel: boolean;
   showRawCommandPanel: boolean;
   showGamepadPanel: boolean;
+  showCommandLogPanel: boolean;
   enableFaceCommandSend: boolean;
   enableMoveMultiSend: boolean;
   commandJson: string;
   commandLog: string;
+  commandConnectionLog: string;
   onSetTelecoIpAddress: (v: string) => void;
   onSetTelecoPort: (v: string) => void;
   onConnectCommand: () => void;
@@ -35,12 +37,14 @@ type Props = {
   onSetShowMouthPresetPanel: (v: boolean) => void;
   onSetShowRawCommandPanel: (v: boolean) => void;
   onSetShowGamepadPanel: (v: boolean) => void;
+  onSetShowCommandLogPanel: (v: boolean) => void;
   onSetEnableFaceCommandSend: (v: boolean) => void;
   onSetEnableMoveMultiSend: (v: boolean) => void;
   onSendMouthVowel: (v: "a" | "i" | "u" | "e" | "o" | "xn") => void;
   onSetCommandJson: (v: string) => void;
   onSendRawCommandJson: () => void;
   onClearCommandLog: () => void;
+  onClearCommandConnectionLog: () => void;
 };
 
 export default function TelecoControlPanel({
@@ -65,10 +69,12 @@ export default function TelecoControlPanel({
   showMouthPresetPanel,
   showRawCommandPanel,
   showGamepadPanel,
+  showCommandLogPanel,
   enableFaceCommandSend,
   enableMoveMultiSend,
   commandJson,
   commandLog,
+  commandConnectionLog,
   onSetTelecoIpAddress,
   onSetTelecoPort,
   onConnectCommand,
@@ -80,12 +86,14 @@ export default function TelecoControlPanel({
   onSetShowMouthPresetPanel,
   onSetShowRawCommandPanel,
   onSetShowGamepadPanel,
+  onSetShowCommandLogPanel,
   onSetEnableFaceCommandSend,
   onSetEnableMoveMultiSend,
   onSendMouthVowel,
   onSetCommandJson,
   onSendRawCommandJson,
   onClearCommandLog,
+  onClearCommandConnectionLog,
 }: Props) {
   return (
     <>
@@ -100,6 +108,7 @@ export default function TelecoControlPanel({
               value={telecoIpAddress}
               onChange={(e) => onSetTelecoIpAddress(e.target.value)}
               placeholder="192.168.1.12"
+              disabled={commandConnected || commandBusy}
             />
           </label>
 
@@ -110,6 +119,7 @@ export default function TelecoControlPanel({
               value={telecoPort}
               onChange={(e) => onSetTelecoPort(e.target.value)}
               placeholder="11920"
+              disabled={commandConnected || commandBusy}
             />
           </label>
         </div>
@@ -294,6 +304,15 @@ export default function TelecoControlPanel({
           >
             Telecoデバッグ画面を開く
           </button>
+
+          <button
+            type="button"
+            className={`toggle-pill ${showCommandLogPanel ? "is-active" : ""}`}
+            aria-pressed={showCommandLogPanel}
+            onClick={() => onSetShowCommandLogPanel(!showCommandLogPanel)}
+          >
+            接続ログ
+          </button>
         </div>
       </div>
 
@@ -420,6 +439,24 @@ export default function TelecoControlPanel({
             <br />
             id: {gamepadId || "(none)"}
           </p>
+        </div>
+      )}
+
+      {showCommandLogPanel && (
+        <div className="rounded-xl border bg-white p-3 space-y-2">
+          <div className="text-sm font-semibold">Teleco 接続ログ</div>
+          <div className="action-button-wrap">
+            <button
+              onClick={onClearCommandConnectionLog}
+              className="action-button bg-slate-100 text-sm"
+            >
+              ログをクリア
+            </button>
+            <p className="button-reason is-ready">接続ログ表示をクリアします</p>
+          </div>
+          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
+            {commandConnectionLog || "接続ログはまだありません"}
+          </pre>
         </div>
       )}
     </>
