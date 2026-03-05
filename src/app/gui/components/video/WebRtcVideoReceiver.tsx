@@ -627,7 +627,7 @@ export default function WebRtcVideoReceiver({
         {playRetryNeeded && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45">
             <ActionButton
-              className="pointer-events-auto text-xs"
+              className="pointer-events-auto"
               tone="secondary"
               label="映像再生を再試行"
               onPointerDown={(ev) => {

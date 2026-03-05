@@ -119,7 +119,7 @@ export default function AudioReceiverControlPanel(props: Props) {
       </div>
       <PanelInfo>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</PanelInfo>
 
-      <div className="flex flex-wrap gap-3 text-sm">
+      <div className="grid gap-3 md:grid-cols-2">
         <ActionControl
           isReady={canConnect}
           reason={
