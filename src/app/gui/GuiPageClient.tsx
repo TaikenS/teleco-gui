@@ -285,17 +285,18 @@ export default function GuiPage() {
             </Card>
           )}
 
-          {showTeleco && (
-            <Card title="Teleco制御">
-              <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
-            </Card>
-          )}
         </section>
 
         <section className="space-y-4 lg:col-span-6 lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
           {showVideoSender && (
             <Card title="映像送信">
               <EmbeddedVideoSenderPage embedded />
+            </Card>
+          )}
+
+          {showTeleco && (
+            <Card title="Teleco制御">
+              <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
             </Card>
           )}
 
