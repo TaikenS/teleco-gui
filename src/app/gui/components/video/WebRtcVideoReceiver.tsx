@@ -63,7 +63,9 @@ export default function WebRtcVideoReceiver({
 }: {
   roomId: string;
   signalingWsUrl?: string;
-  settingsPanel?: ReactNode;
+  settingsPanel?:
+    | ReactNode
+    | ((state: { connected: boolean; wsBusy: boolean }) => ReactNode);
 }) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -424,6 +426,10 @@ export default function WebRtcVideoReceiver({
   const disconnectReason = canDisconnectSignaling
     ? "シグナリング接続を停止できます"
     : "シグナリングは未接続です";
+  const resolvedSettingsPanel =
+    typeof settingsPanel === "function"
+      ? settingsPanel({ connected, wsBusy })
+      : settingsPanel;
 
   // シグナリング復旧ハンドリング
   useEffect(() => {
@@ -574,7 +580,7 @@ export default function WebRtcVideoReceiver({
         {connected ? "現在: 映像受信待機中" : "次の操作: シグナリング接続"}
       </p>
 
-      {settingsPanel}
+      {resolvedSettingsPanel}
 
       <div className="grid gap-3 md:grid-cols-2">
         <ActionControl

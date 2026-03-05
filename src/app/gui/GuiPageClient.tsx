@@ -322,7 +322,7 @@ export default function GuiPage() {
                   <WebRtcVideoReceiver
                     roomId={videoRoomId || DEFAULT_VIDEO_ROOM}
                     signalingWsUrl={videoSignalingWsUrl}
-                    settingsPanel={
+                    settingsPanel={({ connected, wsBusy }) => (
                       <>
                         <div className="grid gap-2 md:grid-cols-3">
                           <PanelField label="シグナリング IPアドレス">
@@ -332,6 +332,7 @@ export default function GuiPage() {
                                 handleVideoSignalingIpAddressChange(e.target.value)
                               }
                               placeholder="192.168.1.12"
+                              disabled={connected || wsBusy}
                             />
                           </PanelField>
 
@@ -342,6 +343,7 @@ export default function GuiPage() {
                                 handleVideoSignalingPortChange(e.target.value)
                               }
                               placeholder="3000"
+                              disabled={connected || wsBusy}
                             />
                           </PanelField>
 
@@ -350,6 +352,7 @@ export default function GuiPage() {
                               value={videoRoomId}
                               onChange={(e) => setVideoRoomId(e.target.value)}
                               placeholder="video_ab"
+                              disabled={connected || wsBusy}
                             />
                           </PanelField>
                         </div>
@@ -358,7 +361,7 @@ export default function GuiPage() {
                           確認用WS URL: {videoSignalingWsUrl}
                         </PanelInfo>
                       </>
-                    }
+                    )}
                   />
                 </div>
               )}

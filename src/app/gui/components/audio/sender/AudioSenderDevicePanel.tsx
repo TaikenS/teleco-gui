@@ -153,6 +153,7 @@ export default function AudioSenderDevicePanel({
               value={signalingIpAddress}
               onChange={(e) => onSetSignalingIpAddress(e.target.value)}
               placeholder="192.168.1.12"
+              disabled={signalConnected || signalBusy}
             />
           </PanelField>
 
@@ -161,6 +162,7 @@ export default function AudioSenderDevicePanel({
               value={signalingPort}
               onChange={(e) => onSetSignalingPort(e.target.value)}
               placeholder="3000"
+              disabled={signalConnected || signalBusy}
             />
           </PanelField>
 
@@ -169,6 +171,7 @@ export default function AudioSenderDevicePanel({
               value={roomHint}
               onChange={(e) => onSetRoomHint(e.target.value)}
               placeholder="audio1"
+              disabled={signalConnected || signalBusy}
             />
           </PanelField>
         </div>

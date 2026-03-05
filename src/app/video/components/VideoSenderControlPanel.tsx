@@ -146,7 +146,11 @@ export default function VideoSenderControlPanel(props: Props) {
           />
         </PanelField>
         <PanelField label="ルームID">
-          <PanelInput value={roomId} onChange={(e) => onRoomIdChange(e.target.value)} />
+          <PanelInput
+            value={roomId}
+            onChange={(e) => onRoomIdChange(e.target.value)}
+            disabled={connected || wsBusy}
+          />
         </PanelField>
       </div>
       <PanelInfo>確認用 Signal WS URL: {signalingWsUrlForDisplay}</PanelInfo>

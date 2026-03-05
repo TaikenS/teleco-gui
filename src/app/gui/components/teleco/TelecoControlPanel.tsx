@@ -110,7 +110,7 @@ export default function TelecoControlPanel({
           <span
             className={`status-chip ${commandConnected ? "is-on" : commandBusy ? "is-busy" : "is-off"}`}
           >
-            Command WS{" "}
+            テレコ{" "}
             {commandConnected
               ? "CONNECTED"
               : commandBusy
@@ -125,11 +125,11 @@ export default function TelecoControlPanel({
         <p className="action-state-hint" role="status" aria-live="polite">
           {commandConnected
             ? "現在: 口パクテスト・矢印コマンドを実行できます"
-            : "次の操作: ① Command WS接続（/command）"}
+            : "次の操作: ① テレコ接続（/command）"}
         </p>
 
         <div className="grid gap-2 md:grid-cols-2">
-          <PanelField label="Teleco IPアドレス">
+          <PanelField label="テレコ IPアドレス">
             <PanelInput
               value={telecoIpAddress}
               onChange={(e) => onSetTelecoIpAddress(e.target.value)}
@@ -138,7 +138,7 @@ export default function TelecoControlPanel({
             />
           </PanelField>
 
-          <PanelField label="Teleco ポート">
+          <PanelField label="テレコ ポート">
             <PanelInput
               value={telecoPort}
               onChange={(e) => onSetTelecoPort(e.target.value)}
@@ -156,20 +156,20 @@ export default function TelecoControlPanel({
             isReady={canConnectCommandNow}
             reason={
               commandConnected
-                ? "Command WSはすでに接続中です"
+                ? "テレコはすでに接続中です"
                 : commandBusy
-                  ? "Command WS接続処理中です"
+                  ? "テレコ接続処理中です"
                   : !hasTelecoTarget
-                    ? "Teleco の IPアドレス / ポートを入力してください"
-                    : "Command WSへ接続できます"
+                    ? "テレコの IPアドレス / ポートを入力してください"
+                    : "テレコへ接続できます"
             }
             button={{
               onClick: onConnectCommand,
               disabled: !canConnectCommandNow,
               tone: "primary",
               busy: commandBusy,
-              label: "Command WS接続",
-              busyLabel: "Command 接続中...",
+              label: "テレコ 接続",
+              busyLabel: "テレコ 接続中...",
             }}
           />
 
@@ -177,14 +177,14 @@ export default function TelecoControlPanel({
             isReady={canDisconnectCommand}
             reason={
               canDisconnectCommand
-                ? "Command WS接続を停止できます"
-                : "Command WSは未接続です"
+                ? "テレコ接続を停止できます"
+                : "テレコは未接続です"
             }
             button={{
               onClick: onDisconnectCommand,
               disabled: !canDisconnectCommand,
               tone: "secondary",
-              label: "Command WS切断",
+              label: "テレコ 切断",
             }}
           />
 
@@ -193,7 +193,7 @@ export default function TelecoControlPanel({
             reason={
               canRunMouthTest
                 ? "即時に口パクテストを送信できます"
-                : "Command WS接続後に実行できます"
+                : "テレコ接続後に実行できます"
             }
             button={{
               onClick: onMouthTestA,
@@ -208,7 +208,7 @@ export default function TelecoControlPanel({
             reason={
               commandConnected
                 ? "首を左へ動かせます"
-                : "Command WS未接続のため送信できません"
+                : "テレコ未接続のため送信できません"
             }
             button={{
               onClick: onArrowLeft,
@@ -223,7 +223,7 @@ export default function TelecoControlPanel({
             reason={
               commandConnected
                 ? "首を右へ動かせます"
-                : "Command WS未接続のため送信できません"
+                : "テレコ未接続のため送信できません"
             }
             button={{
               onClick: onArrowRight,
@@ -238,7 +238,7 @@ export default function TelecoControlPanel({
             reason={
               commandConnected
                 ? "初期姿勢コマンドを送信します"
-                : "Command WS未接続のため送信できません"
+                : "テレコ未接続のため送信できません"
             }
             button={{
               onClick: onInitializePose,
@@ -249,9 +249,7 @@ export default function TelecoControlPanel({
           />
         </div>
 
-        <div className="text-xs text-slate-600">
-          Command WS: {commandWsStatus}
-        </div>
+        <div className="text-xs text-slate-600">テレコ: {commandWsStatus}</div>
 
         <PanelDivider />
         <div className="toggle-pill-group">
@@ -293,7 +291,7 @@ export default function TelecoControlPanel({
               )
             }
           >
-            Telecoデバッグ画面を開く
+            テレコデバッグ画面を開く
           </button>
 
           <button
@@ -335,8 +333,8 @@ export default function TelecoControlPanel({
           </p>
           <p className="action-state-hint" role="status" aria-live="polite">
             {commandConnected
-              ? "Command WS接続済み: 手動プリセットを送信できます"
-              : "Command WS未接続: 接続すると手動プリセットを送信できます"}
+              ? "テレコ接続済み: 手動プリセットを送信できます"
+              : "テレコ未接続: 接続すると手動プリセットを送信できます"}
           </p>
           <div className="flex flex-wrap gap-2">
             {(["a", "i", "u", "e", "o", "xn"] as const).map((v) => (
@@ -360,8 +358,8 @@ export default function TelecoControlPanel({
 
           <p className="action-state-hint" role="status" aria-live="polite">
             {commandConnected
-              ? "Command WS接続済み: JSONコマンドを送信できます"
-              : "Command WS未接続: 接続するとJSONコマンドを送信できます"}
+              ? "テレコ接続済み: JSONコマンドを送信できます"
+              : "テレコ未接続: 接続するとJSONコマンドを送信できます"}
           </p>
 
           <div className="text-xs text-slate-600">
@@ -382,7 +380,7 @@ export default function TelecoControlPanel({
               reason={
                 commandConnected
                   ? "現在のJSONを送信できます"
-                  : "Command WS接続後に送信できます"
+                  : "テレコ接続後に送信できます"
               }
               button={{
                 onClick: onSendRawCommandJson,
