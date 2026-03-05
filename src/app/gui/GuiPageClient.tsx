@@ -36,8 +36,6 @@ const VIDEO_ROOM_STORAGE_KEY = "teleco.gui.video.roomId";
 const VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY =
   "teleco.gui.video.signalingIpAddress";
 const VIDEO_SIGNAL_PORT_STORAGE_KEY = "teleco.gui.video.signalingPort";
-const EMBED_VIDEO_SENDER_KEY = "teleco.gui.embed.videoSender";
-const EMBED_AUDIO_RECEIVER_KEY = "teleco.gui.embed.audioReceiver";
 
 const RAW_DEFAULT_VIDEO_ROOM =
   process.env.NEXT_PUBLIC_VIDEO_SENDER_ROOM_ID?.trim() ||
@@ -83,14 +81,6 @@ function parseVideoMode(raw: string): VideoSourceMode {
   return raw === "webSender" ? "webSender" : "local";
 }
 
-function parseBinaryFlag(raw: string): boolean {
-  return raw === "1";
-}
-
-function serializeBinaryFlag(value: boolean): string {
-  return value ? "1" : "0";
-}
-
 export default function GuiPage() {
   const didInitSettingsRef = React.useRef(false);
   const didEditSignalSettingsRef = React.useRef(false);
@@ -126,19 +116,6 @@ export default function GuiPage() {
       NEXT_PUBLIC_VIDEO_RECEIVE_SIGNALING_PORT: videoSignalingPort,
     });
   }, [videoSignalingIpAddress, videoSignalingPort]);
-
-  const [showVideoSenderPanel, setShowVideoSenderPanel] =
-    usePersistentState<boolean>(EMBED_VIDEO_SENDER_KEY, false, {
-      deserialize: parseBinaryFlag,
-      serialize: serializeBinaryFlag,
-    });
-  const [showAudioReceiverPanel, setShowAudioReceiverPanel] =
-    usePersistentState<boolean>(EMBED_AUDIO_RECEIVER_KEY, false, {
-      deserialize: parseBinaryFlag,
-      serialize: serializeBinaryFlag,
-    });
-  const isSingleEmbeddedPreviewPanel =
-    Number(showVideoSenderPanel) + Number(showAudioReceiverPanel) === 1;
 
   React.useEffect(() => {
     if (HAS_VIDEO_SIGNALING_IP_ENV) {
@@ -226,12 +203,20 @@ export default function GuiPage() {
             <AudioSenderDevicePanel {...audioSenderController.devicePanelProps} />
           </Card>
 
+          <Card title="音声受信">
+            <EmbeddedAudioReceiverPage embedded />
+          </Card>
+
           <Card title="Teleco制御">
             <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
           </Card>
         </section>
 
         <section className="space-y-4 lg:col-span-6 lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
+          <Card title="映像送信">
+            <EmbeddedVideoSenderPage embedded />
+          </Card>
+
           <Card title="映像受信" subtitle={subtitleForMode(mode)}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-slate-500">映像ソース</span>
@@ -299,62 +284,6 @@ export default function GuiPage() {
                   }
                 />
               </div>
-            )}
-          </Card>
-
-          <Card title="統合プレビュー">
-            <div className="mb-3">
-              <div className="mb-2 text-xs text-slate-500">
-                表示するパネルを選択
-              </div>
-              <div className="toggle-pill-group">
-                <button
-                  type="button"
-                  className={`toggle-pill ${showVideoSenderPanel ? "is-active" : ""}`}
-                  aria-pressed={showVideoSenderPanel}
-                  onClick={() => setShowVideoSenderPanel((v) => !v)}
-                >
-                  Video Sender
-                </button>
-                <button
-                  type="button"
-                  className={`toggle-pill ${showAudioReceiverPanel ? "is-active" : ""}`}
-                  aria-pressed={showAudioReceiverPanel}
-                  onClick={() => setShowAudioReceiverPanel((v) => !v)}
-                >
-                  Audio Receiver
-                </button>
-              </div>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              {showVideoSenderPanel && (
-                <section
-                  className={`rounded-xl border bg-slate-50 p-2 ${isSingleEmbeddedPreviewPanel ? "xl:col-span-2" : ""}`}
-                >
-                  <div className="mb-2 px-1">
-                    <h3 className="text-sm font-semibold">Video Sender</h3>
-                  </div>
-                  <EmbeddedVideoSenderPage embedded />
-                </section>
-              )}
-
-              {showAudioReceiverPanel && (
-                <section
-                  className={`rounded-xl border bg-slate-50 p-2 ${isSingleEmbeddedPreviewPanel ? "xl:col-span-2" : ""}`}
-                >
-                  <div className="mb-2 px-1">
-                    <h3 className="text-sm font-semibold">Audio Receiver</h3>
-                  </div>
-                  <EmbeddedAudioReceiverPage embedded />
-                </section>
-              )}
-            </div>
-
-            {!showVideoSenderPanel && !showAudioReceiverPanel && (
-              <p className="text-sm text-slate-500">
-                パネルは初期状態で非表示です。上のトグルから表示してください。
-              </p>
             )}
           </Card>
         </section>

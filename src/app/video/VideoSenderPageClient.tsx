@@ -6,7 +6,6 @@ import VideoSenderLogPanel from "@/app/video/components/VideoSenderLogPanel";
 import VideoSenderPreviewPanel from "@/app/video/components/VideoSenderPreviewPanel";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
-  buildSignalingBaseUrl,
   buildSignalingUrl,
   getDefaultSignalingIpAddress,
   getDefaultSignalingPort,
@@ -148,7 +147,6 @@ export default function VideoSenderPage({
   const keepaliveTimerRef = useRef<number | null>(null);
 
   const shouldAutoConnectRef = useRef(false);
-  const shouldAutoStartCameraRef = useRef(false);
   const desiredStreamingRef = useRef(false);
   const didInitSettingsRef = useRef(false);
   const didEditSignalSettingsRef = useRef(false);
@@ -407,10 +405,6 @@ export default function VideoSenderPage({
 
       // 権限許可後はデバイスラベルが取れるので更新
       await enumerateVideoInputs();
-
-      if (isReconnect) {
-        maybeAutoStartWebRTC();
-      }
     } catch (e) {
       console.error(e);
       const errName = e instanceof DOMException ? e.name : "UnknownError";
@@ -420,6 +414,22 @@ export default function VideoSenderPage({
     } finally {
       setCameraBusy(false);
     }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+
+    setStream(null);
+    desiredStreamingRef.current = false;
+    setRtcBusy(false);
+    closePc();
+
+    window.localStorage.setItem(STORAGE.cameraActive, "0");
+    window.localStorage.setItem(STORAGE.streamingActive, "0");
+    logLine("カメラ停止");
   };
 
   // シグナリングへの接続
@@ -700,15 +710,12 @@ export default function VideoSenderPage({
       if (savedCameraDeviceId) setSelectedCameraId(savedCameraDeviceId);
 
       shouldAutoConnectRef.current = false;
-      shouldAutoStartCameraRef.current = getStoredValue("cameraActive") === "1";
-      desiredStreamingRef.current = getStoredValue("streamingActive") === "1";
+      desiredStreamingRef.current = false;
       window.localStorage.setItem(STORAGE.autoConnect, "0");
+      window.localStorage.setItem(STORAGE.cameraActive, "0");
+      window.localStorage.setItem(STORAGE.streamingActive, "0");
 
       void enumerateVideoInputs();
-
-      if (shouldAutoStartCameraRef.current) {
-        void startCamera(savedCameraDeviceId || undefined);
-      }
 
       didInitSettingsRef.current = true;
     })();
@@ -810,7 +817,8 @@ export default function VideoSenderPage({
   const rtcConnectingOrConnected =
     rtcState === "connecting" || rtcState === "connected";
 
-  const canStartCamera = !cameraBusy;
+  const canStartCamera = !cameraBusy && !hasCameraStream;
+  const canStopCamera = !cameraBusy && hasCameraStream;
   const canConnectSignaling =
     !wsConnected &&
     !wsBusy &&
@@ -824,7 +832,14 @@ export default function VideoSenderPage({
 
   const startCameraReason = canStartCamera
     ? "カメラを起動できます"
-    : "カメラ起動処理中です";
+    : cameraBusy
+      ? "カメラ起動処理中です"
+      : "すでにカメラ起動済みです";
+  const stopCameraReason = canStopCamera
+    ? "カメラを停止できます"
+    : cameraBusy
+      ? "カメラ起動処理中です"
+      : "カメラは停止中です";
 
   const connectReason = canConnectSignaling
     ? "シグナリング接続できます"
@@ -832,16 +847,12 @@ export default function VideoSenderPage({
       ? "すでに接続中です"
       : wsBusy
         ? "シグナリング接続処理中です"
-        : "Room ID と IP Address / Port を入力してください";
+        : "ルームID / IPアドレス / ポート を入力してください";
 
   const signalingWsUrlForDisplay = buildSignalingUrl({
     ipAddress: signalingIpAddress,
     port: signalingPort,
     roomId,
-  });
-  const signalingBaseUrlForDisplay = buildSignalingBaseUrl({
-    ipAddress: signalingIpAddress,
-    port: signalingPort,
   });
 
   const startStreamingReason = canStartStreaming
@@ -918,12 +929,13 @@ export default function VideoSenderPage({
         signalingPort={signalingPort}
         connected={connected}
         signalingWsUrlForDisplay={signalingWsUrlForDisplay}
-        signalingBaseUrlForDisplay={signalingBaseUrlForDisplay}
         selectedCameraId={selectedCameraId}
         videoInputs={videoInputs}
         canStartCamera={canStartCamera}
+        canStopCamera={canStopCamera}
         cameraBusy={cameraBusy}
         startCameraReason={startCameraReason}
+        stopCameraReason={stopCameraReason}
         canConnectSignaling={canConnectSignaling}
         connectReason={connectReason}
         canStartStreaming={canStartStreaming}
@@ -937,6 +949,7 @@ export default function VideoSenderPage({
         onCameraChange={handleCameraChange}
         onRefreshCameras={() => void enumerateVideoInputs()}
         onStartCamera={() => void startCamera()}
+        onStopCamera={stopCamera}
         onConnectSignaling={handleConnectSignaling}
         onStartStreaming={() => void startWebRTC()}
         onStopConnection={handleStopConnection}

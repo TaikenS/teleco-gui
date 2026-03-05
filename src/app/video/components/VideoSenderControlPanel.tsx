@@ -15,12 +15,13 @@ type Props = {
   signalingPort: string;
   connected: boolean;
   signalingWsUrlForDisplay: string;
-  signalingBaseUrlForDisplay: string;
   selectedCameraId: string;
   videoInputs: VideoInput[];
   canStartCamera: boolean;
+  canStopCamera: boolean;
   cameraBusy: boolean;
   startCameraReason: string;
+  stopCameraReason: string;
   canConnectSignaling: boolean;
   connectReason: string;
   canStartStreaming: boolean;
@@ -34,6 +35,7 @@ type Props = {
   onCameraChange: (deviceId: string) => void;
   onRefreshCameras: () => void;
   onStartCamera: () => void;
+  onStopCamera: () => void;
   onConnectSignaling: () => void;
   onStartStreaming: () => void;
   onStopConnection: () => void;
@@ -52,12 +54,13 @@ export default function VideoSenderControlPanel(props: Props) {
     signalingPort,
     connected,
     signalingWsUrlForDisplay,
-    signalingBaseUrlForDisplay,
     selectedCameraId,
     videoInputs,
     canStartCamera,
+    canStopCamera,
     cameraBusy,
     startCameraReason,
+    stopCameraReason,
     canConnectSignaling,
     connectReason,
     canStartStreaming,
@@ -71,13 +74,14 @@ export default function VideoSenderControlPanel(props: Props) {
     onCameraChange,
     onRefreshCameras,
     onStartCamera,
+    onStopCamera,
     onConnectSignaling,
     onStartStreaming,
     onStopConnection,
   } = props;
 
   return (
-    <div className="space-y-2 rounded-2xl border bg-white p-4">
+    <div className="space-y-2 rounded-xl border bg-white p-3">
       <div className="status-chip-row">
         <span className={`status-chip ${hasCameraStream ? "is-on" : "is-off"}`}>
           Camera {hasCameraStream ? "ON" : "OFF"}
@@ -109,20 +113,11 @@ export default function VideoSenderControlPanel(props: Props) {
         {nextActionHint}
       </p>
 
-      <div className="flex items-center gap-2">
-        <label className="text-sm text-slate-700">Room ID</label>
-        <input
-          className="rounded-xl border px-3 py-1 text-sm"
-          value={roomId}
-          onChange={(e) => onRoomIdChange(e.target.value)}
-        />
-      </div>
-
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className="grid gap-2 md:grid-cols-3">
         <label className="text-sm text-slate-700">
-          Signaling IP Address
+          シグナリング IPアドレス
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
             value={signalingIpAddress}
             onChange={(e) => onSignalingIpAddressChange(e.target.value)}
             placeholder="192.168.1.12"
@@ -130,21 +125,26 @@ export default function VideoSenderControlPanel(props: Props) {
           />
         </label>
         <label className="text-sm text-slate-700">
-          Signaling Port
+          シグナリング ポート
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
             value={signalingPort}
             onChange={(e) => onSignalingPortChange(e.target.value)}
             placeholder="3000"
             disabled={connected}
           />
         </label>
+        <label className="text-sm text-slate-700">
+          ルームID
+          <input
+            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+            value={roomId}
+            onChange={(e) => onRoomIdChange(e.target.value)}
+          />
+        </label>
       </div>
-      <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
-        <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-        <div className="mt-1 text-slate-500">
-          Base: {signalingBaseUrlForDisplay}
-        </div>
+      <div className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+        <div>確認用 Signal WS URL: {signalingWsUrlForDisplay}</div>
       </div>
 
       <div className="space-y-1">
@@ -171,13 +171,13 @@ export default function VideoSenderControlPanel(props: Props) {
             onClick={onRefreshCameras}
             className="rounded-xl bg-slate-100 px-3 py-2 text-sm"
           >
-            カメラ再読み込み
+            デバイス更新
           </button>
         </div>
         <p className="text-[11px] text-slate-500">
           {videoInputs.length > 0
-            ? "カメラを変更したあと「カメラ起動」を押すか、配信中なら自動でそのカメラに切り替わります。"
-            : "カメラデバイスが未検出です。接続後に再読み込みしてください。"}
+            ? "カメラを変更したあと「カメラ起動」を押してください。"
+            : "カメラデバイスが未検出です。接続後にデバイス更新してください。"}
         </p>
       </div>
 
@@ -196,6 +196,21 @@ export default function VideoSenderControlPanel(props: Props) {
             className={`button-reason ${canStartCamera ? "is-ready" : "is-disabled"}`}
           >
             {startCameraReason}
+          </p>
+        </div>
+
+        <div className="action-button-wrap">
+          <button
+            onClick={onStopCamera}
+            className="action-button bg-slate-100 text-sm"
+            disabled={!canStopCamera}
+          >
+            カメラ停止
+          </button>
+          <p
+            className={`button-reason ${canStopCamera ? "is-ready" : "is-disabled"}`}
+          >
+            {stopCameraReason}
           </p>
         </div>
 
