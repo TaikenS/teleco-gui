@@ -6,7 +6,6 @@ type Props = {
   signalingPort: string;
   roomId: string;
   signalingWsUrlForDisplay: string;
-  signalingBaseUrlForDisplay: string;
   canConnect: boolean;
   canDisconnect: boolean;
   error: string | null;
@@ -26,7 +25,6 @@ export default function AudioReceiverControlPanel(props: Props) {
     signalingPort,
     roomId,
     signalingWsUrlForDisplay,
-    signalingBaseUrlForDisplay,
     canConnect,
     canDisconnect,
     error,
@@ -95,9 +93,6 @@ export default function AudioReceiverControlPanel(props: Props) {
       </div>
       <div className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-700">
         <div>Signaling WS URL（確認用）: {signalingWsUrlForDisplay}</div>
-        <div className="mt-1 text-slate-500">
-          Base: {signalingBaseUrlForDisplay}
-        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 text-sm">

@@ -180,6 +180,7 @@ export function useAudioSenderController({
   );
   const [commandLog, setCommandLog] = useState<string>("");
   const [commandConnectionLog, setCommandConnectionLog] = useState<string>("");
+  const [signalConnectionLog, setSignalConnectionLog] = useState<string>("");
 
   // ---- mouth ----
   const lastVowelRef = useRef<Vowel>("xn");
@@ -195,6 +196,11 @@ export function useAudioSenderController({
   }
   function logCommandConnection(line: string) {
     setCommandConnectionLog(
+      (prev) => `${prev}[${new Date().toLocaleTimeString()}] ${line}\n`,
+    );
+  }
+  function logSignalConnection(line: string) {
+    setSignalConnectionLog(
       (prev) => `${prev}[${new Date().toLocaleTimeString()}] ${line}\n`,
     );
   }
@@ -380,6 +386,7 @@ export function useAudioSenderController({
   const [showRawCommandPanel, setShowRawCommandPanel] = useState(false);
   const [showGamepadPanel, setShowGamepadPanel] = useState(false);
   const [showCommandLogPanel, setShowCommandLogPanel] = useState(false);
+  const [showSignalLogPanel, setShowSignalLogPanel] = useState(false);
   const [enableFaceCommandSend, setEnableFaceCommandSend] = useState(true);
   const [enableMoveMultiSend, setEnableMoveMultiSend] = useState(true);
 
@@ -538,6 +545,13 @@ export function useAudioSenderController({
       const savedMicId = window.localStorage.getItem(STORAGE_KEYS.selectedMicId);
       if (savedMicId) setSelectedMicId(savedMicId);
 
+      const savedShowSignalLogPanel = window.localStorage.getItem(
+        STORAGE_KEYS.showSignalLogPanel,
+      );
+      if (savedShowSignalLogPanel != null) {
+        setShowSignalLogPanel(savedShowSignalLogPanel === "1");
+      }
+
       shouldAutoSignalRef.current = false;
       shouldAutoSendingRef.current =
         window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
@@ -648,6 +662,14 @@ export function useAudioSenderController({
   useEffect(() => {
     if (!isDevicePanel) return;
     window.localStorage.setItem(
+      STORAGE_KEYS.showSignalLogPanel,
+      showSignalLogPanel ? "1" : "0",
+    );
+  }, [isDevicePanel, showSignalLogPanel]);
+
+  useEffect(() => {
+    if (!isDevicePanel) return;
+    window.localStorage.setItem(
       STORAGE_KEYS.mouthSpeakingThreshold,
       String(mouthSpeakingThreshold),
     );
@@ -670,6 +692,7 @@ export function useAudioSenderController({
       1000 * 2 ** signalReconnectAttemptRef.current,
     );
     signalReconnectAttemptRef.current += 1;
+    logSignalConnection(`Signal WS 再接続を予約 (${Math.round(waitMs / 1000)}s)`);
 
     signalReconnectTimerRef.current = window.setTimeout(() => {
       signalReconnectTimerRef.current = null;
@@ -738,6 +761,9 @@ export function useAudioSenderController({
       port,
       roomId: room,
     });
+    logSignalConnection(
+      `${isReconnect ? "Signal WS 再接続開始" : "Signal WS 接続開始"}: ${normalized}`,
+    );
 
     try {
       const ws = new WebSocket(normalized);
@@ -746,6 +772,7 @@ export function useAudioSenderController({
       ws.onopen = () => {
         signalReconnectAttemptRef.current = 0;
         setSignalWsStatus("接続済み");
+        logSignalConnection(`Signal WS 接続成功: ${normalized}`);
         startSignalKeepalive(ws);
 
         // room同期（queryと二重でも問題なし）
@@ -768,11 +795,13 @@ export function useAudioSenderController({
         clearSignalKeepalive();
         if (signalWsRef.current === ws) signalWsRef.current = null;
         setSignalWsStatus("切断");
+        logSignalConnection("Signal WS 切断");
         scheduleSignalReconnect();
       };
 
       ws.onerror = () => {
         setSignalWsStatus("エラー");
+        logSignalConnection(`Signal WS エラー: ${normalized}`);
         appendError(
           "Signal WebSocket 接続でエラーが発生しました。URL/ポート/PC(IP)を確認してください。\n" +
             `接続先: ${normalized}`,
@@ -797,6 +826,7 @@ export function useAudioSenderController({
     } catch (e) {
       console.error(e);
       setSignalWsStatus("エラー");
+      logSignalConnection(`Signal WS 作成失敗: ${String(e)}`);
       appendError("Signal WebSocket の作成に失敗しました。");
     }
   };
@@ -807,6 +837,7 @@ export function useAudioSenderController({
     window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "0");
     clearSignalReconnectTimer();
     clearSignalKeepalive();
+    logSignalConnection("Signal WS 手動切断");
 
     const ws = signalWsRef.current;
     if (ws) {
@@ -1324,6 +1355,8 @@ export function useAudioSenderController({
       canStartMicTest: micAnalyzer.canStartMicTest,
       canStopMicTest: micAnalyzer.canStopMicTest,
       hasSignalingTarget: deviceSignal.hasSignalingTarget,
+      showSignalLogPanel,
+      signalConnectionLog,
       micTestAudioRef: micAnalyzer.micTestAudioRef,
       onSetSignalingIpAddress: (value: string) => {
         didEditDeviceSignalSettingsRef.current = true;
@@ -1353,6 +1386,8 @@ export function useAudioSenderController({
       onStopSending: stopSending,
       onStartMicTest: micAnalyzer.onStartMicTest,
       onStopMicTest: micAnalyzer.onStopMicTest,
+      onSetShowSignalLogPanel: setShowSignalLogPanel,
+      onClearSignalConnectionLog: () => setSignalConnectionLog(""),
     },
     telecoPanelProps: {
       telecoIpAddress,

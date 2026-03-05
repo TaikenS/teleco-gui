@@ -25,7 +25,6 @@ export default function AudioReceiverPage() {
           signalingPort={controller.signalingPort}
           roomId={controller.roomId}
           signalingWsUrlForDisplay={controller.signalingWsUrlForDisplay}
-          signalingBaseUrlForDisplay={controller.signalingBaseUrlForDisplay}
           canConnect={controller.canConnect}
           canDisconnect={controller.canDisconnect}
           error={controller.error}

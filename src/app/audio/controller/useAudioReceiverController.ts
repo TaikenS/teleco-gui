@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useAudioReceiverSignaling } from "@/app/audio/controller/useAudioReceiverSignaling";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
-import { buildSignalingBaseUrl, buildSignalingUrl } from "@/lib/signaling";
+import { buildSignalingUrl } from "@/lib/signaling";
 
 export function useAudioReceiverController() {
   const signaling = useAudioReceiverSignaling();
@@ -37,17 +37,11 @@ export function useAudioReceiverController() {
     roomId: signaling.roomId,
   });
 
-  const signalingBaseUrlForDisplay = buildSignalingBaseUrl({
-    ipAddress: signaling.signalingIpAddress,
-    port: signaling.signalingPort,
-  });
-
   return {
     ...signaling,
     canConnect,
     canDisconnect,
     signalingWsUrlForDisplay,
-    signalingBaseUrlForDisplay,
     setSignalingIpAddress: (value: string) => {
       didEditSignalSettingsRef.current = true;
       signaling.setSignalingIpAddress(value);

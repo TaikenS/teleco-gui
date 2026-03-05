@@ -63,9 +63,12 @@ export default function WebRtcVideoReceiver({
   const reconnectTimerRef = useRef<number | null>(null);
   const reconnectAttemptRef = useRef(0);
   const manualCloseRef = useRef(false);
+  const shouldAutoConnectRef = useRef(false);
   const keepaliveTimerRef = useRef<number | null>(null);
   const disconnectedRecoveryTimerRef = useRef<number | null>(null);
 
+  const [connected, setConnected] = useState(false);
+  const [wsBusy, setWsBusy] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playRetryNeeded, setPlayRetryNeeded] = useState(false);
@@ -239,6 +242,7 @@ export default function WebRtcVideoReceiver({
 
   const scheduleReconnect = () => {
     if (manualCloseRef.current) return;
+    if (!shouldAutoConnectRef.current) return;
     clearReconnectTimer();
 
     const waitMs = Math.min(15_000, 1000 * 2 ** reconnectAttemptRef.current);
@@ -262,6 +266,7 @@ export default function WebRtcVideoReceiver({
     ) {
       return;
     }
+    setWsBusy(true);
 
     clearReconnectTimer();
 
@@ -280,6 +285,7 @@ export default function WebRtcVideoReceiver({
 
     if (!url.startsWith("ws://") && !url.startsWith("wss://")) {
       setError(`無効なSignal URLです: ${url}`);
+      setWsBusy(false);
       return;
     }
 
@@ -289,6 +295,8 @@ export default function WebRtcVideoReceiver({
     ws.onopen = () => {
       reconnectAttemptRef.current = 0;
       setError(null);
+      setConnected(true);
+      setWsBusy(false);
       logLine(
         `${isReconnect ? "シグナリング再接続" : "シグナリング接続"}: ${url}`,
       );
@@ -343,6 +351,7 @@ export default function WebRtcVideoReceiver({
     ws.onerror = (e) => {
       console.error(e);
       setError("シグナリングサーバへの接続に失敗しました");
+      setWsBusy(false);
     };
 
     ws.onclose = (ev) => {
@@ -350,6 +359,8 @@ export default function WebRtcVideoReceiver({
       if (wsRef.current === ws) {
         wsRef.current = null;
       }
+      setConnected(false);
+      setWsBusy(false);
 
       logLine(
         `シグナリング切断 code=${ev.code} reason=${ev.reason || "(none)"}`,
@@ -360,14 +371,48 @@ export default function WebRtcVideoReceiver({
     };
   };
 
-  // シグナリング接続 + WebRTC 初期化
-  useEffect(() => {
+  const disconnectSignaling = () => {
+    shouldAutoConnectRef.current = false;
+    manualCloseRef.current = true;
+    clearReconnectTimer();
+    stopKeepalive();
+
+    const ws = wsRef.current;
+    if (ws) {
+      try {
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close();
+      } catch {
+        // noop
+      }
+    }
+    wsRef.current = null;
+    setConnected(false);
+    setWsBusy(false);
+    closePeer();
+    logLine("シグナリング手動切断");
+  };
+
+  const handleConnectSignaling = () => {
     manualCloseRef.current = false;
+    shouldAutoConnectRef.current = true;
     reconnectAttemptRef.current = 0;
     connectSignaling(false);
+  };
+
+  // シグナリング復旧ハンドリング
+  useEffect(() => {
+    manualCloseRef.current = false;
+    if (shouldAutoConnectRef.current) {
+      connectSignaling(false);
+    }
 
     const recoverIfNeeded = () => {
       if (manualCloseRef.current) return;
+      if (!shouldAutoConnectRef.current) return;
       const ws = wsRef.current;
       if (!ws || ws.readyState === WebSocket.CLOSED) {
         connectSignaling(true);
@@ -397,6 +442,8 @@ export default function WebRtcVideoReceiver({
       document.removeEventListener("visibilitychange", onVisibilityChange);
       document.removeEventListener("fullscreenchange", onVisibilityChange);
 
+      closePeer();
+      stopKeepalive();
       if (wsRef.current) {
         try {
           wsRef.current.onopen = null;
@@ -407,10 +454,10 @@ export default function WebRtcVideoReceiver({
         } catch {
           // noop
         }
-        wsRef.current = null;
       }
-
-      closePeer();
+      wsRef.current = null;
+      setConnected(false);
+      setWsBusy(false);
     };
     // roomを変えたら再接続し直す
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -493,6 +540,28 @@ export default function WebRtcVideoReceiver({
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <button
+          type="button"
+          onClick={handleConnectSignaling}
+          disabled={connected || wsBusy}
+          className="action-button bg-slate-100"
+        >
+          {wsBusy ? "接続中..." : "Signaling接続"}
+        </button>
+        <button
+          type="button"
+          onClick={disconnectSignaling}
+          disabled={!connected && !wsBusy}
+          className="action-button bg-slate-900 text-white"
+        >
+          切断
+        </button>
+        <span className="text-xs text-slate-600">
+          Signal: {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
+        </span>
+      </div>
+
       <div
         ref={frameRef}
         className="relative w-full h-[60vh] max-h-[70vh] overflow-hidden rounded-xl bg-slate-200 cursor-pointer"

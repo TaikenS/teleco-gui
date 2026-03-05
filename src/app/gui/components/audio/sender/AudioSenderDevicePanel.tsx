@@ -31,6 +31,8 @@ type Props = {
   canStartMicTest: boolean;
   canStopMicTest: boolean;
   hasSignalingTarget: boolean;
+  showSignalLogPanel: boolean;
+  signalConnectionLog: string;
   micTestAudioRef: RefObject<HTMLAudioElement | null>;
   onSetSignalingIpAddress: (v: string) => void;
   onSetSignalingPort: (v: string) => void;
@@ -49,6 +51,8 @@ type Props = {
   onStopSending: () => void;
   onStartMicTest: () => void;
   onStopMicTest: () => void;
+  onSetShowSignalLogPanel: (v: boolean) => void;
+  onClearSignalConnectionLog: () => void;
 };
 
 export default function AudioSenderDevicePanel({
@@ -80,6 +84,8 @@ export default function AudioSenderDevicePanel({
   canStartMicTest,
   canStopMicTest,
   hasSignalingTarget,
+  showSignalLogPanel,
+  signalConnectionLog,
   micTestAudioRef,
   onSetSignalingIpAddress,
   onSetSignalingPort,
@@ -98,6 +104,8 @@ export default function AudioSenderDevicePanel({
   onStopSending,
   onStartMicTest,
   onStopMicTest,
+  onSetShowSignalLogPanel,
+  onClearSignalConnectionLog,
 }: Props) {
   const [showMicTestPanel, setShowMicTestPanel] = useState(false);
 
@@ -292,6 +300,14 @@ export default function AudioSenderDevicePanel({
           >
             マイクテスト
           </button>
+          <button
+            type="button"
+            className={`toggle-pill ${showSignalLogPanel ? "is-active" : ""}`}
+            onClick={() => onSetShowSignalLogPanel(!showSignalLogPanel)}
+            aria-pressed={showSignalLogPanel}
+          >
+            接続ログ
+          </button>
         </div>
 
         {showMicTestPanel && (
@@ -454,6 +470,24 @@ export default function AudioSenderDevicePanel({
 
             <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
           </>
+        )}
+
+        {showSignalLogPanel && (
+          <div className="rounded-xl border bg-white p-3 space-y-2">
+            <div className="text-sm font-semibold">音声送信 接続ログ</div>
+            <div className="action-button-wrap">
+              <button
+                onClick={onClearSignalConnectionLog}
+                className="action-button bg-slate-100 text-sm"
+              >
+                ログをクリア
+              </button>
+              <p className="button-reason is-ready">接続ログ表示をクリアします</p>
+            </div>
+            <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
+              {signalConnectionLog || "接続ログはまだありません"}
+            </pre>
+          </div>
         )}
     </div>
   );

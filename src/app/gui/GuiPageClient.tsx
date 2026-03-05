@@ -202,9 +202,6 @@ export default function GuiPage() {
             <h1 className="text-xl font-semibold tracking-tight text-slate-950">
               Teleco Operator Console
             </h1>
-            <p className="text-xs text-slate-500">
-              左: 音声・Teleco制御 / 右: 映像受信・統合プレビュー
-            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
