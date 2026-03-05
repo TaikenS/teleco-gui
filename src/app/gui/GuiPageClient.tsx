@@ -215,7 +215,7 @@ export default function GuiPage() {
       </header>
 
       <main className="mx-auto grid max-w-[1680px] gap-4 px-4 py-4 md:px-6 lg:grid-cols-12 lg:items-start lg:pb-6">
-        <section className="space-y-4 lg:col-span-4 lg:sticky lg:top-[92px] lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
+        <section className="space-y-4 lg:col-span-6 lg:sticky lg:top-[92px] lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
           {audioSenderController.error && (
             <p className="text-xs text-red-600 whitespace-pre-line">
               {audioSenderController.error}
@@ -234,7 +234,7 @@ export default function GuiPage() {
           </Card>
         </section>
 
-        <section className="space-y-4 lg:col-span-8 lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
+        <section className="space-y-4 lg:col-span-6 lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
           <Card title="映像受信" subtitle={subtitleForMode(mode)}>
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-slate-500">映像ソース</span>
