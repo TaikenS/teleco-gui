@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 import { TELECO_ARROW_EVENT } from "@/app/gui/components/audio/sender/controller/constants";
 import { getSignalingUrl } from "@/lib/signaling";
 import {
@@ -51,9 +57,11 @@ function withRoomQuery(wsUrl: string, roomId: string) {
 export default function WebRtcVideoReceiver({
   roomId,
   signalingWsUrl,
+  settingsPanel,
 }: {
   roomId: string;
   signalingWsUrl?: string;
+  settingsPanel?: ReactNode;
 }) {
   const wsRef = useRef<WebSocket | null>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -563,6 +571,8 @@ export default function WebRtcVideoReceiver({
       <p className="action-state-hint" role="status" aria-live="polite">
         {connected ? "現在: 映像受信待機中" : "次の操作: シグナリング接続"}
       </p>
+
+      {settingsPanel}
 
       <div className="grid gap-3 md:grid-cols-2">
         <div className="action-button-wrap">

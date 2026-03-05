@@ -204,10 +204,6 @@ export default function GuiPage() {
             </h1>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="teleco-badge">映像ソース: {modeLabel(mode)}</span>
-            <span className="teleco-badge">映像Room: {videoRoomId || "(未設定)"}</span>
-          </div>
         </div>
       </header>
 
@@ -248,58 +244,58 @@ export default function GuiPage() {
 
             {mode === "webSender" && (
               <div className="space-y-3">
-                <div className="grid gap-2 md:grid-cols-2">
-                  <label className="text-sm text-slate-700">
-                    映像 Room ID
-                    <input
-                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                      value={videoRoomId}
-                      onChange={(e) => setVideoRoomId(e.target.value)}
-                      placeholder="video_ab"
-                    />
-                  </label>
-
-                  <label className="text-sm text-slate-700">
-                    シグナリング IPアドレス
-                    <input
-                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                      value={videoSignalingIpAddress}
-                      onChange={(e) =>
-                        handleVideoSignalingIpAddressChange(e.target.value)
-                      }
-                      placeholder="192.168.1.12"
-                    />
-                  </label>
-
-                  <label className="text-sm text-slate-700 md:col-span-2 lg:max-w-[280px]">
-                    シグナリング ポート
-                    <input
-                      className="mt-1 w-full rounded-xl border px-3 py-2 text-sm"
-                      value={videoSignalingPort}
-                      onChange={(e) =>
-                        handleVideoSignalingPortChange(e.target.value)
-                      }
-                      placeholder="3000"
-                    />
-                  </label>
-                </div>
-
-                <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-                  確認用WS URL: {videoSignalingWsUrl}
-                </p>
-
                 <WebRtcVideoReceiver
                   roomId={videoRoomId || DEFAULT_VIDEO_ROOM}
                   signalingWsUrl={videoSignalingWsUrl}
+                  settingsPanel={
+                    <>
+                      <div className="grid gap-2 md:grid-cols-3">
+                        <label className="text-sm text-slate-700">
+                          シグナリング IPアドレス
+                          <input
+                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                            value={videoSignalingIpAddress}
+                            onChange={(e) =>
+                              handleVideoSignalingIpAddressChange(e.target.value)
+                            }
+                            placeholder="192.168.1.12"
+                          />
+                        </label>
+
+                        <label className="text-sm text-slate-700">
+                          シグナリング ポート
+                          <input
+                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                            value={videoSignalingPort}
+                            onChange={(e) =>
+                              handleVideoSignalingPortChange(e.target.value)
+                            }
+                            placeholder="3000"
+                          />
+                        </label>
+
+                        <label className="text-sm text-slate-700">
+                          ルームID
+                          <input
+                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                            value={videoRoomId}
+                            onChange={(e) => setVideoRoomId(e.target.value)}
+                            placeholder="video_ab"
+                          />
+                        </label>
+                      </div>
+
+                      <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+                        確認用WS URL: {videoSignalingWsUrl}
+                      </p>
+                    </>
+                  }
                 />
               </div>
             )}
           </Card>
 
-          <Card
-            title="統合プレビュー"
-            subtitle="/video と /audio をこのページ内に埋め込みます"
-          >
+          <Card title="統合プレビュー">
             <div className="mb-3">
               <div className="mb-2 text-xs text-slate-500">
                 表示するパネルを選択
@@ -421,6 +417,3 @@ function subtitleForMode(mode: VideoSourceMode): string {
   }
 }
 
-function modeLabel(mode: VideoSourceMode): string {
-  return mode === "local" ? "ローカルカメラ" : "WebRTC sender";
-}
