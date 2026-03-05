@@ -404,7 +404,9 @@ export default function VideoSenderPage() {
       // 権限許可後はデバイスラベルが取れるので更新
       await enumerateVideoInputs();
 
-      maybeAutoStartWebRTC();
+      if (isReconnect) {
+        maybeAutoStartWebRTC();
+      }
     } catch (e) {
       console.error(e);
       const errName = e instanceof DOMException ? e.name : "UnknownError";
