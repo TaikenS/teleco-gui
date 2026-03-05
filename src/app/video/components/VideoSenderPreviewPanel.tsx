@@ -41,16 +41,9 @@ export default function VideoSenderPreviewPanel({
       </div>
 
       {showLog && (
-        <div className="rounded-xl border bg-white p-3">
-          <div className="mb-2 text-sm font-semibold">映像送信 ログ</div>
-          <div className="max-h-48 space-y-1 overflow-auto text-xs text-slate-700">
-            {log.length > 0 ? (
-              log.map((line, index) => <div key={index}>{line}</div>)
-            ) : (
-              <div className="text-slate-500">ログはまだありません</div>
-            )}
-          </div>
-        </div>
+        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
+          {log.length > 0 ? log.join("\n") : "ログはまだありません"}
+        </pre>
       )}
     </div>
   );
