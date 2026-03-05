@@ -98,7 +98,27 @@ export default function TelecoControlPanel({
   return (
     <>
       <div className="rounded-xl border bg-white p-3 space-y-2">
-        <div className="text-sm font-semibold">Teleco接続設定</div>
+        <div className="status-chip-row">
+          <span
+            className={`status-chip ${commandConnected ? "is-on" : commandBusy ? "is-busy" : "is-off"}`}
+          >
+            Command WS{" "}
+            {commandConnected
+              ? "CONNECTED"
+              : commandBusy
+                ? "CONNECTING"
+                : "OFFLINE"}
+          </span>
+          <span className={`status-chip ${gamepadConnected ? "is-on" : "is-off"}`}>
+            Gamepad {gamepadConnected ? "CONNECTED" : "OFFLINE"}
+          </span>
+        </div>
+
+        <p className="action-state-hint" role="status" aria-live="polite">
+          {commandConnected
+            ? "現在: 口パクテスト・矢印コマンドを実行できます"
+            : "次の操作: ① Command WS接続（/command）"}
+        </p>
 
         <div className="grid gap-2 md:grid-cols-2">
           <label className="text-sm text-slate-700">
@@ -125,28 +145,6 @@ export default function TelecoControlPanel({
         </div>
         <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
           確認用デバッグURL: {commandWsUrlForDisplay}
-        </p>
-
-        <div className="status-chip-row">
-          <span
-            className={`status-chip ${commandConnected ? "is-on" : commandBusy ? "is-busy" : "is-off"}`}
-          >
-            Command WS{" "}
-            {commandConnected
-              ? "CONNECTED"
-              : commandBusy
-                ? "CONNECTING"
-                : "OFFLINE"}
-          </span>
-          <span className={`status-chip ${gamepadConnected ? "is-on" : "is-off"}`}>
-            Gamepad {gamepadConnected ? "CONNECTED" : "OFFLINE"}
-          </span>
-        </div>
-
-        <p className="action-state-hint" role="status" aria-live="polite">
-          {commandConnected
-            ? "現在: 口パクテスト・矢印コマンドを実行できます"
-            : "次の操作: ① Command WS接続（/command）"}
         </p>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">

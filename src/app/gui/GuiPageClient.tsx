@@ -226,10 +226,7 @@ export default function GuiPage() {
             <AudioSenderDevicePanel {...audioSenderController.devicePanelProps} />
           </Card>
 
-          <Card
-            title="Teleco制御"
-            subtitle="Teleco接続、口パク手動プリセット、任意コマンド送信"
-          >
+          <Card title="Teleco制御">
             <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
           </Card>
         </section>

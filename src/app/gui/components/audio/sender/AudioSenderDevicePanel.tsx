@@ -281,9 +281,7 @@ export default function AudioSenderDevicePanel({
           <span>最終母音: {lastVowel}</span>
         </div>
 
-        <div className="border-t pt-3">
-          <div className="mb-2 text-sm font-semibold">マイクテスト</div>
-        </div>
+        <div className="border-t pt-3" />
         <div className="toggle-pill-group">
           <button
             type="button"
