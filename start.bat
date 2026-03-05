@@ -4,6 +4,21 @@ setlocal EnableDelayedExpansion
 REM このbatファイルがあるフォルダ（=プロジェクトルート）に移動
 cd /d "%~dp0"
 
+where git >nul 2>&1
+if errorlevel 1 (
+  echo [ERROR] git is not installed or not in PATH.
+  pause
+  exit /b 1
+)
+
+echo Pulling latest changes...
+git pull
+if errorlevel 1 (
+  echo [ERROR] git pull failed.
+  pause
+  exit /b 1
+)
+
 where node >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Node.js is not installed.
