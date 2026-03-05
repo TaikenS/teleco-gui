@@ -302,19 +302,6 @@ export default function GuiPage() {
             )}
           </Card>
 
-          <Card title="運用メモ" subtitle="GUIの動作ポイント">
-            <ul className="space-y-2 text-sm">
-              {[
-                "AudioSenderは常時マウントされるため、映像ソースを切り替えてもWSは切断されません。",
-                "口パク送信は Command WS 接続時のみ有効です。",
-              ].map((line, idx) => (
-                <li key={idx} className="rounded-xl bg-slate-100 px-3 py-2">
-                  {line}
-                </li>
-              ))}
-            </ul>
-          </Card>
-
           <Card
             title="統合プレビュー"
             subtitle="/video と /audio をこのページ内に埋め込みます"

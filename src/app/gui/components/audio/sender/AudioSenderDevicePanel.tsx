@@ -102,8 +102,7 @@ export default function AudioSenderDevicePanel({
   const [showMicTestPanel, setShowMicTestPanel] = useState(false);
 
   return (
-    <>
-      <div className="rounded-xl border bg-white p-3 space-y-3">
+    <div className="rounded-xl border bg-white p-3 space-y-3">
         <div className="text-sm font-semibold">
           音声送信・マイク確認（GUI → 別PC AudioReceiver）
         </div>
@@ -285,10 +284,10 @@ export default function AudioSenderDevicePanel({
           <span>音声送信: {callStatus}</span>
           <span>最終母音: {lastVowel}</span>
         </div>
-      </div>
 
-      <div className="rounded-xl border bg-white p-3 space-y-3">
-        <div className="text-sm font-semibold">マイクテスト</div>
+        <div className="border-t pt-3">
+          <div className="mb-2 text-sm font-semibold">マイクテスト</div>
+        </div>
         <div className="toggle-pill-group">
           <button
             type="button"
@@ -462,7 +461,6 @@ export default function AudioSenderDevicePanel({
             <audio ref={micTestAudioRef} autoPlay controls className="w-full" />
           </>
         )}
-      </div>
-    </>
+    </div>
   );
 }

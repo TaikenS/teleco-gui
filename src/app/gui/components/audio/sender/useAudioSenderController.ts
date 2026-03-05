@@ -372,6 +372,7 @@ export function useAudioSenderController({
 
   const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(false);
   const [showRawCommandPanel, setShowRawCommandPanel] = useState(false);
+  const [showGamepadPanel, setShowGamepadPanel] = useState(false);
   const [enableFaceCommandSend, setEnableFaceCommandSend] = useState(true);
   const [enableMoveMultiSend, setEnableMoveMultiSend] = useState(true);
 
@@ -554,6 +555,12 @@ export function useAudioSenderController({
     if (savedShowRawCommandPanel != null)
       setShowRawCommandPanel(savedShowRawCommandPanel === "1");
 
+    const savedShowGamepadPanel = window.localStorage.getItem(
+      STORAGE_KEYS.showGamepadPanel,
+    );
+    if (savedShowGamepadPanel != null)
+      setShowGamepadPanel(savedShowGamepadPanel === "1");
+
     const savedMouthSpeakingThreshold = window.localStorage.getItem(
       STORAGE_KEYS.mouthSpeakingThreshold,
     );
@@ -608,6 +615,14 @@ export function useAudioSenderController({
       showRawCommandPanel ? "1" : "0",
     );
   }, [isTelecoPanel, showRawCommandPanel]);
+
+  useEffect(() => {
+    if (!isTelecoPanel) return;
+    window.localStorage.setItem(
+      STORAGE_KEYS.showGamepadPanel,
+      showGamepadPanel ? "1" : "0",
+    );
+  }, [isTelecoPanel, showGamepadPanel]);
 
   useEffect(() => {
     if (!isDevicePanel) return;
@@ -1325,6 +1340,7 @@ export function useAudioSenderController({
       commandWsStatus,
       showMouthPresetPanel,
       showRawCommandPanel,
+      showGamepadPanel,
       enableFaceCommandSend,
       enableMoveMultiSend,
       commandJson,
@@ -1344,6 +1360,7 @@ export function useAudioSenderController({
       onInitializePose: sendInitializePose,
       onSetShowMouthPresetPanel: setShowMouthPresetPanel,
       onSetShowRawCommandPanel: setShowRawCommandPanel,
+      onSetShowGamepadPanel: setShowGamepadPanel,
       onSetEnableFaceCommandSend: setEnableFaceCommandSend,
       onSetEnableMoveMultiSend: setEnableMoveMultiSend,
       onSendMouthVowel: (v: Vowel) =>

@@ -19,6 +19,7 @@ type Props = {
   commandWsStatus: string;
   showMouthPresetPanel: boolean;
   showRawCommandPanel: boolean;
+  showGamepadPanel: boolean;
   enableFaceCommandSend: boolean;
   enableMoveMultiSend: boolean;
   commandJson: string;
@@ -33,6 +34,7 @@ type Props = {
   onInitializePose: () => void;
   onSetShowMouthPresetPanel: (v: boolean) => void;
   onSetShowRawCommandPanel: (v: boolean) => void;
+  onSetShowGamepadPanel: (v: boolean) => void;
   onSetEnableFaceCommandSend: (v: boolean) => void;
   onSetEnableMoveMultiSend: (v: boolean) => void;
   onSendMouthVowel: (v: "a" | "i" | "u" | "e" | "o" | "xn") => void;
@@ -62,6 +64,7 @@ export default function TelecoControlPanel({
   commandWsStatus,
   showMouthPresetPanel,
   showRawCommandPanel,
+  showGamepadPanel,
   enableFaceCommandSend,
   enableMoveMultiSend,
   commandJson,
@@ -76,6 +79,7 @@ export default function TelecoControlPanel({
   onInitializePose,
   onSetShowMouthPresetPanel,
   onSetShowRawCommandPanel,
+  onSetShowGamepadPanel,
   onSetEnableFaceCommandSend,
   onSetEnableMoveMultiSend,
   onSendMouthVowel,
@@ -113,19 +117,6 @@ export default function TelecoControlPanel({
           確認用デバッグURL: {commandWsUrlForDisplay}
         </p>
 
-        <button
-          onClick={() =>
-            window.open(
-              telecoDebugUrlForDisplay,
-              "_blank",
-              "noopener,noreferrer",
-            )
-          }
-          className="rounded-xl bg-slate-100 px-3 py-2 text-sm hover:bg-slate-200"
-        >
-          Telecoデバッグ画面を開く
-        </button>
-
         <div className="status-chip-row">
           <span
             className={`status-chip ${commandConnected ? "is-on" : commandBusy ? "is-busy" : "is-off"}`}
@@ -146,19 +137,6 @@ export default function TelecoControlPanel({
           {commandConnected
             ? "現在: 口パクテスト・矢印コマンドを実行できます"
             : "次の操作: ① Command WS接続（/command）"}
-        </p>
-        <p className="text-[11px] text-slate-500">
-          XBOXコントローラー対応: LB/LT/X/十字左で左、RB/RT/B/十字右で右
-        </p>
-        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700 break-all">
-          Gamepad Debug: index={gamepadIndex ?? "-"} / mapping=
-          {gamepadMapping || "-"} / LT={gamepadLtValue.toFixed(2)} / RT=
-          {gamepadRtValue.toFixed(2)} / pressed=
-          {gamepadPressedButtons.length > 0
-            ? gamepadPressedButtons.join(",")
-            : "(none)"}
-          <br />
-          id: {gamepadId || "(none)"}
         </p>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -293,6 +271,29 @@ export default function TelecoControlPanel({
           >
             任意コマンド送信
           </button>
+
+          <button
+            type="button"
+            className={`toggle-pill ${showGamepadPanel ? "is-active" : ""}`}
+            aria-pressed={showGamepadPanel}
+            onClick={() => onSetShowGamepadPanel(!showGamepadPanel)}
+          >
+            コントローラー確認
+          </button>
+
+          <button
+            type="button"
+            className="toggle-pill"
+            onClick={() =>
+              window.open(
+                telecoDebugUrlForDisplay,
+                "_blank",
+                "noopener,noreferrer",
+              )
+            }
+          >
+            Telecoデバッグ画面を開く
+          </button>
         </div>
       </div>
 
@@ -400,6 +401,25 @@ export default function TelecoControlPanel({
           <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
             {commandLog || "ログはまだありません"}
           </pre>
+        </div>
+      )}
+
+      {showGamepadPanel && (
+        <div className="rounded-xl border bg-white p-3 space-y-2">
+          <div className="text-sm font-semibold">コントローラー確認</div>
+          <p className="text-[11px] text-slate-500">
+            XBOXコントローラー対応: LB/LT/X/十字左で左、RB/RT/B/十字右で右
+          </p>
+          <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700 break-all">
+            Gamepad Debug: index={gamepadIndex ?? "-"} / mapping=
+            {gamepadMapping || "-"} / LT={gamepadLtValue.toFixed(2)} / RT=
+            {gamepadRtValue.toFixed(2)} / pressed=
+            {gamepadPressedButtons.length > 0
+              ? gamepadPressedButtons.join(",")
+              : "(none)"}
+            <br />
+            id: {gamepadId || "(none)"}
+          </p>
         </div>
       )}
     </>
