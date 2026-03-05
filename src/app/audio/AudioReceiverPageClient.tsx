@@ -34,7 +34,6 @@ export default function AudioReceiverPage() {
           onRoomIdChange={controller.setRoomId}
           onConnect={controller.handleConnect}
           onDisconnect={controller.disconnect}
-          onOpenWsDebug={() => window.open("/ws", "_blank")}
         />
 
         <AudioReceiverPlaybackPanel

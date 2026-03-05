@@ -15,7 +15,6 @@ type Props = {
   onRoomIdChange: (value: string) => void;
   onConnect: () => void;
   onDisconnect: () => void;
-  onOpenWsDebug: () => void;
 };
 
 export default function AudioReceiverControlPanel(props: Props) {
@@ -36,7 +35,6 @@ export default function AudioReceiverControlPanel(props: Props) {
     onRoomIdChange,
     onConnect,
     onDisconnect,
-    onOpenWsDebug,
   } = props;
 
   return (
@@ -143,16 +141,6 @@ export default function AudioReceiverControlPanel(props: Props) {
           </p>
         </div>
 
-        <div className="action-button-wrap">
-          <button
-            onClick={onOpenWsDebug}
-            className="action-button bg-slate-100"
-            type="button"
-          >
-            /ws を開く（デバッグ）
-          </button>
-          <p className="button-reason is-ready">接続確認用に別タブで開けます</p>
-        </div>
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
