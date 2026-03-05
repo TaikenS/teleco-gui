@@ -81,10 +81,10 @@ export default function AudioReceiverControlPanel(props: Props) {
       </p>
 
       <div className="grid gap-2 md:grid-cols-3">
-        <label className="text-xs text-slate-700">
+        <label className="text-sm text-slate-700">
           シグナリング IPアドレス
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
             value={signalingIpAddress}
             onChange={(e) => onSignalingIpAddressChange(e.target.value)}
             disabled={connected || wsBusy}
@@ -92,10 +92,10 @@ export default function AudioReceiverControlPanel(props: Props) {
           />
         </label>
 
-        <label className="text-xs text-slate-700">
+        <label className="text-sm text-slate-700">
           シグナリング ポート
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
             value={signalingPort}
             onChange={(e) => onSignalingPortChange(e.target.value)}
             disabled={connected || wsBusy}
@@ -103,10 +103,10 @@ export default function AudioReceiverControlPanel(props: Props) {
           />
         </label>
 
-        <label className="text-xs text-slate-700">
+        <label className="text-sm text-slate-700">
           ルームID
           <input
-            className="mt-1 w-full rounded-xl border px-3 py-1.5 text-xs bg-white"
+            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
             value={roomId}
             onChange={(e) => onRoomIdChange(e.target.value)}
             disabled={connected || wsBusy}
@@ -126,7 +126,7 @@ export default function AudioReceiverControlPanel(props: Props) {
             data-busy={wsBusy ? "1" : "0"}
             aria-busy={wsBusy}
           >
-            {wsBusy ? "接続中..." : "接続"}
+            {wsBusy ? "シグナリング接続中..." : "シグナリング接続"}
           </button>
           <p
             className={`button-reason ${canConnect ? "is-ready" : "is-disabled"}`}
@@ -138,7 +138,7 @@ export default function AudioReceiverControlPanel(props: Props) {
               : connected
                 ? "すでに接続中です"
                 : wsBusy
-                  ? "接続処理中です"
+                  ? "シグナリング接続処理中です"
                   : "シグナリングへ接続できます"}
           </p>
         </div>
@@ -149,12 +149,14 @@ export default function AudioReceiverControlPanel(props: Props) {
             disabled={!canDisconnect}
             className="action-button bg-slate-100 text-sm"
           >
-            切断
+            シグナリング切断
           </button>
           <p
             className={`button-reason ${canDisconnect ? "is-ready" : "is-disabled"}`}
           >
-            {canDisconnect ? "接続を停止できます" : "現在は未接続です"}
+            {canDisconnect
+              ? "シグナリング接続を停止できます"
+              : "シグナリングは未接続です"}
           </p>
         </div>
 

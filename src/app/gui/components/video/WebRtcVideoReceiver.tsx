@@ -418,10 +418,10 @@ export default function WebRtcVideoReceiver({
     ? "シグナリングへ接続できます"
     : connected
       ? "すでに接続中です"
-      : "接続処理中です";
+      : "シグナリング接続処理中です";
   const disconnectReason = canDisconnectSignaling
-    ? "接続を停止できます"
-    : "現在は未接続です";
+    ? "シグナリング接続を停止できます"
+    : "シグナリングは未接続です";
 
   // シグナリング復旧ハンドリング
   useEffect(() => {
@@ -584,7 +584,7 @@ export default function WebRtcVideoReceiver({
             data-busy={wsBusy ? "1" : "0"}
             aria-busy={wsBusy}
           >
-            {wsBusy ? "接続中..." : "Signaling接続"}
+            {wsBusy ? "シグナリング接続中..." : "シグナリング接続"}
           </button>
           <p
             className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
@@ -599,7 +599,7 @@ export default function WebRtcVideoReceiver({
             disabled={!canDisconnectSignaling}
             className="action-button bg-slate-100 text-sm"
           >
-            切断
+            シグナリング切断
           </button>
           <p
             className={`button-reason ${canDisconnectSignaling ? "is-ready" : "is-disabled"}`}

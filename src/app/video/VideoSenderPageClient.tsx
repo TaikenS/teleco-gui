@@ -820,6 +820,7 @@ export default function VideoSenderPage({
     signalingPort.trim().length > 0;
   const canStartStreaming =
     hasCameraStream && wsConnected && !rtcBusy && !rtcConnectingOrConnected;
+  const canStopStreaming = rtcBusy || rtcConnectingOrConnected;
   const canDisconnectSignaling = wsConnected || wsBusy;
 
   const startCameraReason = canStartCamera
@@ -848,7 +849,7 @@ export default function VideoSenderPage({
   });
 
   const startStreamingReason = canStartStreaming
-    ? "受信側への配信を開始できます"
+    ? "送信を開始できます"
     : !hasCameraStream
       ? "先にカメラ起動が必要です"
       : !wsConnected
@@ -856,6 +857,9 @@ export default function VideoSenderPage({
         : rtcBusy
           ? "配信開始処理中です"
           : "すでに送信中です";
+  const stopStreamingReason = canStopStreaming
+    ? "送信を停止できます"
+    : "現在は送信していません";
 
   const disconnectReason = canDisconnectSignaling
     ? "シグナリング接続を切断できます"
@@ -863,11 +867,11 @@ export default function VideoSenderPage({
 
   const nextActionHint = !hasCameraStream
     ? "次の操作: ① カメラ起動"
-    : !wsConnected
-      ? "次の操作: ② シグナリング接続"
+      : !wsConnected
+        ? "次の操作: ② シグナリング接続"
       : !rtcConnectingOrConnected
-        ? "次の操作: ③ 受信側へ映像送信開始"
-        : "現在: 受信側へ映像送信中です";
+        ? "次の操作: ③ 送信開始"
+        : "現在: 送信中です";
 
   const handleCameraChange = (nextId: string) => {
     setSelectedCameraId(nextId);
@@ -906,6 +910,14 @@ export default function VideoSenderPage({
     setRtcBusy(false);
   };
 
+  const handleStopStreaming = () => {
+    desiredStreamingRef.current = false;
+    window.localStorage.setItem(STORAGE.streamingActive, "0");
+    closePc();
+    setRtcBusy(false);
+    logLine("送信停止");
+  };
+
   const content = (
     <>
       {!embedded && <h1 className="text-xl font-semibold">Sender (別PC用)</h1>}
@@ -933,7 +945,9 @@ export default function VideoSenderPage({
         canDisconnectSignaling={canDisconnectSignaling}
         disconnectReason={disconnectReason}
         canStartStreaming={canStartStreaming}
+        canStopStreaming={canStopStreaming}
         startStreamingReason={startStreamingReason}
+        stopStreamingReason={stopStreamingReason}
         wsError={wsError}
         onRoomIdChange={setRoomId}
         onSignalingIpAddressChange={handleSignalingIpAddressChange}
@@ -945,6 +959,7 @@ export default function VideoSenderPage({
         onConnectSignaling={handleConnectSignaling}
         onDisconnectSignaling={handleDisconnectSignaling}
         onStartStreaming={() => void startWebRTC()}
+        onStopStreaming={handleStopStreaming}
       />
       <VideoSenderPreviewPanel
         localVideoRef={localVideoRef}

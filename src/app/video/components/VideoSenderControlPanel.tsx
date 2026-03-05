@@ -27,7 +27,9 @@ type Props = {
   canDisconnectSignaling: boolean;
   disconnectReason: string;
   canStartStreaming: boolean;
+  canStopStreaming: boolean;
   startStreamingReason: string;
+  stopStreamingReason: string;
   wsError: string | null;
   onRoomIdChange: (value: string) => void;
   onSignalingIpAddressChange: (value: string) => void;
@@ -39,6 +41,7 @@ type Props = {
   onConnectSignaling: () => void;
   onDisconnectSignaling: () => void;
   onStartStreaming: () => void;
+  onStopStreaming: () => void;
 };
 
 export default function VideoSenderControlPanel(props: Props) {
@@ -66,7 +69,9 @@ export default function VideoSenderControlPanel(props: Props) {
     canDisconnectSignaling,
     disconnectReason,
     canStartStreaming,
+    canStopStreaming,
     startStreamingReason,
+    stopStreamingReason,
     wsError,
     onRoomIdChange,
     onSignalingIpAddressChange,
@@ -78,6 +83,7 @@ export default function VideoSenderControlPanel(props: Props) {
     onConnectSignaling,
     onDisconnectSignaling,
     onStartStreaming,
+    onStopStreaming,
   } = props;
 
   return (
@@ -149,9 +155,9 @@ export default function VideoSenderControlPanel(props: Props) {
 
       <div className="space-y-1">
         <label className="text-sm text-slate-700">カメラ</label>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
           <select
-            className="min-w-[240px] rounded-xl border px-3 py-2 text-sm"
+            className="w-full rounded-xl border px-3 py-2 text-sm"
             value={selectedCameraId}
             onChange={(e) => onCameraChange(e.target.value)}
             disabled={videoInputs.length === 0}
@@ -166,10 +172,9 @@ export default function VideoSenderControlPanel(props: Props) {
               ))
             )}
           </select>
-
           <button
             onClick={onRefreshCameras}
-            className="rounded-xl bg-slate-100 px-3 py-2 text-sm"
+            className="action-button bg-slate-100 self-end text-sm"
           >
             デバイス更新
           </button>
@@ -181,11 +186,11 @@ export default function VideoSenderControlPanel(props: Props) {
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-3 text-sm">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div className="action-button-wrap">
           <button
             onClick={onStartCamera}
-            className="action-button bg-slate-900 text-white"
+            className="action-button bg-slate-900 text-white text-sm"
             disabled={!canStartCamera}
             data-busy={cameraBusy ? "1" : "0"}
             aria-busy={cameraBusy}
@@ -217,7 +222,7 @@ export default function VideoSenderControlPanel(props: Props) {
         <div className="action-button-wrap">
           <button
             onClick={onConnectSignaling}
-            className="action-button bg-slate-100"
+            className="action-button bg-slate-900 text-white text-sm"
             disabled={!canConnectSignaling}
             data-busy={wsBusy ? "1" : "0"}
             aria-busy={wsBusy}
@@ -234,7 +239,7 @@ export default function VideoSenderControlPanel(props: Props) {
         <div className="action-button-wrap">
           <button
             onClick={onDisconnectSignaling}
-            className="action-button bg-slate-100"
+            className="action-button bg-slate-100 text-sm"
             disabled={!canDisconnectSignaling}
           >
             シグナリング切断
@@ -249,17 +254,32 @@ export default function VideoSenderControlPanel(props: Props) {
         <div className="action-button-wrap">
           <button
             onClick={onStartStreaming}
-            className="action-button bg-emerald-600 text-white"
+            className="action-button bg-emerald-600 text-white text-sm"
             disabled={!canStartStreaming}
             data-busy={rtcBusy ? "1" : "0"}
             aria-busy={rtcBusy}
           >
-            {rtcBusy ? "開始中..." : "受信側へ映像送信開始"}
+            {rtcBusy ? "開始中..." : "送信開始"}
           </button>
           <p
             className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}
           >
             {startStreamingReason}
+          </p>
+        </div>
+
+        <div className="action-button-wrap">
+          <button
+            onClick={onStopStreaming}
+            className="action-button bg-slate-100 text-sm"
+            disabled={!canStopStreaming}
+          >
+            送信停止
+          </button>
+          <p
+            className={`button-reason ${canStopStreaming ? "is-ready" : "is-disabled"}`}
+          >
+            {stopStreamingReason}
           </p>
         </div>
       </div>

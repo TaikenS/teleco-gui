@@ -129,11 +129,11 @@ export default function AudioSenderDevicePanel({
 
         <p className="action-state-hint" role="status" aria-live="polite">
           {!signalConnected
-            ? "次の操作: ① Signal WS に接続"
+            ? "次の操作: ① シグナリング接続"
             : !hasMic
               ? "次の操作: ② マイクを選択"
               : !callActive
-                ? "次の操作: ③ Receiver への送信を開始"
+                ? "次の操作: ③ 送信開始"
                 : "現在: 送信中"}
         </p>
 
@@ -172,54 +172,50 @@ export default function AudioSenderDevicePanel({
           確認用 Signal WS URL: {signalingWsUrlForDisplay}
         </p>
 
-        <label className="text-sm text-slate-700">
-          マイク
-          <select
-            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-            value={selectedMicId}
-            onChange={(e) => onSetSelectedMicId(e.target.value)}
+        <div className="grid gap-2 md:grid-cols-[1fr_auto]">
+          <label className="text-sm text-slate-700">
+            マイク
+            <select
+              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+              value={selectedMicId}
+              onChange={(e) => onSetSelectedMicId(e.target.value)}
+            >
+              {mics.map((m) => (
+                <option key={m.deviceId} value={m.deviceId}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            onClick={onRefreshDevices}
+            className="action-button bg-slate-100 self-end text-sm"
           >
-            {mics.map((m) => (
-              <option key={m.deviceId} value={m.deviceId}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
+            デバイス更新
+          </button>
+        </div>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           <div className="action-button-wrap">
             <button
-              onClick={onRefreshDevices}
-              className="action-button bg-slate-100 text-sm"
-            >
-              デバイス更新
-            </button>
-            <p className="button-reason is-ready">
-              接続前にマイク一覧を更新できます
-            </p>
-          </div>
-
-          <div className="action-button-wrap">
-            <button
               onClick={onConnectSignal}
               disabled={!canConnectSignalNow}
-              className="action-button bg-slate-900 text-white text-sm"
-              data-busy={signalBusy ? "1" : "0"}
-              aria-busy={signalBusy}
-            >
-              {signalBusy ? "Signal 接続中..." : "Signal WS接続"}
+            className="action-button bg-slate-900 text-white text-sm"
+            data-busy={signalBusy ? "1" : "0"}
+            aria-busy={signalBusy}
+          >
+              {signalBusy ? "シグナリング接続中..." : "シグナリング接続"}
             </button>
             <p
               className={`button-reason ${canConnectSignalNow ? "is-ready" : "is-disabled"}`}
             >
               {signalConnected
-                ? "Signal WSはすでに接続中です"
+                ? "シグナリングはすでに接続中です"
                 : signalBusy
-                  ? "Signal WS接続処理中です"
+                  ? "シグナリング接続処理中です"
                   : !hasSignalingTarget
                     ? "IPアドレス / ポート / ルームIDを入力してください"
-                    : "Signal WSへ接続できます"}
+                    : "シグナリングへ接続できます"}
             </p>
           </div>
 
@@ -229,14 +225,14 @@ export default function AudioSenderDevicePanel({
               disabled={!canDisconnectSignal}
               className="action-button bg-slate-100 text-sm"
             >
-              Signal WS切断
+              シグナリング切断
             </button>
             <p
               className={`button-reason ${canDisconnectSignal ? "is-ready" : "is-disabled"}`}
             >
               {canDisconnectSignal
-                ? "Signal WS接続を停止できます"
-                : "Signal WSは未接続です"}
+                ? "シグナリング接続を停止できます"
+                : "シグナリングは未接続です"}
             </p>
           </div>
 
@@ -250,13 +246,13 @@ export default function AudioSenderDevicePanel({
             >
               {callStatus === "offer送信中"
                 ? "送信開始中..."
-                : "Receiver送信を開始"}
+                : "送信開始"}
             </button>
             <p
               className={`button-reason ${canStartSending ? "is-ready" : "is-disabled"}`}
             >
               {!signalConnected
-                ? "先にSignal WS接続が必要です"
+                ? "先にシグナリング接続が必要です"
                 : !hasMic
                   ? "先にマイクを選択してください"
                   : callActive
@@ -282,7 +278,7 @@ export default function AudioSenderDevicePanel({
         </div>
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-          <span>Signal WS: {signalWsStatus}</span>
+          <span>シグナリング: {signalWsStatus}</span>
           <span>音声送信: {callStatus}</span>
           <span>最終母音: {lastVowel}</span>
         </div>
