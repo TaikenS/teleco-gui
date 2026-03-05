@@ -33,11 +33,19 @@ export function useMouthAnalyzer(params: {
   const mouthEstimatorRef = useRef<VowelEstimator | null>(null);
   const lastDetectedVowelRef = useRef<Exclude<Vowel, "xn"> | null>(null);
   const lastDetectedAtMsRef = useRef<number>(0);
+  const pendingXnTimerRef = useRef<number | null>(null);
 
   const micTestAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [micTestRunning, setMicTestRunning] = useState(false);
   const [micLevel, setMicLevel] = useState(0);
+
+  const clearPendingXnTimer = () => {
+    if (pendingXnTimerRef.current != null) {
+      window.clearTimeout(pendingXnTimerRef.current);
+      pendingXnTimerRef.current = null;
+    }
+  };
 
   const stopMouthAnalyzer = () => {
     if (mouthProcessorRef.current) {
@@ -81,6 +89,7 @@ export function useMouthAnalyzer(params: {
     mouthModeRef.current = null;
     lastDetectedVowelRef.current = null;
     lastDetectedAtMsRef.current = 0;
+    clearPendingXnTimer();
 
     setMicTestRunning(false);
     setMicLevel(0);
@@ -140,13 +149,19 @@ export function useMouthAnalyzer(params: {
           if (!autoMouthEnabled) return;
           const now = performance.now();
           if (v === "N" || v === "n") {
-            // 発話終了時は口形をニュートラル(xn)へ戻す。
-            lastDetectedVowelRef.current = null;
-            lastDetectedAtMsRef.current = now;
-            sendMouthVowel("xn");
+            // Nが連続して一定時間続いたときだけxnへ戻す。
+            if (pendingXnTimerRef.current == null) {
+              pendingXnTimerRef.current = window.setTimeout(() => {
+                pendingXnTimerRef.current = null;
+                lastDetectedVowelRef.current = null;
+                lastDetectedAtMsRef.current = performance.now();
+                sendMouthVowel("xn");
+              }, 800);
+            }
             return;
           }
           if (v === "a" || v === "i" || v === "u" || v === "e" || v === "o") {
+            clearPendingXnTimer();
             lastDetectedVowelRef.current = v;
             lastDetectedAtMsRef.current = now;
             sendMouthVowel(v);

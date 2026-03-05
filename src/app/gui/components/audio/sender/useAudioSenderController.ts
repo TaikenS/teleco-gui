@@ -1351,7 +1351,8 @@ export function useAudioSenderController({
       onSetShowRawCommandPanel: setShowRawCommandPanel,
       onSetEnableFaceCommandSend: setEnableFaceCommandSend,
       onSetEnableMoveMultiSend: setEnableMoveMultiSend,
-      onSendMouthVowel: (v) => sendMouthVowel(v, { force: true, source: "manual" }),
+      onSendMouthVowel: (v: Vowel) =>
+        sendMouthVowel(v, { force: true, source: "manual" }),
       onSetCommandJson: setCommandJson,
       onSendRawCommandJson: sendRawCommandJson,
       onClearCommandLog: () => setCommandLog(""),
