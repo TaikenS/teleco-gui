@@ -158,9 +158,8 @@ export default function AudioReceiverControlPanel(props: Props) {
         />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <PanelField label="出力デバイス" labelClassName="text-xs">
+        <PanelField label="出力デバイス">
           <PanelSelect
-            className="py-1.5 text-xs"
             value={selectedAudioOutputId}
             onChange={(e) => onAudioOutputChange(e.target.value)}
             disabled={!sinkSelectionSupported || audioOutputOptions.length === 0}
