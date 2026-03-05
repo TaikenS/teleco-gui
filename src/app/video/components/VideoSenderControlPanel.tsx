@@ -24,10 +24,10 @@ type Props = {
   stopCameraReason: string;
   canConnectSignaling: boolean;
   connectReason: string;
+  canDisconnectSignaling: boolean;
+  disconnectReason: string;
   canStartStreaming: boolean;
   startStreamingReason: string;
-  canStopConnection: boolean;
-  stopReason: string;
   wsError: string | null;
   onRoomIdChange: (value: string) => void;
   onSignalingIpAddressChange: (value: string) => void;
@@ -37,8 +37,8 @@ type Props = {
   onStartCamera: () => void;
   onStopCamera: () => void;
   onConnectSignaling: () => void;
+  onDisconnectSignaling: () => void;
   onStartStreaming: () => void;
-  onStopConnection: () => void;
 };
 
 export default function VideoSenderControlPanel(props: Props) {
@@ -63,10 +63,10 @@ export default function VideoSenderControlPanel(props: Props) {
     stopCameraReason,
     canConnectSignaling,
     connectReason,
+    canDisconnectSignaling,
+    disconnectReason,
     canStartStreaming,
     startStreamingReason,
-    canStopConnection,
-    stopReason,
     wsError,
     onRoomIdChange,
     onSignalingIpAddressChange,
@@ -76,8 +76,8 @@ export default function VideoSenderControlPanel(props: Props) {
     onStartCamera,
     onStopCamera,
     onConnectSignaling,
+    onDisconnectSignaling,
     onStartStreaming,
-    onStopConnection,
   } = props;
 
   return (
@@ -233,33 +233,33 @@ export default function VideoSenderControlPanel(props: Props) {
 
         <div className="action-button-wrap">
           <button
+            onClick={onDisconnectSignaling}
+            className="action-button bg-slate-100"
+            disabled={!canDisconnectSignaling}
+          >
+            シグナリング切断
+          </button>
+          <p
+            className={`button-reason ${canDisconnectSignaling ? "is-ready" : "is-disabled"}`}
+          >
+            {disconnectReason}
+          </p>
+        </div>
+
+        <div className="action-button-wrap">
+          <button
             onClick={onStartStreaming}
             className="action-button bg-emerald-600 text-white"
             disabled={!canStartStreaming}
             data-busy={rtcBusy ? "1" : "0"}
             aria-busy={rtcBusy}
           >
-            {rtcBusy ? "開始中..." : "viewer へ映像送信開始"}
+            {rtcBusy ? "開始中..." : "受信側へ映像送信開始"}
           </button>
           <p
             className={`button-reason ${canStartStreaming ? "is-ready" : "is-disabled"}`}
           >
             {startStreamingReason}
-          </p>
-        </div>
-
-        <div className="action-button-wrap">
-          <button
-            onClick={onStopConnection}
-            className="action-button bg-slate-100"
-            disabled={!canStopConnection}
-          >
-            接続停止
-          </button>
-          <p
-            className={`button-reason ${canStopConnection ? "is-ready" : "is-disabled"}`}
-          >
-            {stopReason}
           </p>
         </div>
       </div>

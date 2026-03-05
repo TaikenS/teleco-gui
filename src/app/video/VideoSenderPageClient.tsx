@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import VideoSenderControlPanel from "@/app/video/components/VideoSenderControlPanel";
-import VideoSenderLogPanel from "@/app/video/components/VideoSenderLogPanel";
 import VideoSenderPreviewPanel from "@/app/video/components/VideoSenderPreviewPanel";
 import { scheduleEnvLocalSync } from "@/lib/envLocalClient";
 import {
@@ -806,12 +805,6 @@ export default function VideoSenderPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const activeCameraLabel = selectedCameraId
-    ? cameraLabelById(selectedCameraId)
-    : videoInputs.length > 0
-      ? cameraLabelById(videoInputs[0].deviceId)
-      : "未選択";
-
   const hasCameraStream = !!stream;
   const wsConnected = connected;
   const rtcConnectingOrConnected =
@@ -827,8 +820,7 @@ export default function VideoSenderPage({
     signalingPort.trim().length > 0;
   const canStartStreaming =
     hasCameraStream && wsConnected && !rtcBusy && !rtcConnectingOrConnected;
-  const canStopConnection =
-    wsConnected || wsBusy || rtcBusy || rtcConnectingOrConnected;
+  const canDisconnectSignaling = wsConnected || wsBusy;
 
   const startCameraReason = canStartCamera
     ? "カメラを起動できます"
@@ -856,7 +848,7 @@ export default function VideoSenderPage({
   });
 
   const startStreamingReason = canStartStreaming
-    ? "viewer への配信を開始できます"
+    ? "受信側への配信を開始できます"
     : !hasCameraStream
       ? "先にカメラ起動が必要です"
       : !wsConnected
@@ -865,17 +857,17 @@ export default function VideoSenderPage({
           ? "配信開始処理中です"
           : "すでに送信中です";
 
-  const stopReason = canStopConnection
-    ? "接続を停止できます"
-    : "停止対象がありません";
+  const disconnectReason = canDisconnectSignaling
+    ? "シグナリング接続を切断できます"
+    : "シグナリングは未接続です";
 
   const nextActionHint = !hasCameraStream
     ? "次の操作: ① カメラ起動"
     : !wsConnected
       ? "次の操作: ② シグナリング接続"
       : !rtcConnectingOrConnected
-        ? "次の操作: ③ viewerへ映像送信開始"
-        : "現在: viewerへ映像送信中です";
+        ? "次の操作: ③ 受信側へ映像送信開始"
+        : "現在: 受信側へ映像送信中です";
 
   const handleCameraChange = (nextId: string) => {
     setSelectedCameraId(nextId);
@@ -903,7 +895,7 @@ export default function VideoSenderPage({
     connectSignaling();
   };
 
-  const handleStopConnection = () => {
+  const handleDisconnectSignaling = () => {
     shouldAutoConnectRef.current = false;
     desiredStreamingRef.current = false;
     window.localStorage.setItem(STORAGE.autoConnect, "0");
@@ -938,10 +930,10 @@ export default function VideoSenderPage({
         stopCameraReason={stopCameraReason}
         canConnectSignaling={canConnectSignaling}
         connectReason={connectReason}
+        canDisconnectSignaling={canDisconnectSignaling}
+        disconnectReason={disconnectReason}
         canStartStreaming={canStartStreaming}
         startStreamingReason={startStreamingReason}
-        canStopConnection={canStopConnection}
-        stopReason={stopReason}
         wsError={wsError}
         onRoomIdChange={setRoomId}
         onSignalingIpAddressChange={handleSignalingIpAddressChange}
@@ -951,15 +943,14 @@ export default function VideoSenderPage({
         onStartCamera={() => void startCamera()}
         onStopCamera={stopCamera}
         onConnectSignaling={handleConnectSignaling}
+        onDisconnectSignaling={handleDisconnectSignaling}
         onStartStreaming={() => void startWebRTC()}
-        onStopConnection={handleStopConnection}
       />
       <VideoSenderPreviewPanel
         localVideoRef={localVideoRef}
         connected={connected}
-        activeCameraLabel={activeCameraLabel}
+        log={log}
       />
-      <VideoSenderLogPanel log={log} />
     </>
   );
 
