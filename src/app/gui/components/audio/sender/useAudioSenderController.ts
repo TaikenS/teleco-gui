@@ -1387,7 +1387,6 @@ export function useAudioSenderController({
       onStartMicTest: micAnalyzer.onStartMicTest,
       onStopMicTest: micAnalyzer.onStopMicTest,
       onSetShowSignalLogPanel: setShowSignalLogPanel,
-      onClearSignalConnectionLog: () => setSignalConnectionLog(""),
     },
     telecoPanelProps: {
       telecoIpAddress,
@@ -1441,7 +1440,6 @@ export function useAudioSenderController({
       onSetCommandJson: setCommandJson,
       onSendRawCommandJson: sendRawCommandJson,
       onClearCommandLog: () => setCommandLog(""),
-      onClearCommandConnectionLog: () => setCommandConnectionLog(""),
     },
   };
 }

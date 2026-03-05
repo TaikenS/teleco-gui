@@ -44,7 +44,6 @@ type Props = {
   onSetCommandJson: (v: string) => void;
   onSendRawCommandJson: () => void;
   onClearCommandLog: () => void;
-  onClearCommandConnectionLog: () => void;
 };
 
 export default function TelecoControlPanel({
@@ -93,7 +92,6 @@ export default function TelecoControlPanel({
   onSetCommandJson,
   onSendRawCommandJson,
   onClearCommandLog,
-  onClearCommandConnectionLog,
 }: Props) {
   return (
     <>
@@ -310,7 +308,7 @@ export default function TelecoControlPanel({
             aria-pressed={showCommandLogPanel}
             onClick={() => onSetShowCommandLogPanel(!showCommandLogPanel)}
           >
-            接続ログ
+            ログ
           </button>
         </div>
       </div>
@@ -442,21 +440,9 @@ export default function TelecoControlPanel({
       )}
 
       {showCommandLogPanel && (
-        <div className="rounded-xl border bg-white p-3 space-y-2">
-          <div className="text-sm font-semibold">Teleco 接続ログ</div>
-          <div className="action-button-wrap">
-            <button
-              onClick={onClearCommandConnectionLog}
-              className="action-button bg-slate-100 text-sm"
-            >
-              ログをクリア
-            </button>
-            <p className="button-reason is-ready">接続ログ表示をクリアします</p>
-          </div>
-          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
-            {commandConnectionLog || "接続ログはまだありません"}
-          </pre>
-        </div>
+        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
+          {commandConnectionLog || "ログはまだありません"}
+        </pre>
       )}
     </>
   );

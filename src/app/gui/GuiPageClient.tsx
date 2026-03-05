@@ -217,7 +217,7 @@ export default function GuiPage() {
             <EmbeddedVideoSenderPage embedded />
           </Card>
 
-          <Card title="映像受信" subtitle={subtitleForMode(mode)}>
+          <Card title="映像受信">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-xs font-medium text-slate-500">映像ソース</span>
               <select
@@ -312,12 +312,4 @@ function Card(props: {
   );
 }
 
-function subtitleForMode(mode: VideoSourceMode): string {
-  switch (mode) {
-    case "local":
-      return "このPCのカメラ映像を表示します（getUserMedia）。";
-    case "webSender":
-      return "別PCの /video から映像を受信します（WebRTC + WS）。";
-  }
-}
 

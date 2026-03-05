@@ -52,7 +52,6 @@ type Props = {
   onStartMicTest: () => void;
   onStopMicTest: () => void;
   onSetShowSignalLogPanel: (v: boolean) => void;
-  onClearSignalConnectionLog: () => void;
 };
 
 export default function AudioSenderDevicePanel({
@@ -105,7 +104,6 @@ export default function AudioSenderDevicePanel({
   onStartMicTest,
   onStopMicTest,
   onSetShowSignalLogPanel,
-  onClearSignalConnectionLog,
 }: Props) {
   const [showMicTestPanel, setShowMicTestPanel] = useState(false);
 
@@ -306,7 +304,7 @@ export default function AudioSenderDevicePanel({
             onClick={() => onSetShowSignalLogPanel(!showSignalLogPanel)}
             aria-pressed={showSignalLogPanel}
           >
-            接続ログ
+            ログ
           </button>
         </div>
 
@@ -473,21 +471,9 @@ export default function AudioSenderDevicePanel({
         )}
 
         {showSignalLogPanel && (
-          <div className="rounded-xl border bg-white p-3 space-y-2">
-            <div className="text-sm font-semibold">音声送信 接続ログ</div>
-            <div className="action-button-wrap">
-              <button
-                onClick={onClearSignalConnectionLog}
-                className="action-button bg-slate-100 text-sm"
-              >
-                ログをクリア
-              </button>
-              <p className="button-reason is-ready">接続ログ表示をクリアします</p>
-            </div>
-            <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48">
-              {signalConnectionLog || "接続ログはまだありません"}
-            </pre>
-          </div>
+          <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
+            {signalConnectionLog || "ログはまだありません"}
+          </pre>
         )}
     </div>
   );
