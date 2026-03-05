@@ -36,6 +36,13 @@ const VIDEO_ROOM_STORAGE_KEY = "teleco.gui.video.roomId";
 const VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY =
   "teleco.gui.video.signalingIpAddress";
 const VIDEO_SIGNAL_PORT_STORAGE_KEY = "teleco.gui.video.signalingPort";
+const PANEL_AUDIO_SENDER_VISIBLE_KEY = "teleco.gui.panel.audioSender.visible";
+const PANEL_AUDIO_RECEIVER_VISIBLE_KEY =
+  "teleco.gui.panel.audioReceiver.visible";
+const PANEL_TELECO_VISIBLE_KEY = "teleco.gui.panel.teleco.visible";
+const PANEL_VIDEO_SENDER_VISIBLE_KEY = "teleco.gui.panel.videoSender.visible";
+const PANEL_VIDEO_RECEIVER_VISIBLE_KEY =
+  "teleco.gui.panel.videoReceiver.visible";
 
 const RAW_DEFAULT_VIDEO_ROOM =
   process.env.NEXT_PUBLIC_VIDEO_SENDER_ROOM_ID?.trim() ||
@@ -107,6 +114,26 @@ export default function GuiPage() {
       VIDEO_SIGNAL_PORT_STORAGE_KEY,
       DEFAULT_SIGNALING_PORT,
     );
+  const [showAudioSender, setShowAudioSender] = usePersistentState<boolean>(
+    PANEL_AUDIO_SENDER_VISIBLE_KEY,
+    true,
+  );
+  const [showAudioReceiver, setShowAudioReceiver] = usePersistentState<boolean>(
+    PANEL_AUDIO_RECEIVER_VISIBLE_KEY,
+    true,
+  );
+  const [showTeleco, setShowTeleco] = usePersistentState<boolean>(
+    PANEL_TELECO_VISIBLE_KEY,
+    true,
+  );
+  const [showVideoSender, setShowVideoSender] = usePersistentState<boolean>(
+    PANEL_VIDEO_SENDER_VISIBLE_KEY,
+    true,
+  );
+  const [showVideoReceiver, setShowVideoReceiver] = usePersistentState<boolean>(
+    PANEL_VIDEO_RECEIVER_VISIBLE_KEY,
+    true,
+  );
 
   React.useEffect(() => {
     if (!didInitSettingsRef.current) return;
@@ -187,7 +214,48 @@ export default function GuiPage() {
               Teleco Operator Console
             </h1>
           </div>
-
+          <div className="toggle-pill-group">
+            <button
+              type="button"
+              className={`toggle-pill ${showAudioSender ? "is-active" : ""}`}
+              aria-pressed={showAudioSender}
+              onClick={() => setShowAudioSender((v) => !v)}
+            >
+              音声送信
+            </button>
+            <button
+              type="button"
+              className={`toggle-pill ${showAudioReceiver ? "is-active" : ""}`}
+              aria-pressed={showAudioReceiver}
+              onClick={() => setShowAudioReceiver((v) => !v)}
+            >
+              音声受信
+            </button>
+            <button
+              type="button"
+              className={`toggle-pill ${showTeleco ? "is-active" : ""}`}
+              aria-pressed={showTeleco}
+              onClick={() => setShowTeleco((v) => !v)}
+            >
+              Teleco制御
+            </button>
+            <button
+              type="button"
+              className={`toggle-pill ${showVideoSender ? "is-active" : ""}`}
+              aria-pressed={showVideoSender}
+              onClick={() => setShowVideoSender((v) => !v)}
+            >
+              映像送信
+            </button>
+            <button
+              type="button"
+              className={`toggle-pill ${showVideoReceiver ? "is-active" : ""}`}
+              aria-pressed={showVideoReceiver}
+              onClick={() => setShowVideoReceiver((v) => !v)}
+            >
+              映像受信
+            </button>
+          </div>
         </div>
       </header>
 
@@ -199,93 +267,103 @@ export default function GuiPage() {
             </p>
           )}
 
-          <Card title="音声送信">
-            <AudioSenderDevicePanel {...audioSenderController.devicePanelProps} />
-          </Card>
+          {showAudioSender && (
+            <Card title="音声送信">
+              <AudioSenderDevicePanel {...audioSenderController.devicePanelProps} />
+            </Card>
+          )}
 
-          <Card title="音声受信">
-            <EmbeddedAudioReceiverPage embedded />
-          </Card>
+          {showAudioReceiver && (
+            <Card title="音声受信">
+              <EmbeddedAudioReceiverPage embedded />
+            </Card>
+          )}
 
-          <Card title="Teleco制御">
-            <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
-          </Card>
+          {showTeleco && (
+            <Card title="Teleco制御">
+              <TelecoControlPanel {...audioSenderController.telecoPanelProps} />
+            </Card>
+          )}
         </section>
 
         <section className="space-y-4 lg:col-span-6 lg:max-h-[calc(100vh-108px)] lg:overflow-y-auto lg:pr-1">
-          <Card title="映像送信">
-            <EmbeddedVideoSenderPage embedded />
-          </Card>
+          {showVideoSender && (
+            <Card title="映像送信">
+              <EmbeddedVideoSenderPage embedded />
+            </Card>
+          )}
 
-          <Card title="映像受信">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs font-medium text-slate-500">映像ソース</span>
-              <select
-                className="rounded-xl border bg-white px-3 py-1.5 text-xs"
-                value={mode}
-                onChange={(e) => setMode(e.target.value as VideoSourceMode)}
-              >
-                <option value="webSender">/video 送信映像（WebRTC）</option>
-                <option value="local">このPCのローカルカメラ</option>
-              </select>
-            </div>
-
-            {mode === "local" && (
-              <LocalCameraStream videoDeviceId={selectedVideoId} />
-            )}
-
-            {mode === "webSender" && (
-              <div className="space-y-3">
-                <WebRtcVideoReceiver
-                  roomId={videoRoomId || DEFAULT_VIDEO_ROOM}
-                  signalingWsUrl={videoSignalingWsUrl}
-                  settingsPanel={
-                    <>
-                      <div className="grid gap-2 md:grid-cols-3">
-                        <label className="text-sm text-slate-700">
-                          シグナリング IPアドレス
-                          <input
-                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                            value={videoSignalingIpAddress}
-                            onChange={(e) =>
-                              handleVideoSignalingIpAddressChange(e.target.value)
-                            }
-                            placeholder="192.168.1.12"
-                          />
-                        </label>
-
-                        <label className="text-sm text-slate-700">
-                          シグナリング ポート
-                          <input
-                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                            value={videoSignalingPort}
-                            onChange={(e) =>
-                              handleVideoSignalingPortChange(e.target.value)
-                            }
-                            placeholder="3000"
-                          />
-                        </label>
-
-                        <label className="text-sm text-slate-700">
-                          ルームID
-                          <input
-                            className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
-                            value={videoRoomId}
-                            onChange={(e) => setVideoRoomId(e.target.value)}
-                            placeholder="video_ab"
-                          />
-                        </label>
-                      </div>
-
-                      <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
-                        確認用WS URL: {videoSignalingWsUrl}
-                      </p>
-                    </>
-                  }
-                />
+          {showVideoReceiver && (
+            <Card title="映像受信">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium text-slate-500">映像ソース</span>
+                <select
+                  className="rounded-xl border bg-white px-3 py-1.5 text-xs"
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value as VideoSourceMode)}
+                >
+                  <option value="webSender">/video 送信映像（WebRTC）</option>
+                  <option value="local">このPCのローカルカメラ</option>
+                </select>
               </div>
-            )}
-          </Card>
+
+              {mode === "local" && (
+                <LocalCameraStream videoDeviceId={selectedVideoId} />
+              )}
+
+              {mode === "webSender" && (
+                <div className="space-y-3">
+                  <WebRtcVideoReceiver
+                    roomId={videoRoomId || DEFAULT_VIDEO_ROOM}
+                    signalingWsUrl={videoSignalingWsUrl}
+                    settingsPanel={
+                      <>
+                        <div className="grid gap-2 md:grid-cols-3">
+                          <label className="text-sm text-slate-700">
+                            シグナリング IPアドレス
+                            <input
+                              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                              value={videoSignalingIpAddress}
+                              onChange={(e) =>
+                                handleVideoSignalingIpAddressChange(e.target.value)
+                              }
+                              placeholder="192.168.1.12"
+                            />
+                          </label>
+
+                          <label className="text-sm text-slate-700">
+                            シグナリング ポート
+                            <input
+                              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                              value={videoSignalingPort}
+                              onChange={(e) =>
+                                handleVideoSignalingPortChange(e.target.value)
+                              }
+                              placeholder="3000"
+                            />
+                          </label>
+
+                          <label className="text-sm text-slate-700">
+                            ルームID
+                            <input
+                              className="mt-1 w-full rounded-xl border px-3 py-2 text-sm bg-white"
+                              value={videoRoomId}
+                              onChange={(e) => setVideoRoomId(e.target.value)}
+                              placeholder="video_ab"
+                            />
+                          </label>
+                        </div>
+
+                        <p className="rounded-xl bg-slate-100 px-3 py-2 text-[11px] text-slate-700">
+                          確認用WS URL: {videoSignalingWsUrl}
+                        </p>
+                      </>
+                    }
+                  />
+                </div>
+              )}
+            </Card>
+          )}
         </section>
       </main>
     </div>
