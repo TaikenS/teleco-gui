@@ -103,10 +103,6 @@ export default function AudioSenderDevicePanel({
 
   return (
     <div className="rounded-xl border bg-white p-3 space-y-3">
-        <div className="text-sm font-semibold">
-          音声送信・マイク確認（GUI → 別PC AudioReceiver）
-        </div>
-
         <div className="status-chip-row">
           <span
             className={`status-chip ${signalConnected ? "is-on" : signalBusy ? "is-busy" : "is-off"}`}

@@ -222,7 +222,7 @@ export default function GuiPage() {
             </p>
           )}
 
-          <Card title="デバイス設定" subtitle="音声送信とマイク状態を確認します">
+          <Card title="音声送信">
             <AudioSenderDevicePanel {...audioSenderController.devicePanelProps} />
           </Card>
 
