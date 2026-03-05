@@ -100,7 +100,7 @@ export default function AudioReceiverControlPanel(props: Props) {
           <button
             onClick={onConnect}
             disabled={!canConnect}
-            className="action-button bg-slate-100"
+            className="action-button bg-slate-900 text-white text-sm"
             data-busy={wsBusy ? "1" : "0"}
             aria-busy={wsBusy}
           >
@@ -125,7 +125,7 @@ export default function AudioReceiverControlPanel(props: Props) {
           <button
             onClick={onDisconnect}
             disabled={!canDisconnect}
-            className="action-button bg-slate-900 text-white"
+            className="action-button bg-slate-100 text-sm"
           >
             切断
           </button>

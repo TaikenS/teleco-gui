@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import AudioReceiverControlPanel from "@/app/audio/components/AudioReceiverControlPanel";
 import AudioReceiverLogPanel from "@/app/audio/components/AudioReceiverLogPanel";
 import AudioReceiverPlaybackPanel from "@/app/audio/components/AudioReceiverPlaybackPanel";
@@ -7,6 +8,7 @@ import { useAudioReceiverController } from "@/app/audio/controller/useAudioRecei
 
 export default function AudioReceiverPage() {
   const controller = useAudioReceiverController();
+  const [showLogPanel, setShowLogPanel] = useState(false);
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -43,7 +45,21 @@ export default function AudioReceiverPage() {
           onAudioOutputChange={controller.handleAudioOutputChange}
           onRefreshAudioOutputs={controller.refreshAudioOutputs}
         />
-        <AudioReceiverLogPanel log={controller.log} />
+
+        <div className="rounded-2xl border bg-white p-4 space-y-3">
+          <div className="border-t pt-3" />
+          <div className="toggle-pill-group">
+            <button
+              type="button"
+              className={`toggle-pill ${showLogPanel ? "is-active" : ""}`}
+              aria-pressed={showLogPanel}
+              onClick={() => setShowLogPanel((v) => !v)}
+            >
+              ログ
+            </button>
+          </div>
+          {showLogPanel && <AudioReceiverLogPanel log={controller.log} />}
+        </div>
       </div>
     </main>
   );

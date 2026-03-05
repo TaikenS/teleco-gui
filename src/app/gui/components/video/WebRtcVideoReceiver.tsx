@@ -69,6 +69,7 @@ export default function WebRtcVideoReceiver({
 
   const [connected, setConnected] = useState(false);
   const [wsBusy, setWsBusy] = useState(false);
+  const [showLogPanel, setShowLogPanel] = useState(false);
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playRetryNeeded, setPlayRetryNeeded] = useState(false);
@@ -403,6 +404,17 @@ export default function WebRtcVideoReceiver({
     connectSignaling(false);
   };
 
+  const canConnectSignaling = !connected && !wsBusy;
+  const canDisconnectSignaling = connected || wsBusy;
+  const connectReason = canConnectSignaling
+    ? "シグナリングへ接続できます"
+    : connected
+      ? "すでに接続中です"
+      : "接続処理中です";
+  const disconnectReason = canDisconnectSignaling
+    ? "接続を停止できます"
+    : "現在は未接続です";
+
   // シグナリング復旧ハンドリング
   useEffect(() => {
     manualCloseRef.current = false;
@@ -540,26 +552,51 @@ export default function WebRtcVideoReceiver({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        <button
-          type="button"
-          onClick={handleConnectSignaling}
-          disabled={connected || wsBusy}
-          className="action-button bg-slate-100"
+      <div className="status-chip-row">
+        <span
+          className={`status-chip ${connected ? "is-on" : wsBusy ? "is-busy" : "is-off"}`}
         >
-          {wsBusy ? "接続中..." : "Signaling接続"}
-        </button>
-        <button
-          type="button"
-          onClick={disconnectSignaling}
-          disabled={!connected && !wsBusy}
-          className="action-button bg-slate-900 text-white"
-        >
-          切断
-        </button>
-        <span className="text-xs text-slate-600">
-          Signal: {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
+          Signal {connected ? "CONNECTED" : wsBusy ? "CONNECTING" : "OFFLINE"}
         </span>
+      </div>
+
+      <p className="action-state-hint" role="status" aria-live="polite">
+        {connected ? "現在: 映像受信待機中" : "次の操作: シグナリング接続"}
+      </p>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="action-button-wrap">
+          <button
+            type="button"
+            onClick={handleConnectSignaling}
+            disabled={!canConnectSignaling}
+            className="action-button bg-slate-900 text-white text-sm"
+            data-busy={wsBusy ? "1" : "0"}
+            aria-busy={wsBusy}
+          >
+            {wsBusy ? "接続中..." : "Signaling接続"}
+          </button>
+          <p
+            className={`button-reason ${canConnectSignaling ? "is-ready" : "is-disabled"}`}
+          >
+            {connectReason}
+          </p>
+        </div>
+        <div className="action-button-wrap">
+          <button
+            type="button"
+            onClick={disconnectSignaling}
+            disabled={!canDisconnectSignaling}
+            className="action-button bg-slate-100 text-sm"
+          >
+            切断
+          </button>
+          <p
+            className={`button-reason ${canDisconnectSignaling ? "is-ready" : "is-disabled"}`}
+          >
+            {disconnectReason}
+          </p>
+        </div>
       </div>
 
       <div
@@ -614,14 +651,22 @@ export default function WebRtcVideoReceiver({
 
       {error && <p className="text-xs text-red-600">{error}</p>}
 
-      <details className="mt-2 rounded-xl bg-slate-100 p-2 text-xs text-slate-700">
-        <summary className="cursor-pointer select-none">ログ</summary>
-        <div className="mt-1 max-h-40 space-y-1 overflow-auto">
-          {log.map((l, i) => (
-            <div key={i}>{l}</div>
-          ))}
-        </div>
-      </details>
+      <div className="border-t pt-3" />
+      <div className="toggle-pill-group">
+        <button
+          type="button"
+          className={`toggle-pill ${showLogPanel ? "is-active" : ""}`}
+          aria-pressed={showLogPanel}
+          onClick={() => setShowLogPanel((v) => !v)}
+        >
+          ログ
+        </button>
+      </div>
+      {showLogPanel && (
+        <pre className="w-full rounded-xl border bg-slate-50 p-2 text-[11px] overflow-auto max-h-48 text-slate-700">
+          {log.length > 0 ? log.join("\n") : "ログはまだありません"}
+        </pre>
+      )}
     </div>
   );
 }

@@ -261,6 +261,7 @@ export default function TelecoControlPanel({
           Command WS: {commandWsStatus}
         </div>
 
+        <div className="border-t pt-3" />
         <div className="toggle-pill-group">
           <button
             type="button"
