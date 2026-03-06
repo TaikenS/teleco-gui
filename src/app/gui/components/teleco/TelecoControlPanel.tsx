@@ -28,6 +28,7 @@ type Props = {
   canRunMouthTest: boolean;
   commandWsStatus: string;
   showMouthPresetPanel: boolean;
+  showCommandPresetPanel: boolean;
   showRawCommandPanel: boolean;
   showGamepadPanel: boolean;
   showCommandLogPanel: boolean;
@@ -45,12 +46,14 @@ type Props = {
   onArrowRight: () => void;
   onInitializePose: () => void;
   onSetShowMouthPresetPanel: (v: boolean) => void;
+  onSetShowCommandPresetPanel: (v: boolean) => void;
   onSetShowRawCommandPanel: (v: boolean) => void;
   onSetShowGamepadPanel: (v: boolean) => void;
   onSetShowCommandLogPanel: (v: boolean) => void;
   onSetEnableFaceCommandSend: (v: boolean) => void;
   onSetEnableMoveMultiSend: (v: boolean) => void;
   onSendMouthVowel: (v: "a" | "i" | "u" | "e" | "o" | "xn") => void;
+  onSendFaceCommandPreset: (commandFace: "blink_start" | "blink_stop" | "init_face") => void;
   onSetCommandJson: (v: string) => void;
   onSendRawCommandJson: () => void;
   onClearCommandLog: () => void;
@@ -76,6 +79,7 @@ export default function TelecoControlPanel({
   canRunMouthTest,
   commandWsStatus,
   showMouthPresetPanel,
+  showCommandPresetPanel,
   showRawCommandPanel,
   showGamepadPanel,
   showCommandLogPanel,
@@ -93,12 +97,14 @@ export default function TelecoControlPanel({
   onArrowRight,
   onInitializePose,
   onSetShowMouthPresetPanel,
+  onSetShowCommandPresetPanel,
   onSetShowRawCommandPanel,
   onSetShowGamepadPanel,
   onSetShowCommandLogPanel,
   onSetEnableFaceCommandSend,
   onSetEnableMoveMultiSend,
   onSendMouthVowel,
+  onSendFaceCommandPreset,
   onSetCommandJson,
   onSendRawCommandJson,
   onClearCommandLog,
@@ -264,6 +270,15 @@ export default function TelecoControlPanel({
 
           <button
             type="button"
+            className={`toggle-pill ${showCommandPresetPanel ? "is-active" : ""}`}
+            aria-pressed={showCommandPresetPanel}
+            onClick={() => onSetShowCommandPresetPanel(!showCommandPresetPanel)}
+          >
+            コマンドプリセット
+          </button>
+
+          <button
+            type="button"
             className={`toggle-pill ${showRawCommandPanel ? "is-active" : ""}`}
             aria-pressed={showRawCommandPanel}
             onClick={() => onSetShowRawCommandPanel(!showRawCommandPanel)}
@@ -346,6 +361,39 @@ export default function TelecoControlPanel({
                 label={v === "xn" ? "close(xn)" : v}
               />
             ))}
+          </div>
+        </PanelBox>
+      )}
+
+      {showCommandPresetPanel && (
+        <PanelBox className="space-y-2">
+          <div className="text-sm font-semibold">
+            コマンドプリセット（faceCommand）
+          </div>
+          <p className="action-state-hint" role="status" aria-live="polite">
+            {commandConnected
+              ? "テレコ接続済み: プリセットを送信できます"
+              : "テレコ未接続: 接続するとプリセットを送信できます"}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <ActionButton
+              onClick={() => onSendFaceCommandPreset("blink_start")}
+              disabled={!commandConnected}
+              tone="primary"
+              label="blink_start"
+            />
+            <ActionButton
+              onClick={() => onSendFaceCommandPreset("blink_stop")}
+              disabled={!commandConnected}
+              tone="secondary"
+              label="blink_stop"
+            />
+            <ActionButton
+              onClick={() => onSendFaceCommandPreset("init_face")}
+              disabled={!commandConnected}
+              tone="amber"
+              label="init_face"
+            />
           </div>
         </PanelBox>
       )}

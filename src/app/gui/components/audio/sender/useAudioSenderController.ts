@@ -379,10 +379,20 @@ export function useAudioSenderController({
     });
   }
 
+  function sendFaceCommandPreset(
+    commandFace: "blink_start" | "blink_stop" | "init_face",
+  ) {
+    sendCommand({
+      label: "faceCommand",
+      commandFace,
+    });
+  }
+
   const [autoMouthEnabled, setAutoMouthEnabled] = useState(true);
   const [monitorVolume, setMonitorVolume] = useState<number>(0.2);
 
   const [showMouthPresetPanel, setShowMouthPresetPanel] = useState(false);
+  const [showCommandPresetPanel, setShowCommandPresetPanel] = useState(false);
   const [showRawCommandPanel, setShowRawCommandPanel] = useState(false);
   const [showGamepadPanel, setShowGamepadPanel] = useState(false);
   const [showCommandLogPanel, setShowCommandLogPanel] = useState(false);
@@ -576,6 +586,12 @@ export function useAudioSenderController({
     if (savedShowRawCommandPanel != null)
       setShowRawCommandPanel(savedShowRawCommandPanel === "1");
 
+    const savedShowCommandPresetPanel = window.localStorage.getItem(
+      STORAGE_KEYS.showCommandPresetPanel,
+    );
+    if (savedShowCommandPresetPanel != null)
+      setShowCommandPresetPanel(savedShowCommandPresetPanel === "1");
+
     const savedShowGamepadPanel = window.localStorage.getItem(
       STORAGE_KEYS.showGamepadPanel,
     );
@@ -634,6 +650,14 @@ export function useAudioSenderController({
       showMouthPresetPanel ? "1" : "0",
     );
   }, [isTelecoPanel, showMouthPresetPanel]);
+
+  useEffect(() => {
+    if (!isTelecoPanel) return;
+    window.localStorage.setItem(
+      STORAGE_KEYS.showCommandPresetPanel,
+      showCommandPresetPanel ? "1" : "0",
+    );
+  }, [isTelecoPanel, showCommandPresetPanel]);
 
   useEffect(() => {
     if (!isTelecoPanel) return;
@@ -1408,6 +1432,7 @@ export function useAudioSenderController({
       canRunMouthTest: telecoCommand.canRunMouthTest,
       commandWsStatus,
       showMouthPresetPanel,
+      showCommandPresetPanel,
       showRawCommandPanel,
       showGamepadPanel,
       showCommandLogPanel,
@@ -1430,6 +1455,7 @@ export function useAudioSenderController({
       onArrowRight: () => sendArrowMove("right"),
       onInitializePose: sendInitializePose,
       onSetShowMouthPresetPanel: setShowMouthPresetPanel,
+      onSetShowCommandPresetPanel: setShowCommandPresetPanel,
       onSetShowRawCommandPanel: setShowRawCommandPanel,
       onSetShowGamepadPanel: setShowGamepadPanel,
       onSetShowCommandLogPanel: setShowCommandLogPanel,
@@ -1437,6 +1463,7 @@ export function useAudioSenderController({
       onSetEnableMoveMultiSend: setEnableMoveMultiSend,
       onSendMouthVowel: (v: Vowel) =>
         sendMouthVowel(v, { force: true, source: "manual" }),
+      onSendFaceCommandPreset: sendFaceCommandPreset,
       onSetCommandJson: setCommandJson,
       onSendRawCommandJson: sendRawCommandJson,
       onClearCommandLog: () => setCommandLog(""),

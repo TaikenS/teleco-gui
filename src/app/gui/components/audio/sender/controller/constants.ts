@@ -30,6 +30,7 @@ export const STORAGE_KEYS = {
   commandAutoConnect: "teleco.gui.audio.commandAutoConnect",
   sendingActive: "teleco.gui.audio.sendingActive",
   showMouthPresetPanel: "teleco.gui.audio.showMouthPresetPanel",
+  showCommandPresetPanel: "teleco.gui.audio.showCommandPresetPanel",
   showRawCommandPanel: "teleco.gui.audio.showRawCommandPanel",
   showGamepadPanel: "teleco.gui.audio.showGamepadPanel",
   showCommandLogPanel: "teleco.gui.audio.showCommandLogPanel",
