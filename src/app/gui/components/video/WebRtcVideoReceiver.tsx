@@ -531,7 +531,10 @@ export default function WebRtcVideoReceiver({
       !!video && typeof video.requestVideoFrameCallback === "function";
 
     if (video && supportsVideoFrameCallback) {
-      const onVideoFrame = (_now: number, metadata: VideoFrameCallbackMetadata) => {
+      const onVideoFrame = (
+        _now: number,
+        metadata: VideoFrameCallbackMetadata,
+      ) => {
         if (cancelled) return;
 
         updateResolution(video);
@@ -560,8 +563,7 @@ export default function WebRtcVideoReceiver({
         cancelAnimationFrame(animationId);
       }
       if (frameRequestId != null) {
-        const currentVideo = remoteVideoRef.current;
-        currentVideo?.cancelVideoFrameCallback(frameRequestId);
+        video?.cancelVideoFrameCallback(frameRequestId);
       }
     };
   }, []);
@@ -670,7 +672,9 @@ export default function WebRtcVideoReceiver({
         </button>
       </div>
       {showLogPanel && (
-        <PanelLog>{log.length > 0 ? log.join("\n") : "ログはまだありません"}</PanelLog>
+        <PanelLog>
+          {log.length > 0 ? log.join("\n") : "ログはまだありません"}
+        </PanelLog>
       )}
     </div>
   );

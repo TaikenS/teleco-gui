@@ -48,6 +48,12 @@ export const AUDIO_SEND_SIGNALING_PORT_ENV_KEYS = [
   "NEXT_PUBLIC_AUDIO_SENDER_SIGNALING_PORT",
 ];
 
+export const HAS_AUDIO_SEND_SIGNALING_IP_ENV =
+  AUDIO_SEND_SIGNALING_IP_ENV_KEYS.some((key) => !!process.env[key]?.trim());
+
+export const HAS_AUDIO_SEND_SIGNALING_PORT_ENV =
+  AUDIO_SEND_SIGNALING_PORT_ENV_KEYS.some((key) => !!process.env[key]?.trim());
+
 const RAW_DEFAULT_AUDIO_ROOM =
   process.env.NEXT_PUBLIC_GUI_AUDIO_ROOM_ID?.trim() ||
   process.env.NEXT_PUBLIC_DEFAULT_AUDIO_ROOM?.trim() ||
