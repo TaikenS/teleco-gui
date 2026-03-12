@@ -7,13 +7,15 @@
     "build": "next build",
     "start": "cross-env NODE_ENV=production node server.mjs",
     "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run lint && npm run typecheck && npm run build",
     "lint:fix": "eslint . --fix",
     "format": "prettier . --write",
     "deps:check": "npm outdated",
     "deps:update": "npm update",
     "deps:major": "npx npm-check-updates -u && npm install",
     "deps:refresh": "cmd /c \"if exist package-lock.json del /f /q package-lock.json && if exist node_modules rmdir /s /q node_modules\" && npm install",
-    "deps:verify": "npm run lint && npm run build"
+    "deps:verify": "npm run verify"
   },
   "dependencies": {
     "eslint-plugin-prettier": "^5.5.5",

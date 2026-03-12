@@ -7,7 +7,10 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
-import { TELECO_ARROW_EVENT } from "@/app/gui/components/audio/sender/controller/constants";
+import {
+  TELECO_ARROW_EVENT,
+  TELECO_HEADING_EVENT,
+} from "@/app/gui/components/audio/sender/controller/constants";
 import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
 import { PanelDivider, PanelLog } from "@/components/ui/PanelCommon";
 import { getSignalingUrl } from "@/lib/signaling";
@@ -22,6 +25,33 @@ import type { TelecoArrowDirection } from "@/app/gui/components/audio/sender/con
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 const WS_KEEPALIVE_MS = 10_000;
+const VIDEO_CUE_ENV_KEYS = {
+  left: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LEFT_PERCENT",
+  top: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_TOP_PERCENT",
+  width: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_WIDTH_PERCENT",
+  height: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_HEIGHT_PERCENT",
+} as const;
+type VideoCueFrame = {
+  leftPercent: number;
+  topPercent: number;
+  widthPercent: number;
+  heightPercent: number;
+};
+
+const DEFAULT_VIDEO_CUE_FRAME: VideoCueFrame = {
+  leftPercent: 34,
+  topPercent: 10,
+  widthPercent: 32,
+  heightPercent: 74,
+};
+
+function clampPercent(value: number, fallback: number) {
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : fallback;
+}
+
+function parsePercentOr(value: string | undefined, fallback: number) {
+  return clampPercent(Number(value), fallback);
+}
 
 function normalizeWsUrl(input: string) {
   const trimmed = input.trim();
@@ -85,6 +115,9 @@ export default function WebRtcVideoReceiver({
   const [log, setLog] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [playRetryNeeded, setPlayRetryNeeded] = useState(false);
+  const [headingDirection, setHeadingDirection] =
+    useState<TelecoArrowDirection | null>(null);
+  const [cueFrame, setCueFrame] = useState(DEFAULT_VIDEO_CUE_FRAME);
   const [fps, setFps] = useState<number | null>(null);
   const [resolution, setResolution] = useState<{
     width: number;
@@ -96,6 +129,14 @@ export default function WebRtcVideoReceiver({
   const logLine = (line: string) =>
     setLog((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${line}`]);
 
+  const dispatchArrow = (direction: TelecoArrowDirection) => {
+    window.dispatchEvent(
+      new CustomEvent<{ direction: TelecoArrowDirection }>(TELECO_ARROW_EVENT, {
+        detail: { direction },
+      }),
+    );
+  };
+
   const sendArrowByHorizontalPosition = (
     ev: ReactMouseEvent<HTMLDivElement>,
   ) => {
@@ -104,11 +145,7 @@ export default function WebRtcVideoReceiver({
     const direction: TelecoArrowDirection =
       x <= rect.width / 2 ? "left" : "right";
 
-    window.dispatchEvent(
-      new CustomEvent<{ direction: TelecoArrowDirection }>(TELECO_ARROW_EVENT, {
-        detail: { direction },
-      }),
-    );
+    dispatchArrow(direction);
   };
 
   const tryPlayRemoteVideo = async () => {
@@ -491,6 +528,58 @@ export default function WebRtcVideoReceiver({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, signalingWsUrl]);
 
+  useEffect(() => {
+    const onHeading = (ev: Event) => {
+      const detail = (ev as CustomEvent<{ direction?: TelecoArrowDirection }>)
+        .detail;
+      const direction = detail?.direction;
+      if (direction !== "left" && direction !== "right") return;
+      setHeadingDirection(direction);
+    };
+
+    window.addEventListener(TELECO_HEADING_EVENT, onHeading as EventListener);
+    return () => {
+      window.removeEventListener(
+        TELECO_HEADING_EVENT,
+        onHeading as EventListener,
+      );
+    };
+  }, []);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/env-local", { cache: "no-store" });
+        const data = (await res.json()) as {
+          values?: Record<string, string>;
+        };
+        const values = data.values;
+        if (!values) return;
+
+        setCueFrame({
+          leftPercent: parsePercentOr(
+            values[VIDEO_CUE_ENV_KEYS.left],
+            DEFAULT_VIDEO_CUE_FRAME.leftPercent,
+          ),
+          topPercent: parsePercentOr(
+            values[VIDEO_CUE_ENV_KEYS.top],
+            DEFAULT_VIDEO_CUE_FRAME.topPercent,
+          ),
+          widthPercent: parsePercentOr(
+            values[VIDEO_CUE_ENV_KEYS.width],
+            DEFAULT_VIDEO_CUE_FRAME.widthPercent,
+          ),
+          heightPercent: parsePercentOr(
+            values[VIDEO_CUE_ENV_KEYS.height],
+            DEFAULT_VIDEO_CUE_FRAME.heightPercent,
+          ),
+        });
+      } catch {
+        // noop
+      }
+    })();
+  }, []);
+
   // FPS / 解像度計測
   useEffect(() => {
     let animationId: number | null = null;
@@ -568,6 +657,31 @@ export default function WebRtcVideoReceiver({
     };
   }, []);
 
+  const directionCue =
+    headingDirection === "right"
+      ? {
+          frameClass:
+            "border-red-500 bg-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.35)]",
+          frameLabelClass: "bg-red-500 text-white",
+          frameLabel: "右の人を見ています",
+          actionLabel: "左の人を見る",
+          actionDirection: "left" as const,
+          actionAlignClass: "justify-start",
+          actionCardClass: "border-transparent bg-transparent text-white shadow-none",
+        }
+      : headingDirection === "left"
+        ? {
+            frameClass:
+              "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.35)]",
+            frameLabelClass: "bg-blue-500 text-white",
+            frameLabel: "左の人を見ています",
+            actionLabel: "右の人を見る",
+            actionDirection: "right" as const,
+            actionAlignClass: "justify-end",
+            actionCardClass: "border-transparent bg-transparent text-white shadow-none",
+          }
+        : null;
+
   return (
     <div className="space-y-3">
       <div className="status-chip-row">
@@ -632,6 +746,46 @@ export default function WebRtcVideoReceiver({
           autoPlay
           muted
         />
+        {directionCue && (
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <div
+              className={`absolute rounded-2xl border-4 ${directionCue.frameClass}`}
+              style={{
+                left: `${cueFrame.leftPercent}%`,
+                top: `${cueFrame.topPercent}%`,
+                width: `${cueFrame.widthPercent}%`,
+                height: `${cueFrame.heightPercent}%`,
+              }}
+            >
+              <div
+                className={`absolute -top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${directionCue.frameLabelClass}`}
+              >
+                {directionCue.frameLabel}
+              </div>
+            </div>
+
+            <div
+              className={`absolute inset-x-0 bottom-4 flex px-4 ${directionCue.actionAlignClass}`}
+            >
+              <div
+                className={`pointer-events-auto flex max-w-[240px] flex-col gap-2 rounded-2xl border px-3 py-3 shadow-lg backdrop-blur ${directionCue.actionCardClass}`}
+              >
+                <ActionButton
+                  tone="secondary"
+                  className="w-full border-transparent bg-transparent text-white shadow-none [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]"
+                  label={directionCue.actionLabel}
+                  onPointerDown={(ev) => {
+                    ev.stopPropagation();
+                  }}
+                  onClick={(ev) => {
+                    ev.stopPropagation();
+                    dispatchArrow(directionCue.actionDirection);
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
         {playRetryNeeded && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45">
             <ActionButton
