@@ -10,6 +10,12 @@ export const VIDEO_ROOM_STORAGE_KEY = "teleco.gui.video.roomId";
 export const VIDEO_SIGNAL_IP_ADDRESS_STORAGE_KEY =
   "teleco.gui.video.signalingIpAddress";
 export const VIDEO_SIGNAL_PORT_STORAGE_KEY = "teleco.gui.video.signalingPort";
+export const VIDEO_RECEIVER_SHOW_LOOKING_LABEL_STORAGE_KEY =
+  "teleco.gui.video.receiver.showLookingLabel";
+export const VIDEO_RECEIVER_SHOW_DIRECTION_GUIDE_STORAGE_KEY =
+  "teleco.gui.video.receiver.showDirectionGuide";
+export const VIDEO_RECEIVER_SHOW_CUE_FRAME_STORAGE_KEY =
+  "teleco.gui.video.receiver.showCueFrame";
 
 export const PANEL_AUDIO_SENDER_VISIBLE_KEY =
   "teleco.gui.panel.audioSender.visible";

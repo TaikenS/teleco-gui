@@ -11,9 +11,15 @@ import {
   TELECO_ARROW_EVENT,
   TELECO_HEADING_EVENT,
 } from "@/app/gui/components/audio/sender/controller/constants";
+import {
+  VIDEO_RECEIVER_SHOW_CUE_FRAME_STORAGE_KEY,
+  VIDEO_RECEIVER_SHOW_DIRECTION_GUIDE_STORAGE_KEY,
+  VIDEO_RECEIVER_SHOW_LOOKING_LABEL_STORAGE_KEY,
+} from "@/app/gui/constants";
 import { ActionButton, ActionControl } from "@/components/ui/ActionButton";
 import { PanelDivider, PanelLog } from "@/components/ui/PanelCommon";
 import { getSignalingUrl } from "@/lib/signaling";
+import { usePersistentState } from "@/lib/usePersistentState";
 import {
   isKeepaliveSignalMessage,
   isWsIceCandidateMessage,
@@ -117,6 +123,19 @@ export default function WebRtcVideoReceiver({
   const [playRetryNeeded, setPlayRetryNeeded] = useState(false);
   const [headingDirection, setHeadingDirection] =
     useState<TelecoArrowDirection | null>(null);
+  const [showLookingLabel, setShowLookingLabel] = usePersistentState<boolean>(
+    VIDEO_RECEIVER_SHOW_LOOKING_LABEL_STORAGE_KEY,
+    true,
+  );
+  const [showCueFrame, setShowCueFrame] = usePersistentState<boolean>(
+    VIDEO_RECEIVER_SHOW_CUE_FRAME_STORAGE_KEY,
+    true,
+  );
+  const [showDirectionGuide, setShowDirectionGuide] =
+    usePersistentState<boolean>(
+      VIDEO_RECEIVER_SHOW_DIRECTION_GUIDE_STORAGE_KEY,
+      true,
+    );
   const [cueFrame, setCueFrame] = useState(DEFAULT_VIDEO_CUE_FRAME);
   const [fps, setFps] = useState<number | null>(null);
   const [resolution, setResolution] = useState<{
@@ -661,24 +680,26 @@ export default function WebRtcVideoReceiver({
     headingDirection === "right"
       ? {
           frameClass:
-            "border-red-500 bg-red-500/10 shadow-[0_0_0_1px_rgba(239,68,68,0.35)]",
+            "border-red-500 bg-transparent shadow-[0_0_0_1px_rgba(239,68,68,0.35)]",
           frameLabelClass: "bg-red-500 text-white",
           frameLabel: "右の人を見ています",
           actionLabel: "左の人を見る",
           actionDirection: "left" as const,
           actionAlignClass: "justify-start",
           actionCardClass: "border-transparent bg-transparent text-white shadow-none",
+          actionButtonClass: "border-blue-500 text-white",
         }
       : headingDirection === "left"
         ? {
             frameClass:
-              "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.35)]",
+              "border-blue-500 bg-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.35)]",
             frameLabelClass: "bg-blue-500 text-white",
             frameLabel: "左の人を見ています",
             actionLabel: "右の人を見る",
             actionDirection: "right" as const,
             actionAlignClass: "justify-end",
             actionCardClass: "border-transparent bg-transparent text-white shadow-none",
+            actionButtonClass: "border-red-500 text-white",
           }
         : null;
 
@@ -748,42 +769,49 @@ export default function WebRtcVideoReceiver({
         />
         {directionCue && (
           <div className="pointer-events-none absolute inset-0 z-10">
-            <div
-              className={`absolute rounded-2xl border-4 ${directionCue.frameClass}`}
-              style={{
-                left: `${cueFrame.leftPercent}%`,
-                top: `${cueFrame.topPercent}%`,
-                width: `${cueFrame.widthPercent}%`,
-                height: `${cueFrame.heightPercent}%`,
-              }}
-            >
+            {(showCueFrame || showLookingLabel) && (
               <div
-                className={`absolute -top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${directionCue.frameLabelClass}`}
+                className={`absolute rounded-2xl ${showCueFrame ? `border-4 ${directionCue.frameClass}` : ""}`}
+                style={{
+                  left: `${cueFrame.leftPercent}%`,
+                  top: `${cueFrame.topPercent}%`,
+                  width: `${cueFrame.widthPercent}%`,
+                  height: `${cueFrame.heightPercent}%`,
+                }}
               >
-                {directionCue.frameLabel}
+                {showLookingLabel && (
+                  <div
+                    className={`absolute -top-3 left-3 rounded-full px-3 py-1 text-xs font-semibold tracking-wide ${directionCue.frameLabelClass}`}
+                  >
+                    {directionCue.frameLabel}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            <div
-              className={`absolute inset-x-0 bottom-4 flex px-4 ${directionCue.actionAlignClass}`}
-            >
+            {showDirectionGuide && (
               <div
-                className={`pointer-events-auto flex max-w-[240px] flex-col gap-2 rounded-2xl border px-3 py-3 shadow-lg backdrop-blur ${directionCue.actionCardClass}`}
+                className={`absolute inset-x-0 bottom-4 flex px-4 ${directionCue.actionAlignClass}`}
               >
-                <ActionButton
-                  tone="secondary"
-                  className="w-full border-transparent bg-transparent text-white shadow-none [text-shadow:0_1px_2px_rgba(0,0,0,0.85)]"
-                  label={directionCue.actionLabel}
-                  onPointerDown={(ev) => {
-                    ev.stopPropagation();
-                  }}
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    dispatchArrow(directionCue.actionDirection);
-                  }}
-                />
+                <div
+                  className={`pointer-events-auto flex max-w-[240px] flex-col gap-2 rounded-2xl border px-3 py-3 shadow-lg backdrop-blur ${directionCue.actionCardClass}`}
+                >
+                  <button
+                    type="button"
+                    className={`w-full rounded-xl border-2 bg-white/20 px-4 py-2 text-sm font-bold shadow-none backdrop-blur [text-shadow:0_1px_2px_rgba(0,0,0,0.95)] ${directionCue.actionButtonClass}`}
+                    onPointerDown={(ev) => {
+                      ev.stopPropagation();
+                    }}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      dispatchArrow(directionCue.actionDirection);
+                    }}
+                  >
+                    {directionCue.actionLabel}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
         {playRetryNeeded && (
@@ -816,6 +844,30 @@ export default function WebRtcVideoReceiver({
 
       <PanelDivider />
       <div className="toggle-pill-group">
+        <button
+          type="button"
+          className={`toggle-pill ${showCueFrame ? "is-active" : ""}`}
+          aria-pressed={showCueFrame}
+          onClick={() => setShowCueFrame((v) => !v)}
+        >
+          枠表示
+        </button>
+        <button
+          type="button"
+          className={`toggle-pill ${showLookingLabel ? "is-active" : ""}`}
+          aria-pressed={showLookingLabel}
+          onClick={() => setShowLookingLabel((v) => !v)}
+        >
+          誰見てるか表示
+        </button>
+        <button
+          type="button"
+          className={`toggle-pill ${showDirectionGuide ? "is-active" : ""}`}
+          aria-pressed={showDirectionGuide}
+          onClick={() => setShowDirectionGuide((v) => !v)}
+        >
+          左右案内表示
+        </button>
         <button
           type="button"
           className={`toggle-pill ${showLogPanel ? "is-active" : ""}`}
