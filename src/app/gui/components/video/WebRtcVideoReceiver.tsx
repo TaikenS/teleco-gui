@@ -32,16 +32,35 @@ const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 const WS_KEEPALIVE_MS = 10_000;
 const VIDEO_CUE_ENV_KEYS = {
-  left: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LEFT_PERCENT",
-  top: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_TOP_PERCENT",
-  width: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_WIDTH_PERCENT",
-  height: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_HEIGHT_PERCENT",
+  common: {
+    left: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LEFT_PERCENT",
+    top: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_TOP_PERCENT",
+    width: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_WIDTH_PERCENT",
+    height: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_HEIGHT_PERCENT",
+  },
+  lookLeft: {
+    left: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_LEFT_LEFT_PERCENT",
+    top: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_LEFT_TOP_PERCENT",
+    width: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_LEFT_WIDTH_PERCENT",
+    height: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_LEFT_HEIGHT_PERCENT",
+  },
+  lookRight: {
+    left: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_RIGHT_LEFT_PERCENT",
+    top: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_RIGHT_TOP_PERCENT",
+    width: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_RIGHT_WIDTH_PERCENT",
+    height: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LOOK_RIGHT_HEIGHT_PERCENT",
+  },
 } as const;
 type VideoCueFrame = {
   leftPercent: number;
   topPercent: number;
   widthPercent: number;
   heightPercent: number;
+};
+type VideoCueFrames = {
+  common: VideoCueFrame;
+  lookLeft: VideoCueFrame;
+  lookRight: VideoCueFrame;
 };
 
 const DEFAULT_VIDEO_CUE_FRAME: VideoCueFrame = {
@@ -50,6 +69,11 @@ const DEFAULT_VIDEO_CUE_FRAME: VideoCueFrame = {
   widthPercent: 32,
   heightPercent: 74,
 };
+const DEFAULT_VIDEO_CUE_FRAMES: VideoCueFrames = {
+  common: DEFAULT_VIDEO_CUE_FRAME,
+  lookLeft: DEFAULT_VIDEO_CUE_FRAME,
+  lookRight: DEFAULT_VIDEO_CUE_FRAME,
+};
 
 function clampPercent(value: number, fallback: number) {
   return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : fallback;
@@ -57,6 +81,24 @@ function clampPercent(value: number, fallback: number) {
 
 function parsePercentOr(value: string | undefined, fallback: number) {
   return clampPercent(Number(value), fallback);
+}
+
+function readCueFrame(
+  values: Record<string, string>,
+  keys: {
+    left: string;
+    top: string;
+    width: string;
+    height: string;
+  },
+  fallback: VideoCueFrame,
+): VideoCueFrame {
+  return {
+    leftPercent: parsePercentOr(values[keys.left], fallback.leftPercent),
+    topPercent: parsePercentOr(values[keys.top], fallback.topPercent),
+    widthPercent: parsePercentOr(values[keys.width], fallback.widthPercent),
+    heightPercent: parsePercentOr(values[keys.height], fallback.heightPercent),
+  };
 }
 
 function normalizeWsUrl(input: string) {
@@ -136,7 +178,7 @@ export default function WebRtcVideoReceiver({
       VIDEO_RECEIVER_SHOW_DIRECTION_GUIDE_STORAGE_KEY,
       true,
     );
-  const [cueFrame, setCueFrame] = useState(DEFAULT_VIDEO_CUE_FRAME);
+  const [cueFrames, setCueFrames] = useState(DEFAULT_VIDEO_CUE_FRAMES);
   const [fps, setFps] = useState<number | null>(null);
   const [resolution, setResolution] = useState<{
     width: number;
@@ -575,23 +617,15 @@ export default function WebRtcVideoReceiver({
         const values = data.values;
         if (!values) return;
 
-        setCueFrame({
-          leftPercent: parsePercentOr(
-            values[VIDEO_CUE_ENV_KEYS.left],
-            DEFAULT_VIDEO_CUE_FRAME.leftPercent,
-          ),
-          topPercent: parsePercentOr(
-            values[VIDEO_CUE_ENV_KEYS.top],
-            DEFAULT_VIDEO_CUE_FRAME.topPercent,
-          ),
-          widthPercent: parsePercentOr(
-            values[VIDEO_CUE_ENV_KEYS.width],
-            DEFAULT_VIDEO_CUE_FRAME.widthPercent,
-          ),
-          heightPercent: parsePercentOr(
-            values[VIDEO_CUE_ENV_KEYS.height],
-            DEFAULT_VIDEO_CUE_FRAME.heightPercent,
-          ),
+        const common = readCueFrame(
+          values,
+          VIDEO_CUE_ENV_KEYS.common,
+          DEFAULT_VIDEO_CUE_FRAME,
+        );
+        setCueFrames({
+          common,
+          lookLeft: readCueFrame(values, VIDEO_CUE_ENV_KEYS.lookLeft, common),
+          lookRight: readCueFrame(values, VIDEO_CUE_ENV_KEYS.lookRight, common),
         });
       } catch {
         // noop
@@ -702,6 +736,12 @@ export default function WebRtcVideoReceiver({
             actionButtonClass: "border-red-500 text-white",
           }
         : null;
+  const activeCueFrame =
+    headingDirection === "left"
+      ? cueFrames.lookLeft
+      : headingDirection === "right"
+        ? cueFrames.lookRight
+        : cueFrames.common;
 
   return (
     <div className="space-y-3">
@@ -773,10 +813,10 @@ export default function WebRtcVideoReceiver({
               <div
                 className={`absolute rounded-2xl ${showCueFrame ? `border-4 ${directionCue.frameClass}` : ""}`}
                 style={{
-                  left: `${cueFrame.leftPercent}%`,
-                  top: `${cueFrame.topPercent}%`,
-                  width: `${cueFrame.widthPercent}%`,
-                  height: `${cueFrame.heightPercent}%`,
+                  left: `${activeCueFrame.leftPercent}%`,
+                  top: `${activeCueFrame.topPercent}%`,
+                  width: `${activeCueFrame.widthPercent}%`,
+                  height: `${activeCueFrame.heightPercent}%`,
                 }}
               >
                 {showLookingLabel && (
