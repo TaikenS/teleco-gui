@@ -11,13 +11,11 @@ type Args = {
   signalingPort: string;
   roomHint: string;
   shouldAutoSignalRef: MutableRefObject<boolean>;
-  shouldAutoSendingRef: MutableRefObject<boolean>;
-  callIdRef: MutableRefObject<string | null>;
   onError: (message: string) => void;
   onLogConnection: (line: string) => void;
   onLogCommand: (line: string) => void;
   onIncomingMessage: (msg: SignalingMessage) => Promise<void>;
-  onReconnectReadyToSend: () => void;
+  onDisconnected: () => void;
 };
 
 export function useSignalWebSocket({
@@ -26,13 +24,11 @@ export function useSignalWebSocket({
   signalingPort,
   roomHint,
   shouldAutoSignalRef,
-  shouldAutoSendingRef,
-  callIdRef,
   onError,
   onLogConnection,
   onLogCommand,
   onIncomingMessage,
-  onReconnectReadyToSend,
+  onDisconnected,
 }: Args) {
   const signalReconnectTimerRef = useRef<number | null>(null);
   const signalReconnectAttemptRef = useRef(0);
@@ -42,7 +38,7 @@ export function useSignalWebSocket({
   const onLogConnectionRef = useRef(onLogConnection);
   const onLogCommandRef = useRef(onLogCommand);
   const onIncomingMessageRef = useRef(onIncomingMessage);
-  const onReconnectReadyToSendRef = useRef(onReconnectReadyToSend);
+  const onDisconnectedRef = useRef(onDisconnected);
 
   const [signalWsStatus, setSignalWsStatus] = useState<string>("未接続");
 
@@ -51,14 +47,8 @@ export function useSignalWebSocket({
     onLogConnectionRef.current = onLogConnection;
     onLogCommandRef.current = onLogCommand;
     onIncomingMessageRef.current = onIncomingMessage;
-    onReconnectReadyToSendRef.current = onReconnectReadyToSend;
-  }, [
-    onError,
-    onIncomingMessage,
-    onLogCommand,
-    onLogConnection,
-    onReconnectReadyToSend,
-  ]);
+    onDisconnectedRef.current = onDisconnected;
+  }, [onDisconnected, onError, onIncomingMessage, onLogCommand, onLogConnection]);
 
   const clearSignalKeepalive = () => {
     if (signalKeepaliveTimerRef.current != null) {
@@ -144,12 +134,6 @@ export function useSignalWebSocket({
         if (isReconnect) {
           onLogCommandRef.current("Signal WS 再接続");
         }
-
-        if (shouldAutoSendingRef.current && !callIdRef.current) {
-          window.setTimeout(() => {
-            onReconnectReadyToSendRef.current();
-          }, 300);
-        }
       };
 
       ws.onclose = () => {
@@ -157,6 +141,7 @@ export function useSignalWebSocket({
         if (signalWsRef.current === ws) signalWsRef.current = null;
         setSignalWsStatus("切断");
         onLogConnectionRef.current("Signal WS 切断");
+        onDisconnectedRef.current();
 
         if (manualSignalDisconnectRef.current || !shouldAutoSignalRef.current) {
           return;
@@ -233,6 +218,7 @@ export function useSignalWebSocket({
 
     signalWsRef.current = null;
     setSignalWsStatus("切断");
+    onDisconnectedRef.current();
   };
 
   const sendSignal = (obj: unknown) => {
@@ -247,14 +233,6 @@ export function useSignalWebSocket({
       if (!ws || ws.readyState === WebSocket.CLOSED) {
         connectSignalWs(true);
       }
-    }
-
-    if (
-      shouldAutoSendingRef.current &&
-      !callIdRef.current &&
-      signalWsRef.current?.readyState === WebSocket.OPEN
-    ) {
-      onReconnectReadyToSendRef.current();
     }
   };
 

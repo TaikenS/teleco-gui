@@ -7,7 +7,6 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import { STORAGE_KEYS } from "@/app/gui/components/audio/sender/controller/constants";
 import { useMouthAnalyzer } from "@/app/gui/components/audio/sender/controller/useMouthAnalyzer";
 import { AudioCallManager } from "@/lib/webrtc/audioCallManager";
 import type { MicOption } from "@/app/gui/components/audio/sender/controller/types";
@@ -22,7 +21,6 @@ type Args = {
   stopSharedStreamIfUnused: () => void;
   signalWsRef: MutableRefObject<WebSocket | null>;
   callIdRef: MutableRefObject<string | null>;
-  shouldAutoSendingRef: MutableRefObject<boolean>;
   manager: AudioCallManager;
   autoMouthEnabled: boolean;
   monitorVolume: number;
@@ -43,7 +41,6 @@ export function useAudioInputController({
   stopSharedStreamIfUnused,
   signalWsRef,
   callIdRef,
-  shouldAutoSendingRef,
   manager,
   autoMouthEnabled,
   monitorVolume,
@@ -135,8 +132,6 @@ export function useAudioInputController({
     usingForWebrtcRef.current = false;
     stopSharedStreamIfUnused();
     setCallStatus("停止");
-    shouldAutoSendingRef.current = false;
-    window.localStorage.setItem(STORAGE_KEYS.sendingActive, "0");
   };
 
   const startSending = async () => {
@@ -183,8 +178,6 @@ export function useAudioInputController({
       );
 
       callIdRef.current = callId;
-      shouldAutoSendingRef.current = true;
-      window.localStorage.setItem(STORAGE_KEYS.sendingActive, "1");
     } catch (e) {
       console.error(e);
       usingForWebrtcRef.current = false;

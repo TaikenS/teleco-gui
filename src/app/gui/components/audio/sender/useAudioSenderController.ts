@@ -44,7 +44,6 @@ export function useAudioSenderController({
 
   const shouldAutoSignalRef = useRef(false);
   const shouldAutoCommandRef = useRef(false);
-  const shouldAutoSendingRef = useRef(false);
   const didInitDeviceSettingsRef = useRef(false);
   const didEditDeviceSignalSettingsRef = useRef(false);
 
@@ -165,7 +164,6 @@ export function useAudioSenderController({
     stopSharedStreamIfUnused,
     signalWsRef,
     callIdRef,
-    shouldAutoSendingRef,
     manager,
     autoMouthEnabled,
     monitorVolume,
@@ -197,7 +195,6 @@ export function useAudioSenderController({
     didEditDeviceSignalSettingsRef,
     shouldAutoSignalRef,
     shouldAutoCommandRef,
-    shouldAutoSendingRef,
     setRoomHint,
     setSignalingIpAddress,
     setSignalingPort,
@@ -224,17 +221,13 @@ export function useAudioSenderController({
     signalingPort,
     roomHint,
     shouldAutoSignalRef,
-    shouldAutoSendingRef,
-    callIdRef,
     onError: appendError,
     onLogConnection: logSignalConnection,
     onLogCommand: logCommand,
     onIncomingMessage: async (msg) => {
       await manager.handleIncomingMessage(msg);
     },
-    onReconnectReadyToSend: () => {
-      void audioInput.startSending();
-    },
+    onDisconnected: audioInput.stopSending,
   });
 
   useEffect(() => {

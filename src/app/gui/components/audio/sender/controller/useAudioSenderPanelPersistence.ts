@@ -45,7 +45,6 @@ type Args = {
   didEditDeviceSignalSettingsRef: MutableRefObject<boolean>;
   shouldAutoSignalRef: MutableRefObject<boolean>;
   shouldAutoCommandRef: MutableRefObject<boolean>;
-  shouldAutoSendingRef: MutableRefObject<boolean>;
   setRoomHint: Setter<string>;
   setSignalingIpAddress: Setter<string>;
   setSignalingPort: Setter<string>;
@@ -91,7 +90,6 @@ export function useAudioSenderPanelPersistence({
   didEditDeviceSignalSettingsRef,
   shouldAutoSignalRef,
   shouldAutoCommandRef,
-  shouldAutoSendingRef,
   setRoomHint,
   setSignalingIpAddress,
   setSignalingPort,
@@ -239,8 +237,6 @@ export function useAudioSenderPanelPersistence({
       }
 
       shouldAutoSignalRef.current = false;
-      shouldAutoSendingRef.current =
-        window.localStorage.getItem(STORAGE_KEYS.sendingActive) === "1";
       window.localStorage.setItem(STORAGE_KEYS.signalAutoConnect, "0");
       didInitDeviceSettingsRef.current = true;
     })();
