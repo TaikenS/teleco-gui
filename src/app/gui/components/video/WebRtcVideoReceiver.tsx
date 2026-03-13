@@ -31,6 +31,7 @@ import type { TelecoArrowDirection } from "@/app/gui/components/audio/sender/con
 const STUN_SERVERS: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 
 const WS_KEEPALIVE_MS = 10_000;
+const HEADING_CUE_DELAY_MS = 800;
 const VIDEO_CUE_ENV_KEYS = {
   common: {
     left: "NEXT_PUBLIC_VIDEO_SPEECH_CUE_FRAME_LEFT_PERCENT",
@@ -156,6 +157,7 @@ export default function WebRtcVideoReceiver({
   const shouldAutoConnectRef = useRef(false);
   const keepaliveTimerRef = useRef<number | null>(null);
   const disconnectedRecoveryTimerRef = useRef<number | null>(null);
+  const headingCueTimerRef = useRef<number | null>(null);
 
   const [connected, setConnected] = useState(false);
   const [wsBusy, setWsBusy] = useState(false);
@@ -595,11 +597,21 @@ export default function WebRtcVideoReceiver({
         .detail;
       const direction = detail?.direction;
       if (direction !== "left" && direction !== "right") return;
-      setHeadingDirection(direction);
+      if (headingCueTimerRef.current != null) {
+        window.clearTimeout(headingCueTimerRef.current);
+      }
+      headingCueTimerRef.current = window.setTimeout(() => {
+        setHeadingDirection(direction);
+        headingCueTimerRef.current = null;
+      }, HEADING_CUE_DELAY_MS);
     };
 
     window.addEventListener(TELECO_HEADING_EVENT, onHeading as EventListener);
     return () => {
+      if (headingCueTimerRef.current != null) {
+        window.clearTimeout(headingCueTimerRef.current);
+        headingCueTimerRef.current = null;
+      }
       window.removeEventListener(
         TELECO_HEADING_EVENT,
         onHeading as EventListener,
