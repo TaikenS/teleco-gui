@@ -728,7 +728,7 @@ export default function WebRtcVideoReceiver({
           frameClass:
             "border-red-500 bg-transparent shadow-[0_0_0_1px_rgba(239,68,68,0.35)]",
           frameLabelClass: "bg-red-500 text-white",
-          frameLabel: "右の人を見ています",
+          frameLabel: "右の方を見ています",
           actionLabel: "左の人を見る",
           actionDirection: "left" as const,
           actionAlignClass: "justify-start",
@@ -740,7 +740,7 @@ export default function WebRtcVideoReceiver({
             frameClass:
               "border-blue-500 bg-transparent shadow-[0_0_0_1px_rgba(59,130,246,0.35)]",
             frameLabelClass: "bg-blue-500 text-white",
-            frameLabel: "左の人を見ています",
+            frameLabel: "左の方を見ています",
             actionLabel: "右の人を見る",
             actionDirection: "right" as const,
             actionAlignClass: "justify-end",
